@@ -1,5 +1,5 @@
 """
-Example usage of the Moss Python SDK
+Example usage of the Moss - Python Sample
 
 This example demonstrates the complete workflow.
 """
@@ -17,7 +17,7 @@ from inferedge_moss import MossClient, DocumentInfo, AddDocumentsOptions, GetDoc
 
 
 async def example_usage():
-    """Complete example demonstrating all Moss SDK functionality."""
+    """Complete example demonstrating all Moss functionality."""
     print("⭐ Moss API Complete Example ⭐")
 
     # Initialize client with project credentials from environment
