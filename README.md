@@ -1,6 +1,6 @@
-# Moss Python SDK Demo
+# Moss - Python Sample
 
-This project demonstrates the usage of the Moss Python SDK for semantic search and document indexing.
+This project demonstrates the usage of the Moss in Python for semantic search and document indexing.
 
 ## Setup
 
@@ -29,10 +29,11 @@ This project demonstrates the usage of the Moss Python SDK for semantic search a
      MOSS_PROJECT_ID=your_actual_project_id
      MOSS_PROJECT_KEY=your_actual_project_key
      ```
+   - **NOTE:** If you don't have credentials, please fill out the form to request access — [request credentials form](https://form.typeform.com/to/KdqOaXWu) or send an email to [contact@inferedge.dev](mailto:contact@inferedge.dev).
 
 ## Usage
 
-Run the example script to see the complete Moss SDK workflow:
+Run the example script to see the complete Moss workflow:
 
 ```bash
 python example_usage.py
@@ -52,11 +53,11 @@ This will demonstrate:
 
 ## API Reference
 
-The example uses the following Moss SDK features:
+The example uses the following Moss features:
 
 - `MossClient`: Main client for interacting with Moss API
 - Index operations: create, list, get info, delete
 - Document operations: add, get, delete and update
 - Semantic search: load, query
 
-For full API documentation, refer to the official Moss SDK documentation.
+For full API documentation, refer to the official [Moss Documentation](https://docs.inferedge.dev/).
