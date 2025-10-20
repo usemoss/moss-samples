@@ -5,8 +5,8 @@ import ContactForm from "./ContactForm";
 const Contact = () => {
   const contact = config.contact;
   return (
-    <div id={contact.title} className="px-8 sm:px-12 md:px-32 pb-32 flex justify-center align-center flex-col bg-gradient-to-r from-rose-400 via-fuchsia-500 to-indigo-500">
-      <h2 className="mt-12 uppercase font-bold text-center text-white text-bold text-4xl">{contact.title}</h2>
+    <div id={contact.title} className="px-8 sm:px-12 md:px-32 py-20 flex justify-center align-center flex-col bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
+      <h2 className="mt-12 uppercase font-bold text-center text-gray-900 dark:text-white text-4xl mb-8">{contact.title}</h2>
       <ContactForm />
     </div>
   );

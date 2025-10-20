@@ -5,27 +5,34 @@ import Image from "next/image";
 const About = () => {
   const about = config.about;
   return (
-    <div id="About" className="px-8 md:px-32 pb-32 content-center bg-gradient-to-r from-rose-400 via-fuchsia-500 to-indigo-500">
-      <h1 className="pt-12 uppercase font-bold text-center text-white text-bold text-4xl">{about.title}</h1>
-      <div className="mt-16 flex flex-col md:flex-row align-center items-center">
-        <div className="w-1/2 flex justify-center content-center">
+    <div id="About" className="px-8 md:px-32 py-20 content-center bg-gray-50 dark:bg-zinc-950 transition-colors duration-300">
+      <h1 className="pt-12 uppercase font-bold text-center text-gray-900 dark:text-white text-4xl mb-16">
+        {about.title}
+      </h1>
+      <div className="flex flex-col md:flex-row align-center items-center max-w-6xl mx-auto">
+        <div className="w-full md:w-1/2 flex justify-center content-center mb-8 md:mb-0">
           <Image 
             src={about.image} 
             alt="about" 
-            className="shadow-lg" 
+            className="shadow-2xl rounded-2xl border-4 border-fuchsia-500 dark:border-fuchsia-400" 
             width={300} 
             height={300}
-            />
+          />
         </div>
-        <div className="pt-8 md:py-0 md:w-1/2 text-white md:ml-4 text-center md:text-left">
-          <div className="about__primary">
+        <div className="w-full md:w-1/2 md:ml-8 text-center md:text-left">
+          <div className="about__primary text-gray-800 dark:text-gray-200 text-lg leading-relaxed">
             <span>{about.primary}</span>
           </div>
-          <div className="mt-6">
+          <div className="mt-6 text-gray-700 dark:text-gray-300 leading-relaxed">
             <span>{about.secondary}</span>
           </div>
-          <div className="mt-6 mx-auto md:mx-0 border-2 border-white py-1 px-2 w-36 text-center font-bold">
-            <a href={'#'} className="about__resume text-white text-l">View Resume</a>
+          <div className="mt-8 inline-block">
+            <a 
+              href={'#'} 
+              className="inline-block px-6 py-3 text-center font-bold text-white bg-gradient-to-r from-pink-600 via-fuchsia-600 to-purple-600 rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-200"
+            >
+              View Resume
+            </a>
           </div>
         </div>
       </div>

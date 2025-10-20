@@ -10,7 +10,11 @@ function ContactForm() {
 
   const [state, handleSubmit] = useForm(contact.formId);
   if (state.succeeded) {
-      return <p>Thanks for joining!</p>;
+      return (
+        <p className="text-center text-lg text-gray-900 dark:text-white mt-8">
+          Thanks for joining!
+        </p>
+      );
   }
 
   return (
@@ -19,14 +23,14 @@ function ContactForm() {
         onSubmit={handleSubmit} 
         action={`https://formspree.io/f/${contact.formId}`}
         method="post" 
-        className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4"
+        className="bg-white dark:bg-zinc-900 shadow-xl rounded-2xl px-8 pt-6 pb-8 mb-4 border border-gray-200 dark:border-zinc-800 transition-colors duration-300"
       >
-        <div className="mb-4">
-          <label className="block text-gray-700 font-bold mb-2" htmlFor="name">
+        <div className="mb-6">
+          <label className="block text-gray-700 dark:text-gray-300 font-bold mb-2" htmlFor="name">
             Name
           </label>
           <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            className="shadow appearance-none border border-gray-300 dark:border-zinc-700 rounded-lg w-full py-3 px-4 text-gray-700 dark:text-gray-200 bg-white dark:bg-zinc-800 leading-tight focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent transition-colors duration-200"
             id="name"
             type="text"
             name="name"
@@ -35,12 +39,12 @@ function ContactForm() {
             onChange={(event) => setName(event.target.value)}
           />
         </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 font-bold mb-2" htmlFor="email">
+        <div className="mb-6">
+          <label className="block text-gray-700 dark:text-gray-300 font-bold mb-2" htmlFor="email">
             Email
           </label>
           <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            className="shadow appearance-none border border-gray-300 dark:border-zinc-700 rounded-lg w-full py-3 px-4 text-gray-700 dark:text-gray-200 bg-white dark:bg-zinc-800 leading-tight focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent transition-colors duration-200"
             id="email"
             type="email"
             name="email"
@@ -49,12 +53,12 @@ function ContactForm() {
             onChange={(event) => setEmail(event.target.value)}
           />
         </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 font-bold mb-2" htmlFor="message">
+        <div className="mb-6">
+          <label className="block text-gray-700 dark:text-gray-300 font-bold mb-2" htmlFor="message">
             Message
           </label>
           <textarea
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            className="shadow appearance-none border border-gray-300 dark:border-zinc-700 rounded-lg w-full py-3 px-4 text-gray-700 dark:text-gray-200 bg-white dark:bg-zinc-800 leading-tight focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent transition-colors duration-200"
             id="message"
             name="message"
             rows={5}
@@ -72,14 +76,10 @@ function ContactForm() {
           <button 
             type="submit"
             disabled={state.submitting}
-            className="text-lg font-bold p-0.5 mt-6 w-44 bg-gradient-to-r from-rose-400 via-fuchsia-500 to-indigo-500"
+            className="px-8 py-3 text-lg font-bold text-white bg-gradient-to-r from-pink-600 via-fuchsia-600 to-purple-600 rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <div className="bg-white">
-              <span className="block p-2 font-semibold bg-white font-bold bg-gradient-to-r from-rose-400 via-fuchsia-500 to-indigo-500 bg-clip-text text-transparent">
-                Send
-              </span>
-          </div>
-        </button>
+            Send
+          </button>
         </div>
       </form>
     </div>

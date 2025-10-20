@@ -5,7 +5,7 @@ import Image from "next/image";
 const Projects = () => {
   const projects = config.projects;
   return (
-    <section id="Sample Usecase" className="px-8 lg:px-32 py-20 bg-white dark:bg-gray-900">
+    <section id="Sample Usecase" className="px-8 lg:px-32 py-20 bg-white dark:bg-zinc-950 transition-colors duration-300">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl lg:text-5xl font-bold text-center text-gray-900 dark:text-white mb-4">
           {projects.title}
@@ -19,7 +19,7 @@ const Projects = () => {
           {projects.projects.map((item) => (
             <div 
               key={item.title} 
-              className="group bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-200 dark:border-gray-700 hover:scale-105"
+              className="group bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-200 dark:border-zinc-800 hover:scale-105"
             >
               {/* Image */}
               <div className="relative h-48 overflow-hidden">

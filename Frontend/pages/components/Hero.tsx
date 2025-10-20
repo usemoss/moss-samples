@@ -2,10 +2,10 @@ import React from "react";
 
 const Hero = () => {
   return (
-    <section className="relative h-screen bg-white dark:bg-gray-900 overflow-hidden">
-      {/* Animated gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-pink-50 via-white to-purple-50 dark:from-gray-900 dark:via-fuchsia-950 dark:to-gray-900">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-fuchsia-200/30 via-transparent to-transparent dark:from-fuchsia-500/20" />
+    <section className="relative h-screen bg-white dark:bg-zinc-950 overflow-hidden transition-colors duration-300">
+      {/* Subtle accent overlay */}
+      <div className="absolute inset-0 bg-white dark:bg-zinc-950">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-fuchsia-100/20 via-transparent to-transparent dark:from-fuchsia-500/10" />
       </div>
 
       {/* Content */}
