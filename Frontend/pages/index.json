@@ -5,7 +5,7 @@
 			"url": "http://www.example.com/about"
 		},
 		{
-			"title": "Projects",
+			"title": "Sample Usecase",
 			"url": "http://www.example.com/portfolio"
 		}
 	],
@@ -20,7 +20,7 @@
     "secondary": "Extra Information about you! like hobbies and your goals."
   },
   "projects": {
-    "title": "Projects",
+    "title": "Sample Usecase",
     "projects": [
       {
         "title": "Project 1",
