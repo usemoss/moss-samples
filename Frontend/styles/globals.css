@@ -2,26 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Global color variables for light and dark mode */
 :root {
   --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --background-rgb: 255, 255, 255;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+.dark {
+  --foreground-rgb: 255, 255, 255;
+  --background-rgb: 24, 24, 27; /* Charcoal grey-black */
+}
+
+/* Base styles */
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background: rgb(var(--background-rgb));
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Custom utilities for consistent theming */
+@layer utilities {
+  .bg-light {
+    @apply bg-white;
+  }
+  
+  .bg-dark {
+    @apply bg-zinc-950;
+  }
+  
+  .text-light {
+    @apply text-gray-900;
+  }
+  
+  .text-dark {
+    @apply text-gray-100;
+  }
 }

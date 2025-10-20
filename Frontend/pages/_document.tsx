@@ -1,23 +1,14 @@
-import { Html, Head, NextScript } from 'next/document'
-import Header from './components/Header'
-import Hero from './components/Hero'
-import About from './components/About'
-import Projects from './components/Projects'
-import Contact from './components/Contact'
-import Footer from './components/Footer'
+import { Html, Head, Main, NextScript } from 'next/document'
 
 export default function Document() {
   return (
     <Html lang="en" className='scroll-smooth'>
+      <Head>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/devicons/devicon@v2.15.1/devicon.min.css"/>
-      <Head />
-      <body className='text-black'>
+      </Head>
+      <body className='text-gray-900 dark:text-gray-100 bg-white dark:bg-zinc-950 transition-colors duration-300'>
+        <Main />
         <NextScript />
-        <Header />
-        <Hero />
-        <About />
-        <Projects />
-        <Footer />
       </body>
     </Html>
   )

@@ -35,14 +35,14 @@ const ThemeToggle = () => {
   // Avoid hydration mismatch by not rendering until mounted
   if (!mounted) {
     return (
-      <button className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 w-10 h-10" />
+      <button className="p-2 rounded-lg bg-gray-200 dark:bg-zinc-800 w-10 h-10" />
     );
   }
 
   return (
     <button
       onClick={toggleTheme}
-      className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200"
+      className="p-2 rounded-lg bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:hover:bg-zinc-700 transition-colors duration-200"
       aria-label="Toggle theme"
     >
       {isDark ? (
