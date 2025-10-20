@@ -14,10 +14,10 @@
     "subtitle": "I'm the Unknown Developer."
   },
   "about": {
-    "title": "About me",
+    "title": "About",
     "image": "/placeholder.png",
-    "primary": "This is where you can describe about yourself. The more you describe about yourself, the more chances you have!",
-    "secondary": "Extra Information about you! like hobbies and your goals."
+    "primary": "Connect your data once. Moss indexes, packages, and distributes it so semantic search runs where intelligence happens:",
+    "secondary": "in-browser, on the edge, or in the cloud."
   },
   "projects": {
     "title": "Sample Usecase",

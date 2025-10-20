@@ -31,7 +31,7 @@ const About = () => {
               href={'#'} 
               className="inline-block px-6 py-3 text-center font-bold text-white bg-gradient-to-r from-pink-600 via-fuchsia-600 to-purple-600 rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-200"
             >
-              View Resume
+              View Website
             </a>
           </div>
         </div>
