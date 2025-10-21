@@ -105,12 +105,7 @@ async def entrypoint(ctx: agents.JobContext):
     # You can adjust the STT, LLM and TTS settings as needed
     session = AgentSession(
         stt=deepgram.STT(model="nova-2"),
-        llm=openai.LLM.with_azure(
-            azure_deployment=os.getenv("OPENAI_DEPLOYMENT"),
-            azure_endpoint=os.getenv("OPENAI_ENDPOINT"),
-            api_key=os.getenv("OPENAI_API_KEY"),
-            api_version=os.getenv("OPENAI_API_VERSION"),
-        ),
+        llm=openai.LLM(model="gpt-4o-mini"),
         tts=cartesia.TTS(
             model="sonic-2",
             voice="f786b574-daa5-4673-aa0c-cbe3e8534c02",
