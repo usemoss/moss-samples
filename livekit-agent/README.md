@@ -1,84 +1,203 @@
-# LiveKit + Moss Support Voice Agent
+# LiveKit & Moss AI Voice Agent
 
-This project hosts a realtime LiveKit voice assistant that queries a Moss semantic search index of FAQs before responding. Every user request is grounded in Moss results, which are logged and injected directly into the LLM conversation.
+This project demonstrates a real-time, AI-powered voice agent that uses **LiveKit** for audio streaming and **Moss** for semantic search-based knowledge retrieval. It includes the Python agent, a secure token server, and a minimal React frontend.
 
-## Repository layout
+The agent is designed as a customer support assistant. It listens to user queries, searches a knowledge base of FAQs stored in Moss, and uses the search results to generate grounded, accurate responses with an LLM.
+
+## How It Works
+
+The architecture involves four main components running simultaneously:
+
+1.  **LiveKit Server**: The core WebRTC server that manages the real-time audio/video communication session between the user and the agent.
+2.  **AI Voice Agent (`agent.py`)**: A Python application built with the `livekit-agents` framework. It joins the LiveKit room, listens to the user's audio, performs STT, queries Moss, sends the results to an LLM, and speaks the response back using TTS.
+3.  **Token Server (`token_server.py`)**: A lightweight Python Flask server. Its only job is to securely generate temporary access tokens that the frontend needs to connect to the LiveKit room. This prevents exposing your LiveKit API secrets on the client side.
+4.  **React Frontend (`react-app/`)**: A simple, clean web interface that allows a user to connect to the agent. It handles requesting the token, connecting to the LiveKit room, and managing microphone permissions.
+
+### High-Level Flow
+
+```mermaid
+sequenceDiagram
+    participant User (React App)
+    participant Token Server
+    participant LiveKit Server
+    participant AI Agent
+
+    User->>Token Server: Request to join 'support-room'
+    Token Server-->>User: Grant access token (JWT)
+    User->>LiveKit Server: Connect with token
+    LiveKit Server-->>User: Connection successful
+    AI Agent->>LiveKit Server: Connect and join 'support-room'
+    
+    User->>LiveKit Server: Speaks ("What's the return policy?")
+    LiveKit Server->>AI Agent: Streams user's audio
+    
+    AI Agent->>AI Agent: Transcribe audio (STT)
+    AI Agent->>Moss: Search FAQs for "return policy"
+    Moss-->>AI Agent: Return relevant documents
+    AI Agent->>AI Agent: Generate response with LLM + Moss context
+    AI Agent->>AI Agent: Synthesize audio (TTS)
+    
+    AI Agent->>LiveKit Server: Streams agent's audio response
+    LiveKit Server->>User: Plays agent's audio
+```
+
+## Project Structure
 
 ```text
 livekit-agent/
-├── agent.py               # Customer support voice agent with Moss integration
-├── create_index.py        # Helper script to (re)build the FAQ index in Moss
-├── faqs.json              # Local FAQ dataset ingested into Moss
-├── pyproject.toml         # Python dependencies managed with uv
-└── README.md              # You are here
+├── agent.py               # The main AI voice agent logic
+├── token_server.py        # Secure Flask server for LiveKit tokens
+├── create_index.py        # Helper script to build the Moss FAQ index
+├── faqs.json              # The raw FAQ data for the knowledge base
+├── .env.example           # Template for environment variables
+├── pyproject.toml         # Python dependencies
+├── README.md              # This file
+└── react-app/
+    └── src/
+        └── components/
+            └── VoiceAgent.jsx # The core React component
 ```
 
-## Prerequisites
+## Getting Started
 
-- Python 3.9+
-- [uv](https://github.com/astral-sh/uv) for dependency management (`pip install uv`)
-- Microphone and speakers for console testing
-- Accounts and credentials for:
-  - Azure OpenAI (llm)
-  - Deepgram (speech-to-text)
-  - Cartesia (text-to-speech)
-  - Moss (semantic search)
+### Prerequisites
 
-## Installation
+*   Python 3.9+
+*   Node.js 18+ and `npm`
+*   [uv](https://github.com/astral-sh/uv) (`pip install uv`) for Python dependencies
+*   [LiveKit Server](https://docs.livekit.io/oss/deployment/local/) installed locally
+*   API keys for:
+    *   Moss (semantic search)
+    *   An LLM provider (e.g., OpenAI, Azure)
+    *   A STT provider (e.g., Deepgram)
+    *   A TTS provider (e.g., Cartesia)
+
+### 1. Install LiveKit Server
+
+Before running the project, you need to install the LiveKit server.
+
+**macOS (with Homebrew):**
+```bash
+brew install livekit
+```
+
+**Linux or WSL:**
+```bash
+curl -sSL https://get.livekit.io | bash
+```
+
+**Windows:**
+Download the latest release binary from the [LiveKit GitHub Releases page](https://github.com/livekit/livekit/releases).
+
+### 2. Configure Environment Variables
+
+Copy the `.env.example` file to a new file named `.env` and fill in your API credentials.
 
 ```bash
-cd livekit-agent
-uv sync
+cp .env.example .env
 ```
 
-## Configure environment variables
+For local development, the LiveKit variables should be:
 
-Copy `.env.example` to `.env` and populate the values below. All keys are required unless noted.
+```env
+# .env
+LIVEKIT_URL="ws://localhost:7880"
+LIVEKIT_API_KEY="devkey"
+LIVEKIT_API_SECRET="secret"
 
-| Variable | Purpose |
-|----------|---------|
-| `OPENAI_ENDPOINT` | Azure OpenAI endpoint URL, e.g. `https://<resource>.openai.azure.com` |
-| `OPENAI_DEPLOYMENT` | Azure OpenAI chat deployment name |
-| `OPENAI_API_KEY` | Azure OpenAI API key |
-| `OPENAI_API_VERSION` | Azure OpenAI API version (e.g. `2024-02-15-preview`) |
-| `DEEPGRAM_API_KEY` | Deepgram Nova STT key |
-| `CARTESIA_API_KEY` | Cartesia Sonic TTS API key |
-| `MOSS_PROJECT_ID` | Moss project identifier |
-| `MOSS_PROJECT_KEY` | Moss project API key |
-| `MOSS_INDEX_NAME` | Name of the FAQ index to query |
-| `MOSS_MODEL_ID` | *(Optional)* Moss embedding model (defaults to `moss-minilm` if omitted) |
+# Add your Moss, LLM, STT, and TTS keys...
+```
 
-Optional LiveKit cloud deployment variables (`LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`) can stay unset when running in console mode.
+### 3. Install Dependencies
 
-The bundled `.env.example` file already lists these keys—copy it to `.env` and replace the placeholder values with your real credentials.
+Install both the Python and Node.js dependencies.
 
-## Build or refresh the Moss FAQ index
+```bash
+# Install Python dependencies
+uv sync
 
-The agent expects an existing Moss index populated with the FAQ entries from `faqs.json` in this directory. Run the helper whenever you update the dataset:
+# Install frontend dependencies
+cd react-app
+npm install
+cd ..
+```
+
+### 4. Build the Moss Knowledge Base
+
+The agent needs a knowledge base to search. Run the `create_index.py` script to upload the contents of `faqs.json` to your Moss project.
 
 ```bash
 uv run python create_index.py
 ```
 
-The script validates the JSON data, uploads every FAQ to Moss, and reports the index creation response. Ensure your Moss credentials are present in `.env` before running.
+## Running the Full Application
 
-## Run the voice agent locally
+To run the complete system, you need to start all four services in separate terminal windows.
+
+---
+
+### Terminal 1: LiveKit Server
+
+Start the local LiveKit server in development mode.
 
 ```bash
-uv run python agent.py console
+livekit-server --dev
 ```
+> **Note:** You should see `INFO server listening {"addr": "127.0.0.1:7880"}`. Keep this running.
 
-Console mode streams audio through your default microphone and speakers. The assistant:
+---
 
-- Loads the configured Moss index on first use.
-- Executes a Moss query for every user utterance.
-- Logs the query alongside the full text of the top matches.
-- Feeds the Moss results into the LLM context to produce grounded answers.
+### Terminal 2: AI Voice Agent
 
-Stop the session with Ctrl+C.
+Start the Python agent, which will wait to join a room.
 
-## Notes
+```bash
+uv run python agent.py dev
+```
+> **Note:** You should see `Agent started, waiting for room connections...`. Keep this running.
 
-- `agent.py` uses Deepgram Nova-2 for speech-to-text, Azure OpenAI for LLM + Cartesia Sonic-2 for TTS, and Silero VAD for turn detection. Adjust providers in the `AgentSession` definition if needed.
-- Long Moss documents will appear verbatim in the logs and in the context sent to the LLM. Trim or post-process text in `search_support_faqs` if you need shorter prompts.
-- To integrate with LiveKit Cloud instead of console mode, configure the optional LiveKit environment variables and call `uv run python agent.py start` from a deployment environment.
+---
+
+### Terminal 3: Token Server
+
+Start the Flask server to handle token requests from the frontend.
+
+```bash
+python token_server.py
+```
+> **Note:** You should see `🚀 Starting token server on http://localhost:8080`. Keep this running.
+
+---
+
+### Terminal 4: React Frontend
+
+Start the React development server.
+
+```bash
+cd react-app
+npm run dev
+```
+> **Note:** This will open the web application at `http://localhost:3000`.
+
+---
+
+### Using the App
+
+1.  Open `http://localhost:3000` in your browser.
+2.  Click **"Start Call"**. Your browser will ask for microphone permission.
+3.  Once connected, the status will update. Begin speaking.
+4.  The agent will listen, process your query using Moss, and respond with audio.
+5.  Click **"End Call"** when finished.
+
+## Troubleshooting
+
+*   **"Failed to get token" Error**: Ensure the Token Server (Terminal 3) is running on port 8080 and there are no errors in its console.
+*   **"No permissions to access the room" Error**: This usually means the LiveKit Server (Terminal 1) is not running or the `LIVEKIT_` variables in your `.env` file are incorrect.
+*   **No Audio from Agent**: Check the AI Voice Agent console (Terminal 2) for errors. Ensure it successfully connected and subscribed to your audio. Check the browser console (F12) for any audio playback errors.
+*   **Agent Can't Hear You**: Make sure you granted microphone permission in the browser. The "Microphone Level" indicator in the UI should move when you speak.
+
+## Customization
+
+*   **Agent Logic**: Modify `agent.py` to change the agent's instructions (system prompt), the number of search results retrieved from Moss, or to switch LLM/STT/TTS providers.
+*   **Knowledge Base**: Update `faqs.json` with your own data and re-run `uv run python create_index.py` to update the agent's knowledge.
+*   **Frontend UI**: The React UI is located in `react-app/`. The main component is `src/components/VoiceAgent.jsx`. You can modify the styles in the corresponding `.css` file.
