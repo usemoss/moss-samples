@@ -49,7 +49,7 @@ const Hero = () => {
               href="#Projects" 
               className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-fuchsia-600 dark:text-fuchsia-400 transition-all duration-200 rounded-xl border-2 border-fuchsia-600 dark:border-fuchsia-400 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/30"
             >
-              <span className="relative">View Projects</span>
+              <span className="relative">View Use Case</span>
             </a>
           </div>
         </div>
