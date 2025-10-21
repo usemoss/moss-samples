@@ -68,9 +68,10 @@ livekit-agent/
 *   [LiveKit Server](https://docs.livekit.io/oss/deployment/local/) installed locally
 *   API keys for:
     *   Moss (semantic search)
-    *   An LLM provider (e.g., OpenAI, Azure)
+    *   An LLM provider (e.g., OpenAI)
     *   A STT provider (e.g., Deepgram)
     *   A TTS provider (e.g., Cartesia)
+    *   LiveKit Server(can be generated locally)
 
 ### 1. Install LiveKit Server
 
