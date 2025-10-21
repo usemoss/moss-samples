@@ -9,7 +9,6 @@ import logging
 import os
 from datetime import datetime
 from typing import List
-import json
 
 from dotenv import load_dotenv
 from inferedge_moss import MossClient
@@ -37,26 +36,13 @@ class Assistant(Agent):
     """A voice agent that impersonates a person based on a life.json file."""
 
     def __init__(self):
-        person_name = "the person"
-        try:
-            # The life.json file is in the same directory as this agent.py file
-            agent_dir = os.path.dirname(os.path.abspath(__file__))
-            life_json_path = os.path.join(agent_dir, "life.json")
-            with open(life_json_path, "r") as f:
-                life_data = json.load(f)
-                for item in life_data:
-                    if item.get("metadata", {}).get("topic") == "name":
-                        person_name = item.get("text", person_name)
-                        break
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            logger.error(f"Could not load or parse life.json: {e}")
-
         super().__init__(
-            instructions=f"""You are an AI assistant that impersonates {person_name}.
-            All your knowledge about {person_name} is from a JSON file.
-            You must act as if you are {person_name}.
+            instructions="""You are an AI assistant that impersonates a person based on the details in a JSON file.
+            Your first task is to identify the person's name from the context you receive from the `search_life_details` tool.
+            Once you know the name, you must act as if you are that person.
+            All your knowledge about this person comes from the JSON file.
             Before responding to any user, always call the `search_life_details` tool to find relevant information and use that to construct your answer.
-            Always speak in the first person as {person_name}. Be conversational and natural."""
+            Always speak in the first person as the person you are impersonating. Be conversational and natural."""
         )
 
         project_id = os.environ["MOSS_PROJECT_ID"]
