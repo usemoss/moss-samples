@@ -41,6 +41,52 @@ sequenceDiagram
     LiveKit Server->>User: Plays agent's audio
 ```
 
+### React Frontend and LiveKit Integration
+
+The `react-app/` directory contains a simple React application that demonstrates how to build a client for the voice agent. The core logic is in `src/components/VoiceAgent.jsx`. Here’s how it works with the `livekit-client` SDK:
+
+1.  **Token Authentication**: Before connecting, the app fetches a temporary access token from the `token_server.py`. This is a crucial security step to avoid exposing your LiveKit API secrets in the frontend code. The server validates the request and issues a short-lived JSON Web Token (JWT).
+    ```javascript
+    const { token, url } = await getToken(roomName, userName);
+    ```
+
+2.  **Connecting to the Room**:
+    *   It creates an instance of the `Room` class from the `livekit-client` SDK.
+    *   It calls the `room.connect(url, token)` method, passing the WebSocket URL of your LiveKit server and the JWT obtained in the previous step.
+    ```javascript
+    await room.connect(connectionUrl, token);
+    ```
+
+3.  **Publishing the Microphone**:
+    *   To send the user's audio to the agent, the app creates a local audio track using `createLocalAudioTrack()`.
+    *   This track is then published to the room via `room.localParticipant.publishTrack(track)`, making the user's voice available to other participants (i.e., the agent).
+    ```javascript
+    const localAudioTrack = await createLocalAudioTrack();
+    await room.localParticipant.publishTrack(localAudioTrack);
+    ```
+
+4.  **Subscribing to Agent's Audio**:
+    *   The app listens for the `RoomEvent.TrackSubscribed` event. When the AI agent joins and publishes its audio track, this event fires.
+    *   The handler receives the remote `track` object. To play the agent's audio, it attaches the track to a standard HTML `<audio>` element using `track.attach(audioElement)`.
+    ```javascript
+    room.on(RoomEvent.TrackSubscribed, (track, publication) => { ... });
+    track.attach(audioElRef.current);
+    ```
+
+5.  **Handling Speaking Events**:
+    *   The app listens for audio level changes on the agent's track (`Track.Event.AudioLevelChanged`) to determine if the agent is currently speaking.
+    *   This is used to update the UI with an "Agent Speaking" or "Agent Listening" indicator, providing clear visual feedback to the user.
+    ```javascript
+    publication.on(Track.Event.AudioLevelChanged, (level) => { ... });
+    ```
+
+6.  **Managing State**: The application uses React state (`useState`) to track the connection status (`'connecting'`, `'connected'`, `'disconnected'`), which dynamically updates the UI to show the current state of the call.
+    ```javascript
+    const [status, setStatus] = useState('disconnected');
+    ```
+
+This setup provides a robust foundation for building real-time voice experiences on the web.
+
 ## Project Structure
 
 ```text
@@ -189,6 +235,16 @@ npm run dev
 3.  Once connected, the status will update. Begin speaking.
 4.  The agent will listen, process your query using Moss, and respond with audio.
 5.  Click **"End Call"** when finished.
+
+### Talk with the agent on the console
+
+For quick testing and debugging, you can interact with the agent directly in your terminal without needing the full LiveKit setup. The console mode allows you to type messages and receive text-based responses.
+
+```bash
+uv run python agent.py console
+```
+
+Once started, you can type your questions directly into the console and the agent will reply with the response it would have spoken. This is useful for testing the agent's knowledge retrieval and LLM responses without dealing with audio.
 
 ## Troubleshooting
 
