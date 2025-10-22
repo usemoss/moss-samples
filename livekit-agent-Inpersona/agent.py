@@ -17,8 +17,13 @@ from livekit.agents import Agent, AgentSession, RunContext
 from livekit.agents.llm import function_tool
 from livekit.plugins import deepgram, openai, silero, cartesia
 
+from settings import get_settings
+
 # Load environment variables
 load_dotenv(".env")
+
+# Get configuration settings
+settings = get_settings()
 
 
 logger = logging.getLogger("livekit_agent.moss")
@@ -37,18 +42,14 @@ class Assistant(Agent):
 
     def __init__(self):
         super().__init__(
-            instructions="""You are an AI assistant that impersonates a person based on the details in a JSON file.
-            Your first task is to identify the person's name from the context you receive from the `search_life_details` tool.
-            Once you know the name, you must act as if you are that person.
-            All your knowledge about this person comes from the JSON file.
-            Before responding to any user, always call the `search_life_details` tool to find relevant information and use that to construct your answer.
-            Always speak in the first person as the person you are impersonating. Be conversational and natural."""
+            instructions=settings.instructions
         )
 
-        project_id = os.environ["MOSS_PROJECT_ID"]
-        project_key = os.environ["MOSS_PROJECT_KEY"]
-        self._moss_index_name = os.environ["MOSS_INDEX_NAME"]
-        self._moss_client = MossClient(project_id, project_key)
+        self._moss_config = settings.moss
+        self._moss_client = MossClient(
+            os.environ["MOSS_PROJECT_ID"],
+            os.environ["MOSS_PROJECT_KEY"]
+        )
         self._moss_index_loaded = False
 
     @function_tool
@@ -62,11 +63,15 @@ class Assistant(Agent):
         logger.info("Received support query: %s", query)
 
         if not self._moss_index_loaded:
-            logger.info("Loading Moss index '%s'", self._moss_index_name)
-            await self._moss_client.load_index(self._moss_index_name)
+            logger.info("Loading Moss index '%s'", self._moss_config.index_name)
+            await self._moss_client.load_index(self._moss_config.index_name)
             self._moss_index_loaded = True
 
-        results = await self._moss_client.query(self._moss_index_name, query, 6)
+        results = await self._moss_client.query(
+            self._moss_config.index_name,
+            query,
+            self._moss_config.top_k_results
+        )
         logger.info(
             "Moss query completed in %sms", getattr(results, "time_taken_ms", "?")
         )
@@ -101,14 +106,20 @@ class Assistant(Agent):
 async def entrypoint(ctx: agents.JobContext):
     """Entry point for the agent."""
 
-    # Configure the voice pipeline with the essentials
-    # You can adjust the STT, LLM and TTS settings as needed
+    # Configure the voice pipeline using settings
     session = AgentSession(
-        stt=deepgram.STT(model="nova-2"),
-        llm=openai.LLM(model="gpt-4o-mini"),
+        stt=deepgram.STT(
+            model=settings.stt.model,
+            language=settings.stt.language
+        ),
+        llm=openai.LLM(
+            model=settings.llm.model,
+            temperature=settings.llm.temperature
+        ),
         tts=cartesia.TTS(
-            model="sonic-2",
-            voice="f786b574-daa5-4673-aa0c-cbe3e8534c02",
+            model=settings.tts.model,
+            voice=settings.tts.voice,
+            speed=settings.tts.speed
         ),
         vad=silero.VAD.load(),
     )
@@ -121,7 +132,7 @@ async def entrypoint(ctx: agents.JobContext):
 
     # Generate initial greeting
     await session.generate_reply(
-        instructions="Greet the user warmly and ask how you can help."
+        instructions=settings.initial_greeting_instructions
     )
 
 if __name__ == "__main__":

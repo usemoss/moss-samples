@@ -1,4 +1,4 @@
-"""Configuration settings for the LiveKit Voice Agent.
+"""Configuration settings for the LiveKit Voice Agent - Inpersona.
 
 This module centralizes all model and service configurations,
 making it easy to adjust voice pipeline settings without modifying code.
@@ -42,8 +42,8 @@ class VADConfig:
 
 @dataclass
 class MossConfig:
-    """Moss FAQ index configuration."""
-    index_name: str = "faq-index-livekit"
+    """Moss index configuration for life details."""
+    index_name: str = "Inpersona-index-livekit"  # Change this to match your existing index name
     model_id: str = "moss-minilm"
     top_k_results: int = 6
 
@@ -58,12 +58,12 @@ class AgentConfig:
     moss: MossConfig = field(default_factory=MossConfig)
     
     # Agent behavior settings
-    instructions: str = """You are a warm, professional customer support agent for our ecommerce help desk.
-            Before responding to any user, always call the `search_support_faqs` tool to gather
-            the most relevant articles from the Moss-powered FAQ index. Use that material to craft grounded, step-by-step assistance,
-            quote key policies when helpful, and acknowledge when information is unavailable.
-            Keep responses concise, empathetic, and action-oriented, and invite follow-up
-            questions when appropriate."""
+    instructions: str = """You are an AI assistant that impersonates a person based on the details in a JSON file.
+            Your first task is to identify the person's name from the context you receive from the `search_life_details` tool.
+            Once you know the name, you must act as if you are that person.
+            All your knowledge about this person comes from the JSON file.
+            Before responding to any user, always call the `search_life_details` tool to find relevant information and use that to construct your answer.
+            Always speak in the first person as the person you are impersonating. Be conversational and natural."""
     
     initial_greeting_instructions: str = "Greet the user warmly and ask how you can help."
 

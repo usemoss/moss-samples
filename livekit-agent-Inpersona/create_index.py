@@ -15,11 +15,15 @@ from typing import List
 from dotenv import load_dotenv
 from inferedge_moss import DocumentInfo, MossClient
 
+from settings import get_settings
+
 # Load environment variables from the project .env file
 load_dotenv(".env")
 
+# Get configuration settings
+settings = get_settings()
+
 FAQ_PATH = Path(__file__).resolve().parent / "life.json"
-DEFAULT_MODEL_ID = "moss-minilm"
 
 
 def _load_faq_documents() -> List[DocumentInfo]:
@@ -61,33 +65,25 @@ def _load_faq_documents() -> List[DocumentInfo]:
 
 
 async def create_faq_index() -> None:
-    project_id = os.getenv("MOSS_PROJECT_ID")
-    project_key = os.getenv("MOSS_PROJECT_KEY")
-    index_name = os.getenv("MOSS_INDEX_NAME")
-    model_id = os.getenv("MOSS_MODEL_ID", DEFAULT_MODEL_ID)
-
-    missing = [
-        name
-        for name, value in {
-            "MOSS_PROJECT_ID": project_id,
-            "MOSS_PROJECT_KEY": project_key,
-            "MOSS_INDEX_NAME": index_name,
-        }.items()
-        if not value
-    ]
-    if missing:
-        raise EnvironmentError(
-            "Missing required Moss environment variables: " + ", ".join(missing)
-        )
-
+    moss_config = settings.moss
     documents = _load_faq_documents()
 
-    client = MossClient(project_id, project_key)
+    client = MossClient(
+        os.environ["MOSS_PROJECT_ID"],
+        os.environ["MOSS_PROJECT_KEY"]
+    )
 
-    print(f"Creating Moss index '{index_name}' with {len(documents)} FAQ entries using {model_id}...")
-    created = await client.create_index(index_name, documents, model_id)
+    print(
+        f"Creating Moss index '{moss_config.index_name}' with {len(documents)} "
+        f"life detail entries using {moss_config.model_id}..."
+    )
+    created = await client.create_index(
+        moss_config.index_name,
+        documents,
+        moss_config.model_id
+    )
     print("Index creation response:", created)
-    print("FAQ index ready for use!")
+    print("Life details index ready for use!")
 
 
 if __name__ == "__main__":

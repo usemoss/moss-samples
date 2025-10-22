@@ -94,6 +94,7 @@ livekit-agent/
 ├── agent.py               # The main AI voice agent logic
 ├── token_server.py        # Secure Flask server for LiveKit tokens
 ├── create_index.py        # Helper script to build the Moss FAQ index
+├── settings.py            # Configuration settings for models and services
 ├── faqs.json              # The raw FAQ data for the knowledge base
 ├── .env.example           # Template for environment variables
 ├── pyproject.toml         # Python dependencies
@@ -102,6 +103,60 @@ livekit-agent/
     └── src/
         └── components/
             └── VoiceAgent.jsx # The core React component
+```
+
+## Configuration
+
+The project uses a centralized `settings.py` file to manage all model and service configurations. This makes it easy to customize the agent without modifying the core code.
+
+### Available Settings
+
+The settings file includes configurations for:
+
+*   **STT (Speech-to-Text)**:
+    *   `provider`: Default is "deepgram"
+    *   `model`: Default is "nova-2"
+    *   `language`: Default is "en"
+
+*   **LLM (Large Language Model)**:
+    *   `provider`: Default is "openai"
+    *   `model`: Default is "gpt-4o-mini"
+    *   `temperature`: Default is 0.7
+    *   `max_tokens`: Optional, not set by default
+
+*   **TTS (Text-to-Speech)**:
+    *   `provider`: Default is "cartesia"
+    *   `model`: Default is "sonic-2"
+    *   `voice`: Default voice ID for Cartesia
+    *   `speed`: Default is 1.0
+
+*   **VAD (Voice Activity Detection)**:
+    *   `provider`: Default is "silero"
+
+*   **Moss (Knowledge Base)**:
+    *   `index_name`: Default is "support-faqs" (configure in settings.py)
+    *   `model_id`: Default is "moss-minilm"
+    *   `top_k_results`: Number of results to retrieve (default: 6)
+    *   Note: Moss credentials (`MOSS_PROJECT_ID`, `MOSS_PROJECT_KEY`) are read from environment variables in `.env`
+
+### Customizing Settings
+
+You can customize the settings in two ways:
+
+1.  **Modify `settings.py` directly**: Change the default values in the dataclass definitions.
+
+2.  **Use environment variables for secrets**: API keys and credentials (like `MOSS_PROJECT_ID`, `MOSS_PROJECT_KEY`) should be stored in your `.env` file and are not part of the settings configuration.
+
+Example modifications in `settings.py`:
+
+```python
+@dataclass
+class LLMConfig:
+    """Large Language Model configuration."""
+    provider: str = "openai"
+    model: str = "gpt-4"  # Changed from gpt-4o-mini
+    temperature: float = 0.5  # Changed from 0.7
+    max_tokens: Optional[int] = 2000  # Added token limit
 ```
 
 ## Getting Started
@@ -255,6 +310,7 @@ Once started, you can type your questions directly into the console and the agen
 
 ## Customization
 
-*   **Agent Logic**: Modify `agent.py` to change the agent's instructions (system prompt), the number of search results retrieved from Moss, or to switch LLM/STT/TTS providers.
+*   **Model Configuration**: Use `settings.py` to easily customize all model settings (LLM, STT, TTS, etc.) without modifying the main agent code. See the [Configuration](#configuration) section for details.
+*   **Agent Behavior**: Modify the `instructions` and `initial_greeting_instructions` fields in `settings.py` to change the agent's personality and behavior.
 *   **Knowledge Base**: Update `faqs.json` with your own data and re-run `uv run python create_index.py` to update the agent's knowledge.
 *   **Frontend UI**: The React UI is located in `react-app/`. The main component is `src/components/VoiceAgent.jsx`. You can modify the styles in the corresponding `.css` file.
