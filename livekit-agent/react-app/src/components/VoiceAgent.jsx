@@ -6,7 +6,7 @@ import './VoiceAgent.css'
 const TOKEN_SERVER_URL = 'http://localhost:8080/get-token'
 
 function VoiceAgent() {
-  const [status, setStatus] = useState('disconnected') // 'disconnected', 'connecting', 'connected', 'error'
+  const [status, setStatus] = useState('disconnected') // 'disconnected', 'connecting', 'connected', 'disconnecting', 'error'
   const [userName, setUserName] = useState('customer-' + Math.random().toString(36).substring(7))
   const [roomName, setRoomName] = useState('support-room')
   const [audioLevel, setAudioLevel] = useState(0)
@@ -112,6 +112,13 @@ function VoiceAgent() {
 
       room.on(RoomEvent.Disconnected, (reason) => {
         console.log('Disconnected from room, reason:', reason)
+
+        // Explicitly clean up the audio element to prevent stale tracks
+        if (audioElRef.current) {
+          audioElRef.current.pause()
+          audioElRef.current.srcObject = null
+        }
+
         setStatus('disconnected')
         setIsAgentSpeaking(false)
         roomRef.current = null
@@ -134,9 +141,23 @@ function VoiceAgent() {
    * Disconnects from the room.
    */
   const disconnectFromRoom = async () => {
-    if (roomRef.current) {
-      await roomRef.current.disconnect()
-      // State updates are handled by the 'Disconnected' room event
+    // Prevent multiple disconnects
+    if (roomRef.current && status !== 'disconnecting') {
+      setStatus('disconnecting') // <-- SET THE NEW STATE
+      try {
+        await roomRef.current.disconnect()
+        // State updates (to 'disconnected') are handled by the 'Disconnected' room event
+      } catch (error) {
+        console.error("Error during disconnect:", error)
+        // Manually reset state if disconnect fails
+        setStatus('disconnected')
+        setIsAgentSpeaking(false)
+        roomRef.current = null
+        if (audioElRef.current) {
+          audioElRef.current.pause()
+          audioElRef.current.srcObject = null
+        }
+      }
     }
   }
 
@@ -163,6 +184,7 @@ function VoiceAgent() {
             <span className="status-text">
               {status === 'disconnected' && 'Disconnected'}
               {status === 'connecting' && 'Connecting...'}
+              {status === 'disconnecting' && 'Disconnecting...'}
               {status === 'connected' && 'Connected - Speak freely!'}
               {status.startsWith('error') && status}
             </span>
@@ -221,7 +243,7 @@ function VoiceAgent() {
             <button
               className="connect-button"
               onClick={connectToRoom}
-              disabled={status === 'connecting'}
+              disabled={status === 'connecting' || status === 'disconnecting'}
             >
               {status === 'connecting' ? 'Connecting...' : 'Start Call'}
             </button>
@@ -229,8 +251,9 @@ function VoiceAgent() {
             <button
               className="disconnect-button"
               onClick={disconnectFromRoom}
+              disabled={status === 'disconnecting'}
             >
-              End Call
+              {status === 'disconnecting' ? 'Ending Call...' : 'End Call'}
             </button>
           )}
         </div>
