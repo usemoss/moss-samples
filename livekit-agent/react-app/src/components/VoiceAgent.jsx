@@ -11,11 +11,29 @@ function VoiceAgent() {
   const [roomName, setRoomName] = useState('support-room')
   const [audioLevel, setAudioLevel] = useState(0)
   const [isAgentSpeaking, setIsAgentSpeaking] = useState(false)
+  const [agentReady, setAgentReady] = useState(false)
   
   const roomRef = useRef(null)
   const audioElRef = useRef(null) // Ref for our persistent <audio> element
+  const audioContextRef = useRef(null)
 
   const isConnected = status === 'connected';
+
+  // Poll for agent readiness
+  useEffect(() => {
+    const checkReady = async () => {
+      try {
+        const res = await fetch('http://localhost:8080/ready')
+        const data = await res.json()
+        setAgentReady(data.ready)
+      } catch (e) {
+        setAgentReady(false)
+      }
+    }
+    const interval = setInterval(checkReady, 2000)
+    checkReady()
+    return () => clearInterval(interval)
+  }, [])
 
   /**
    * Fetches a token from the Python token server.
@@ -72,9 +90,9 @@ function VoiceAgent() {
       // Monitor user's microphone audio level for UI feedback
       const audioTrack = localAudioTrack.mediaStreamTrack
       if (audioTrack) {
-        const audioContext = new AudioContext()
-        const analyser = audioContext.createAnalyser()
-        const microphone = audioContext.createMediaStreamSource(new MediaStream([audioTrack]))
+        audioContextRef.current = new AudioContext()
+        const analyser = audioContextRef.current.createAnalyser()
+        const microphone = audioContextRef.current.createMediaStreamSource(new MediaStream([audioTrack]))
         const dataArray = new Uint8Array(analyser.frequencyBinCount)
         analyser.fftSize = 256
         microphone.connect(analyser)
@@ -113,15 +131,11 @@ function VoiceAgent() {
       room.on(RoomEvent.Disconnected, (reason) => {
         console.log('Disconnected from room, reason:', reason)
 
-        // Explicitly clean up the audio element to prevent stale tracks
-        if (audioElRef.current) {
-          audioElRef.current.pause()
-          audioElRef.current.srcObject = null
-        }
+        // Use enhanced cleanup
+        cleanupRoom()
 
         setStatus('disconnected')
         setIsAgentSpeaking(false)
-        roomRef.current = null
       })
 
     } catch (error) {
@@ -138,12 +152,32 @@ function VoiceAgent() {
   }
 
   /**
+   * Enhanced cleanup function for proper resource management
+   */
+  const cleanupRoom = () => {
+    if (roomRef.current) {
+      roomRef.current.removeAllListeners()
+      roomRef.current.disconnect()
+      roomRef.current = null
+    }
+    if (audioElRef.current) {
+      audioElRef.current.pause()
+      audioElRef.current.srcObject = null
+      audioElRef.current.load()
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close()
+      audioContextRef.current = null
+    }
+  }
+
+  /**
    * Disconnects from the room.
    */
   const disconnectFromRoom = async () => {
     // Prevent multiple disconnects
     if (roomRef.current && status !== 'disconnecting') {
-      setStatus('disconnecting') // <-- SET THE NEW STATE
+      setStatus('disconnecting')
       try {
         await roomRef.current.disconnect()
         // State updates (to 'disconnected') are handled by the 'Disconnected' room event
@@ -152,11 +186,7 @@ function VoiceAgent() {
         // Manually reset state if disconnect fails
         setStatus('disconnected')
         setIsAgentSpeaking(false)
-        roomRef.current = null
-        if (audioElRef.current) {
-          audioElRef.current.pause()
-          audioElRef.current.srcObject = null
-        }
+        cleanupRoom()
       }
     }
   }
@@ -164,9 +194,7 @@ function VoiceAgent() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (roomRef.current) {
-        roomRef.current.disconnect()
-      }
+      cleanupRoom()
     }
   }, [])
 
@@ -182,7 +210,7 @@ function VoiceAgent() {
           <div className={`status-indicator ${status}`}>
             <span className="status-dot"></span>
             <span className="status-text">
-              {status === 'disconnected' && 'Disconnected'}
+              {status === 'disconnected' && (agentReady ? 'Ready to connect' : 'Agent initializing...')}
               {status === 'connecting' && 'Connecting...'}
               {status === 'disconnecting' && 'Disconnecting...'}
               {status === 'connected' && 'Connected - Speak freely!'}
@@ -243,9 +271,10 @@ function VoiceAgent() {
             <button
               className="connect-button"
               onClick={connectToRoom}
-              disabled={status === 'connecting' || status === 'disconnecting'}
+              disabled={status === 'connecting' || status === 'disconnecting' || !agentReady}
             >
-              {status === 'connecting' ? 'Connecting...' : 'Start Call'}
+              {status === 'connecting' ? 'Connecting...' : 
+               !agentReady ? 'Agent initializing...' : 'Start Call'}
             </button>
           ) : (
             <button

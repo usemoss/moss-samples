@@ -130,9 +130,11 @@ RUN mkdir -p /var/log/supervisor
 EXPOSE 7880 7881 7882/udp 8080 4173
 
 # Health check - validates all critical services are responding
-# Start period allows time for agent model loading (~20s) and service startup
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD netcat -z localhost 7880 && netcat -z localhost 8080 && netcat -z localhost 4173 || exit 1
+# Start period allows time for agent model loading (~30s) and service startup
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -sf http://localhost:8080/ready && \
+        netcat -z localhost 7880 && \
+        netcat -z localhost 4173 || exit 1
 
 # Start supervisord to manage all services (LiveKit, Agent, Token Server, React)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

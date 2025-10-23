@@ -72,6 +72,14 @@ def health_check():
     return jsonify({"status": "ok"})
 
 
+@app.route("/ready", methods=["GET"])
+def check_readiness():
+    """Check if the agent is fully initialized and ready for connections."""
+    if os.path.exists("/tmp/agent_ready"):
+        return jsonify({"ready": True, "status": "ok"})
+    return jsonify({"ready": False, "status": "initializing"}), 503
+
+
 if __name__ == "__main__":
     if not all([LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET]):
         print("⚠️  Warning: LiveKit environment variables are missing or incomplete.")

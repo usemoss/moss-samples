@@ -8,6 +8,7 @@ Requires only OpenAI and Deepgram API keys.
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import List
 
 from dotenv import load_dotenv
@@ -25,7 +26,6 @@ load_dotenv(".env")
 # Get configuration settings
 settings = get_settings()
 
-
 logger = logging.getLogger("livekit_agent.moss")
 if not logger.handlers:
     handler = logging.StreamHandler()
@@ -35,6 +35,10 @@ if not logger.handlers:
     logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 logger.propagate = False
+
+# Create readiness marker when agent module loads
+Path("/tmp/agent_ready").touch()
+logger.info("Agent module loaded and ready marker created")
 
 
 class Assistant(Agent):
@@ -124,16 +128,25 @@ async def entrypoint(ctx: agents.JobContext):
         vad=silero.VAD.load(),
     )
 
-    # Start the session
-    await session.start(
-        room=ctx.room,
-        agent=Assistant()
-    )
+    try:
+        # Start the session
+        await session.start(
+            room=ctx.room,
+            agent=Assistant()
+        )
 
-    # Generate initial greeting
-    await session.generate_reply(
-        instructions=settings.initial_greeting_instructions
-    )
+        # Generate initial greeting
+        await session.generate_reply(
+            instructions=settings.initial_greeting_instructions
+        )
+        
+        logger.info("Agent session started successfully")
+        
+    except Exception as e:
+        logger.error(f"Session error: {e}")
+        raise
+    finally:
+        logger.info("Agent session ended, ready for next connection")
 
 if __name__ == "__main__":
     # Run the agent
