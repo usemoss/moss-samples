@@ -1,11 +1,15 @@
 # Monolithic Docker Image for LiveKit Voice Agent
 # Includes: LiveKit Server, Python Agent, Token Server, and React Frontend
 # syntax=docker/dockerfile:1
+#
+# Note: --platform=linux/amd64 is required because inferedge-moss-core
+# only provides prebuilt wheels for x86_64 Linux, ARM Mac, and Windows
+# but not for Linux ARM64 (aarch64). This ensures compatibility.
 
 # =============================================================================
 # Stage 1: Build React Frontend
 # =============================================================================
-# We must force amd64 here so the build stage matches the final stage
+# Force amd64 platform for inferedge-moss-core compatibility (see note above)
 FROM --platform=linux/amd64 node:20-slim AS frontend-builder
 
 WORKDIR /build
@@ -20,7 +24,7 @@ RUN npm run build
 # =============================================================================
 # Stage 2: Final Runtime Image
 # =============================================================================
-# We must force amd64 here to get the correct Python package dependencies
+# Force amd64 platform for inferedge-moss-core compatibility (see note above)
 FROM --platform=linux/amd64 debian:bookworm-slim
 
 # Prevent interactive prompts during installation
@@ -28,6 +32,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PATH="/root/.local/bin:$PATH" \
     UV_SYSTEM_PYTHON=1
+
+# Production LiveKit Configuration (required environment variables):
+# LIVEKIT_API_KEY - API key for LiveKit server authentication
+# LIVEKIT_API_SECRET - API secret for LiveKit server authentication  
+# LIVEKIT_TURN_URL - TURN server URL for WebRTC connectivity (e.g., turn:your-turn-server.com:3478)
+# LIVEKIT_TURN_USERNAME - TURN server username (if required)
+# LIVEKIT_TURN_CREDENTIAL - TURN server password (if required)
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -89,6 +100,7 @@ RUN if [ -f uv.lock ]; then \
         "inferedge-moss" \
         "flask>=3.0.0" \
         "flask-cors>=4.0.0" \
+        "gunicorn>=21.0.0" \
         "livekit>=0.17.0"; \
     fi
 
@@ -110,11 +122,17 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 RUN mkdir -p /var/log/supervisor
 
 # Expose all required ports
+# 7880: LiveKit HTTP API
+# 7881: LiveKit WebSocket
+# 7882: LiveKit UDP (TURN)
+# 8080: Token Server (Flask/Gunicorn)
+# 4173: React Frontend (http-server)
 EXPOSE 7880 7881 7882/udp 8080 4173
 
-# Health check
-# HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-#     CMD netcat -z localhost 7880 && netcat -z localhost 8080 && netcat -z localhost 4173 || exit 1
+# Health check - validates all critical services are responding
+# Start period allows time for agent model loading (~20s) and service startup
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD netcat -z localhost 7880 && netcat -z localhost 8080 && netcat -z localhost 4173 || exit 1
 
-# Start supervisord
+# Start supervisord to manage all services (LiveKit, Agent, Token Server, React)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

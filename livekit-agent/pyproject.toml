@@ -15,6 +15,7 @@ dependencies = [
     "inferedge-moss",
     "flask>=3.0.0",
     "flask-cors>=4.0.0",
+    "gunicorn>=21.0.0",
     "livekit>=0.17.0",
 ]
 
