@@ -5,6 +5,7 @@
 # =============================================================================
 # Stage 1: Build React Frontend
 # =============================================================================
+# We must force amd64 here so the build stage matches the final stage
 FROM --platform=linux/amd64 node:20-slim AS frontend-builder
 
 WORKDIR /build
@@ -19,6 +20,7 @@ RUN npm run build
 # =============================================================================
 # Stage 2: Final Runtime Image
 # =============================================================================
+# We must force amd64 here to get the correct Python package dependencies
 FROM --platform=linux/amd64 debian:bookworm-slim
 
 # Prevent interactive prompts during installation
@@ -29,13 +31,15 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
+    # Supervisor for process management
+    supervisor \
     # Python build dependencies
     python3.11 \
     python3-pip \
     python3-dev \
     gcc \
     g++ \
-    # Node.js for running React app
+    # Node.js dependencies
     curl \
     # Network utilities for health checks
     netcat-openbsd \
@@ -56,6 +60,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
     && ln -s /root/.cargo/bin/uv /usr/local/bin/uv
 
 # Download and install LiveKit server binary
+# This amd64 binary is correct because we are in an amd64 container
 RUN wget -q https://github.com/livekit/livekit/releases/download/v1.7.2/livekit_1.7.2_linux_amd64.tar.gz -O /tmp/livekit.tar.gz \
     && tar -xzf /tmp/livekit.tar.gz -C /tmp/ \
     && mv /tmp/livekit-server /usr/local/bin/livekit-server \
@@ -69,7 +74,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock* ./
 
 # Install Python dependencies using UV
-# First try with uv.lock if it exists, otherwise install from pyproject.toml
+# This will now succeed because we're on an amd64 (x86_64) platform
 RUN if [ -f uv.lock ]; then \
         uv sync --no-dev; \
     else \
@@ -98,68 +103,18 @@ COPY --from=frontend-builder /build/package*.json /app/react-app/
 # Install a simple HTTP server to serve the React app
 RUN npm install -g http-server
 
+# --- Supervisor Configuration ---
+# Copy the supervisor config file
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# Create the log directory for supervisor
+RUN mkdir -p /var/log/supervisor
+
 # Expose all required ports
-# 7880: LiveKit signaling (WebSocket)
-# 7881: LiveKit RTC over TCP
-# 7882: LiveKit RTC over UDP
-# 8080: Token server
-# 4173: React frontend
 EXPOSE 7880 7881 7882/udp 8080 4173
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD netcat -z localhost 7880 && netcat -z localhost 8080 && netcat -z localhost 4173 || exit 1
+# HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+#     CMD netcat -z localhost 7880 && netcat -z localhost 8080 && netcat -z localhost 4173 || exit 1
 
-# Start all services using inline bash
-# - LiveKit server runs in background
-# - Token server runs in background  
-# - Python agent runs in background
-# - React app runs in foreground (keeps container alive)
-CMD ["/bin/bash", "-c", "\
-    set -e; \
-    echo '🚀 Starting LiveKit Server...'; \
-    livekit-server --dev \
-        --bind 0.0.0.0 \
-        --node-ip 127.0.0.1 \
-        --udp-port 7882 \
-        > /var/log/livekit.log 2>&1 & \
-    LIVEKIT_PID=$!; \
-    echo '⏳ Waiting for LiveKit server to be ready...'; \
-    for i in {1..30}; do \
-        if netcat -z localhost 7880 2>/dev/null; then \
-            echo '✅ LiveKit server is ready'; \
-            break; \
-        fi; \
-        if [ $i -eq 30 ]; then \
-            echo '❌ LiveKit server failed to start'; \
-            exit 1; \
-        fi; \
-        sleep 1; \
-    done; \
-    echo '🚀 Starting Token Server...'; \
-    uv run python token_server.py > /var/log/token-server.log 2>&1 & \
-    TOKEN_PID=$!; \
-    sleep 2; \
-    echo '🚀 Starting AI Agent...'; \
-    uv run python agent.py start > /var/log/agent.log 2>&1 & \
-    AGENT_PID=$!; \
-    sleep 2; \
-    echo '🚀 Starting React Frontend...'; \
-    cd react-app/dist && http-server -p 4173 -a 0.0.0.0 --silent & \
-    REACT_PID=$!; \
-    echo ''; \
-    echo '✅ All services started successfully!'; \
-    echo ''; \
-    echo '📍 Service URLs:'; \
-    echo '   - LiveKit Server: ws://localhost:7880'; \
-    echo '   - Token Server: http://localhost:8080'; \
-    echo '   - React Frontend: http://localhost:4173'; \
-    echo ''; \
-    echo '📋 Logs available at:'; \
-    echo '   - LiveKit: /var/log/livekit.log'; \
-    echo '   - Token Server: /var/log/token-server.log'; \
-    echo '   - Agent: /var/log/agent.log'; \
-    echo ''; \
-    trap 'echo \"Shutting down services...\"; kill $LIVEKIT_PID $TOKEN_PID $AGENT_PID $REACT_PID 2>/dev/null; exit 0' SIGTERM SIGINT; \
-    wait $REACT_PID; \
-"]
+# Start supervisord
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
