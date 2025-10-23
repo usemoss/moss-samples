@@ -9,14 +9,13 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
 from dotenv import load_dotenv
 from inferedge_moss import MossClient
 from livekit import agents
 from livekit.agents import Agent, AgentSession, RunContext
 from livekit.agents.llm import function_tool
-from livekit.plugins import deepgram, openai, silero, cartesia
+from livekit.plugins import cartesia, deepgram, openai, silero
 
 from settings import get_settings
 
@@ -36,25 +35,93 @@ if not logger.handlers:
 logger.setLevel(logging.INFO)
 logger.propagate = False
 
-# Create readiness marker when agent module loads
-Path("/tmp/agent_ready").touch()
-logger.info("Agent module loaded and ready marker created")
+async def verify_components_ready():
+    """Verify all voice pipeline components are loaded and ready."""
+    try:
+        logger.info("Verifying all voice pipeline components...")
+
+        # Initialize STT
+        logger.info("Initializing STT (Deepgram)...")
+        stt = deepgram.STT(
+            model=settings.stt.model,
+            language=settings.stt.language
+        )
+        logger.info("✓ STT component ready")
+
+        # Initialize LLM
+        logger.info("Initializing LLM (OpenAI)...")
+        llm = openai.LLM(
+            model=settings.llm.model,
+            temperature=settings.llm.temperature
+        )
+        logger.info("✓ LLM component ready")
+
+        # Initialize TTS
+        logger.info("Initializing TTS (Cartesia)...")
+        tts = cartesia.TTS(
+            model=settings.tts.model,
+            voice=settings.tts.voice,
+            speed=settings.tts.speed
+        )
+        logger.info("✓ TTS component ready")
+
+        # Initialize VAD
+        logger.info("Initializing VAD (Silero)...")
+        vad = silero.VAD.load()
+        logger.info("✓ VAD component ready")
+
+        # Initialize Moss client AND load index
+        logger.info("Initializing Moss client and loading index...")
+        moss_client = MossClient(
+            os.environ["MOSS_PROJECT_ID"],
+            os.environ["MOSS_PROJECT_KEY"]
+        )
+        await moss_client.load_index(settings.moss.index_name)
+        logger.info("✓ Moss client and index ready")
+
+        logger.info("All components verified and ready")
+        return {
+            'stt': stt,
+            'llm': llm,
+            'tts': tts,
+            'vad': vad,
+            'moss_client': moss_client
+        }
+
+    except Exception as e:
+        logger.error(f"Component verification failed: {e}")
+        return None
+
+
+async def create_readiness_marker():
+    """Create readiness marker only after all components are verified."""
+    components = await verify_components_ready()
+    if components:
+        Path("/tmp/agent_ready").touch()
+        logger.info("Agent fully ready - all components loaded and verified")
+        return components
+    else:
+        logger.error("Agent not ready - component loading failed")
+        # Remove readiness marker if it exists
+        ready_path = Path("/tmp/agent_ready")
+        if ready_path.exists():
+            ready_path.unlink()
+            logger.info("Removed readiness marker due to component failure")
+        return None
 
 
 class Assistant(Agent):
     """Customer support voice agent powered by the Moss FAQ index."""
 
-    def __init__(self):
+    def __init__(self, moss_client):
         super().__init__(
             instructions=settings.instructions
         )
 
         self._moss_config = settings.moss
-        self._moss_client = MossClient(
-            os.environ["MOSS_PROJECT_ID"],
-            os.environ["MOSS_PROJECT_KEY"]
-        )
-        self._moss_index_loaded = False
+        self._moss_client = moss_client
+        # The index is pre-loaded at startup
+        self._moss_index_loaded = True
 
     @function_tool
     async def search_support_faqs(self, context: RunContext, question: str) -> str:
@@ -65,11 +132,6 @@ class Assistant(Agent):
             return "No question provided for FAQ search."
 
         logger.info("Received support query: %s", query)
-
-        if not self._moss_index_loaded:
-            logger.info("Loading Moss index '%s'", self._moss_config.index_name)
-            await self._moss_client.load_index(self._moss_config.index_name)
-            self._moss_index_loaded = True
 
         results = await self._moss_client.query(
             self._moss_config.index_name,
@@ -110,43 +172,36 @@ class Assistant(Agent):
 async def entrypoint(ctx: agents.JobContext):
     """Entry point for the agent."""
 
-    # Configure the voice pipeline using settings
+    # Create readiness marker after verifying all components
+    components = await create_readiness_marker()
+    if not components:
+        logger.error("Failed to initialize components, cannot start agent")
+        return
+
+    # Configure the voice pipeline using pre-loaded components
     session = AgentSession(
-        stt=deepgram.STT(
-            model=settings.stt.model,
-            language=settings.stt.language
-        ),
-        llm=openai.LLM(
-            model=settings.llm.model,
-            temperature=settings.llm.temperature
-        ),
-        tts=cartesia.TTS(
-            model=settings.tts.model,
-            voice=settings.tts.voice,
-            speed=settings.tts.speed
-        ),
-        vad=silero.VAD.load(),
+        stt=components['stt'],
+        llm=components['llm'],
+        tts=components['tts'],
+        vad=components['vad'],
     )
 
     try:
-        # Start the session
+        # Start the session.
+        # The agent will now wait for the user to speak.
         await session.start(
             room=ctx.room,
-            agent=Assistant()
+            agent=Assistant(components['moss_client'])
         )
 
-        # Generate initial greeting
-        await session.generate_reply(
-            instructions=settings.initial_greeting_instructions
-        )
-        
-        logger.info("Agent session started successfully")
-        
+        logger.info("Agent session finished successfully")
+
     except Exception as e:
         logger.error(f"Session error: {e}")
         raise
     finally:
         logger.info("Agent session ended, ready for next connection")
+
 
 if __name__ == "__main__":
     # Run the agent
