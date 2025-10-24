@@ -26,7 +26,7 @@ settings = get_settings()
 FAQ_PATH = Path(__file__).resolve().parent / settings.moss.data_path
 
 
-def _load_faq_documents() -> List[DocumentInfo]:
+def _load_documents() -> List[DocumentInfo]:
     if not FAQ_PATH.exists():
         raise FileNotFoundError(
             f"FAQ data file not found at {FAQ_PATH}. Ensure the moss-sdk samples are present."
@@ -66,7 +66,7 @@ def _load_faq_documents() -> List[DocumentInfo]:
 
 async def create_faq_index() -> None:
     moss_config = settings.moss
-    documents = _load_faq_documents()
+    documents = _load_documents()
 
     client = MossClient(
         os.environ["MOSS_PROJECT_ID"],
