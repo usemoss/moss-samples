@@ -5,6 +5,8 @@ The simplest possible LiveKit voice agent to get you started.
 Requires only OpenAI and Deepgram API keys.
 """
 
+import asyncio
+import json
 import logging
 import os
 from datetime import datetime
@@ -13,9 +15,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 from inferedge_moss import MossClient
 from livekit import agents
-from livekit.agents import Agent, AgentSession, RunContext
+from livekit import rtc  # <--- ADD THIS LINE
+from livekit.agents import Agent, AgentSession, RunContext, metrics, MetricsCollectedEvent
 from livekit.agents.llm import function_tool
 from livekit.plugins import cartesia, deepgram, openai, silero
+# DataPacketKind import is correctly removed.
 
 from settings import get_settings
 
@@ -25,7 +29,7 @@ load_dotenv(".env")
 # Get configuration settings
 settings = get_settings()
 
-logger = logging.getLogger("livekit_agent.moss")
+logger = logging.getLogger("livekit.agent_logger")
 if not logger.handlers:
     handler = logging.StreamHandler()
     handler.setFormatter(
@@ -113,15 +117,17 @@ async def create_readiness_marker():
 class Assistant(Agent):
     """Customer support voice agent powered by the Moss FAQ index."""
 
-    def __init__(self, moss_client):
+    # --- START OF CHANGE 1 ---
+    def __init__(self, moss_client, room: rtc.Room):
         super().__init__(
             instructions=settings.instructions
         )
 
         self._moss_config = settings.moss
         self._moss_client = moss_client
-        # The index is pre-loaded at startup
+        self._room = room  # Store the room object
         self._moss_index_loaded = True
+    # --- END OF CHANGE 1 ---
 
     @function_tool
     async def search_support_faqs(self, context: RunContext, question: str) -> str:
@@ -138,11 +144,38 @@ class Assistant(Agent):
             query,
             self._moss_config.top_k_results
         )
+
+        time_taken_ms = getattr(results, "time_taken_ms", 0)
         logger.info(
-            "Moss query completed in %sms", getattr(results, "time_taken_ms", "?")
+            "Moss query completed in %sms", time_taken_ms
         )
 
         docs = list(getattr(results, "docs", []) or [])
+
+# --- BEGIN MOSS METRICS ---
+        try:
+            # Create payload for our new metric type
+            payload = {
+                "type": "moss",
+                "data": {
+                    "time_taken_ms": time_taken_ms,
+                    "query": query,
+                    "num_matches": len(docs)
+                }
+            }
+
+            # Send payload over data channel
+            json_payload = json.dumps(payload).encode("utf-8")
+
+            # Use the stored self._room object
+            await self._room.local_participant.publish_data(
+                payload=json_payload,
+                reliable=True,
+            )
+        except Exception as e:
+            logger.error(f"Failed to send Moss metrics: {e}")
+        # --- END MOSS METRICS ---
+
         if not docs:
             logger.info("No FAQ matches returned for query: %s", query)
             summary = "No FAQ matches found."
@@ -186,12 +219,78 @@ async def entrypoint(ctx: agents.JobContext):
         vad=components['vad'],
     )
 
+    # --- BEGIN METRICS INTEGRATION (MODIFIED) ---
+
+    # 1. Define the async logic in its own function
+    async def _send_metrics_task(ev: MetricsCollectedEvent):
+        # --- START OF CHANGE ---
+        payload = {"type": "", "data": {}}
+        data = ev.metrics # ev.metrics is the metric object itself
+
+        try:
+            # Check the type of the metric object
+            if isinstance(data, metrics.LLMMetrics):
+                payload["type"] = "llm"
+                payload["data"] = {
+                    "duration": data.duration, "ttft": data.ttft,
+                    "completion_tokens": data.completion_tokens, "prompt_tokens": data.prompt_tokens,
+                    "tokens_per_second": data.tokens_per_second, "speech_id": data.speech_id,
+                }
+            elif isinstance(data, metrics.TTSMetrics):
+                payload["type"] = "tts"
+                payload["data"] = {
+                    "duration": data.duration, "ttfb": data.ttfb,
+                    "audio_duration": data.audio_duration, "characters_count": data.characters_count,
+                    "speech_id": data.speech_id,
+                }
+            elif isinstance(data, metrics.STTMetrics):
+                payload["type"] = "stt"
+                payload["data"] = {
+                    "duration": data.duration, "audio_duration": data.audio_duration,
+                }
+            elif isinstance(data, metrics.EOUMetrics):
+                payload["type"] = "eou"
+                payload["data"] = {
+                    "end_of_utterance_delay": data.end_of_utterance_delay,
+                    "transcription_delay": data.transcription_delay,
+                    "speech_id": data.speech_id,
+                }
+            else:
+                # Skip other metric types we don't handle (like VADMetrics)
+                return
+
+            # --- END OF CHANGE ---
+
+            # Send payload over data channel to all participants in the room
+            json_payload = json.dumps(payload).encode("utf-8")
+            await ctx.room.local_participant.publish_data(
+                payload=json_payload,
+                reliable=True,
+            )
+            # logger.info(f"Sent metrics packet: {payload['type']}") # Optional: can be noisy
+
+        except Exception as e:
+            logger.error(f"Failed to process/send metrics data: {e}")
+
+    # 2. Create a synchronous callback for the listener
+    @session.on("metrics_collected")
+    def _on_metrics_collected(ev: MetricsCollectedEvent):
+        # This part is synchronous and runs immediately
+        metrics.log_metrics(ev.metrics)
+
+        # 3. Schedule the async task to run in the background
+        asyncio.create_task(_send_metrics_task(ev))
+
+    # --- END METRICS INTEGRATION ---
+
     try:
         # Start the session.
         # The agent will now wait for the user to speak.
         await session.start(
             room=ctx.room,
-            agent=Assistant(components['moss_client'])
+            # --- START OF CHANGE 3 ---
+            agent=Assistant(components['moss_client'], ctx.room)
+            # --- END OF CHANGE 3 ---
         )
 
         logger.info("Agent session finished successfully")

@@ -5,6 +5,95 @@ import './VoiceAgent.css'
 // URL of your token server
 const TOKEN_SERVER_URL = 'http://localhost:8080/get-token'
 
+// --- BEGIN METRICS DASHBOARD COMPONENTS ---
+
+/**
+ * A simple latency chart component using CSS bars
+ */
+const LatencyChart = ({ data, dataKey, label, unit = 'ms' }) => {
+  if (!data || data.length === 0) return null;
+  
+  // Calculate max value for scaling, default to at least 100ms
+  const values = data.map(d => {
+    const val = d[dataKey] || 0;
+    // Don't scale if dataKey suggests it's already in 'ms'
+    if (dataKey.endsWith('_ms')) {
+      return val;
+    }
+    return val * 1000; // convert seconds to ms
+  });
+  const maxVal = Math.max(...values, 100); 
+
+  return (
+    <div className="chart-container">
+      <div className="chart-label">{label} (last {values.length} events)</div>
+      <div className="chart-bars">
+        {values.map((val, i) => (
+          <div 
+            key={i} 
+            className="chart-bar" 
+            style={{ height: `${(val / maxVal) * 100}%` }}
+            title={`${val.toFixed(0)} ${unit}`}
+          ></div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * The main metrics dashboard bar
+ */
+const MetricsDashboard = ({ latestMetrics, sessionMetrics }) => {
+  // Add 'moss' to the destructured props
+  const { llm, tts, eou, moss } = latestMetrics;
+
+  // Calculate total latency from the latest metrics (based on docs)
+  const totalLatency = (eou?.end_of_utterance_delay || 0) + (llm?.ttft || 0) + (tts?.ttfb || 0);
+
+  return (
+    <div className="metrics-dashboard">
+      {/* Top row for key KPIs */}
+      <div className="metrics-kpis">
+        <div className="kpi-item">
+          <span className="kpi-label">Total Latency</span>
+          <span className="kpi-value">{totalLatency > 0 ? `${(totalLatency * 1000).toFixed(0)} ms` : '-'}</span>
+        </div>
+        <div className="kpi-item">
+          <span className="kpi-label">LLM TTFT</span>
+          <span className="kpi-value">{llm ? `${(llm.ttft * 1000).toFixed(0)} ms` : '-'}</span>
+        </div>
+        <div className="kpi-item">
+          <span className="kpi-label">TTS TTFB</span>
+          <span className="kpi-value">{tts ? `${(tts.ttfb * 1000).toFixed(0)} ms` : '-'}</span>
+        </div>
+        {/* --- ADD MOSS KPI --- */}
+        <div className="kpi-item">
+          <span className="kpi-label">Moss Query</span>
+          <span className="kpi-value">{moss ? `${moss.time_taken_ms.toFixed(0)} ms` : '-'}</span>
+          <span className="kpi-sublabel">(matches: {moss ? moss.num_matches : '-'})</span>
+        </div>
+        <div className="kpi-item">
+          <span className="kpi-label">LLM Tokens</span>
+          <span className="kpi-value">{llm ? `${llm.prompt_tokens} / ${llm.completion_tokens}` : '-'}</span>
+          <span className="kpi-sublabel">(prompt / completion)</span>
+        </div>
+      </div>
+      {/* Bottom row for charts */}
+      <div className="metrics-charts">
+        <LatencyChart data={sessionMetrics.llm} dataKey="ttft" label="LLM TTFT" />
+        <LatencyChart data={sessionMetrics.tts} dataKey="ttfb" label="TTS TTFB" />
+        <LatencyChart data={sessionMetrics.eou} dataKey="end_of_utterance_delay" label="EOU Delay" />
+        {/* --- ADD MOSS CHART --- */}
+        <LatencyChart data={sessionMetrics.moss} dataKey="time_taken_ms" label="Moss Query" />
+      </div>
+    </div>
+  );
+};
+
+// --- END METRICS DASHBOARD COMPONENTS ---
+
+
 function VoiceAgent() {
   const [status, setStatus] = useState('disconnected') // 'disconnected', 'connecting', 'connected', 'disconnecting', 'error'
   const [userName, setUserName] = useState('customer-' + Math.random().toString(36).substring(7))
@@ -13,6 +102,11 @@ function VoiceAgent() {
   const [isAgentSpeaking, setIsAgentSpeaking] = useState(false)
   const [agentReady, setAgentReady] = useState(false)
   
+  // --- BEGIN METRICS STATE (MODIFIED) ---
+  const [sessionMetrics, setSessionMetrics] = useState({ llm: [], tts: [], eou: [], stt: [], moss: [] });
+  const [latestMetrics, setLatestMetrics] = useState({ llm: null, tts: null, eou: null, stt: null, moss: null });
+  // --- END METRICS STATE ---
+
   const roomRef = useRef(null)
   const audioElRef = useRef(null) // Ref for our persistent <audio> element
   const audioContextRef = useRef(null)
@@ -62,11 +156,20 @@ function VoiceAgent() {
     }
   }
 
+  // --- BEGIN METRICS RESET FUNCTION (MODIFIED) ---
+  const resetMetrics = () => {
+    setSessionMetrics({ llm: [], tts: [], eou: [], stt: [], moss: [] });
+    setLatestMetrics({ llm: null, tts: null, eou: null, stt: null, moss: null });
+  };
+  // --- END METRICS RESET FUNCTION ---
+
+
   /**
    * Connects to the LiveKit room and handles all related events.
    */
   const connectToRoom = async () => {
     setStatus('connecting')
+    resetMetrics(); // Reset metrics on new connection attempt
 
     try {
       const { token, url } = await getToken(roomName, userName)
@@ -82,6 +185,47 @@ function VoiceAgent() {
       await room.connect(connectionUrl, token)
       setStatus('connected')
       console.log('✓ Successfully connected to LiveKit room')
+
+      // --- BEGIN DATA CHANNEL LISTENER ---
+      room.on(RoomEvent.DataReceived, (payload, participant, kind) => {
+
+        // --- ADD THIS LINE FOR DEBUGGING ---
+        console.log('Data packet received, kind:', kind);
+        // -------------------------------------
+
+        if (kind === 0) { // Check for the number 0 (reliable data channel)
+          try {
+            const decoder = new TextDecoder();
+            const message = decoder.decode(payload);
+            const metricsData = JSON.parse(message);
+
+            // --- ADD THIS LINE FOR DEBUGGING ---
+            console.log('Parsed metrics data:', metricsData);
+            // -------------------------------------
+
+            if (metricsData.type && metricsData.data) {
+              // Update latest metric for KPI display
+              setLatestMetrics(prev => ({ ...prev, [metricsData.type]: metricsData.data }));
+
+              // Add to history for charts (only for relevant types)
+              // --- ADD 'moss' to this list ---
+              if (['llm', 'tts', 'eou', 'moss'].includes(metricsData.type)) {
+                setSessionMetrics(prev => {
+                  const history = prev[metricsData.type] || [];
+                  // Add new data point
+                  const newHistory = [...history, metricsData.data];
+                  // Keep only the last 20 data points
+                  if (newHistory.length > 20) newHistory.shift(); 
+                  return { ...prev, [metricsData.type]: newHistory };
+                });
+              }
+            }
+          } catch (e) {
+            console.error("Failed to parse metrics data:", e);
+          }
+        }
+      });
+      // --- END DATA CHANNEL LISTENER ---
 
       // Publish user's microphone
       const localAudioTrack = await createLocalAudioTrack()
@@ -116,11 +260,15 @@ function VoiceAgent() {
             audioElRef.current.play().catch(e => console.error("Audio play failed:", e))
           }
 
-          publication.on(Track.Event.AudioLevelChanged, (level) => {
-            setIsAgentSpeaking(level > 0.1) // Threshold for speaking detection
-          })
-          publication.on(Track.Event.Muted, () => setIsAgentSpeaking(false))
-          publication.on(Track.Event.Unmuted, () => setIsAgentSpeaking(true))
+          // --- ADD THIS CHECK ---
+          if (publication) {
+            publication.on(Track.Event.AudioLevelChanged, (level) => {
+              setIsAgentSpeaking(level > 0.1) // Threshold for speaking detection
+            })
+            publication.on(Track.Event.Muted, () => setIsAgentSpeaking(false))
+            publication.on(Track.Event.Unmuted, () => setIsAgentSpeaking(true))
+          }
+          // --- END OF CHECK ---
         }
       })
 
@@ -132,7 +280,7 @@ function VoiceAgent() {
         console.log('Disconnected from room, reason:', reason)
 
         // Use enhanced cleanup
-        cleanupRoom()
+        cleanupRoom() // This will also reset metrics
 
         setStatus('disconnected')
         setIsAgentSpeaking(false)
@@ -169,6 +317,7 @@ function VoiceAgent() {
       audioContextRef.current.close()
       audioContextRef.current = null
     }
+    resetMetrics(); // Reset metrics on cleanup
   }
 
   /**
@@ -181,12 +330,13 @@ function VoiceAgent() {
       try {
         await roomRef.current.disconnect()
         // State updates (to 'disconnected') are handled by the 'Disconnected' room event
+        // cleanupRoom() is called by the Disconnected event handler
       } catch (error) {
         console.error("Error during disconnect:", error)
         // Manually reset state if disconnect fails
         setStatus('disconnected')
         setIsAgentSpeaking(false)
-        cleanupRoom()
+        cleanupRoom() // Manually cleanup and reset metrics
       }
     }
   }
@@ -296,6 +446,15 @@ function VoiceAgent() {
         )}
       </div>
 
+      {/* --- BEGIN METRICS DASHBOARD RENDER --- */}
+      {isConnected && (
+        <MetricsDashboard 
+          latestMetrics={latestMetrics}
+          sessionMetrics={sessionMetrics}
+        />
+      )}
+      {/* --- END METRICS DASHBOARD RENDER --- */}
+
       {/* Persistent audio element for reliable playback */}
       <audio ref={audioElRef} autoPlay playsInline style={{ display: 'none' }} />
 
@@ -307,4 +466,3 @@ function VoiceAgent() {
 }
 
 export default VoiceAgent
-

@@ -294,3 +294,114 @@
   }
 }
 
+/* --- Add this to your VoiceAgent.css file --- */
+
+/* Adjust main container padding to avoid overlap with fixed dashboard */
+/* If you already have .voice-agent-container, just add the padding-bottom */
+.voice-agent-container {
+  padding-bottom: 160px; /* Height of the metrics bar + some space */
+}
+
+/* --- Metrics Dashboard Styles --- */
+
+.metrics-dashboard {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: #2a2a33; /* Dark background */
+  border-top: 1px solid #444;
+  color: #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 20px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  box-sizing: border-box;
+}
+
+.metrics-kpis {
+  display: flex;
+  justify-content: center; /* Center them */
+  flex-wrap: wrap;
+  gap: 20px; /* Add a gap */
+  width: 100%;
+  border-bottom: 1px solid #444;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+
+.kpi-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 140px; /* Give them a minimum width */
+  flex-basis: 150px; /* Give them a base size */
+  flex-grow: 1; /* Allow them to grow */
+  padding: 0 10px;
+  text-align: center;
+}
+
+.kpi-label {
+  font-size: 0.75rem;
+  color: #9a9a9a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kpi-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.kpi-sublabel {
+  font-size: 0.7rem;
+  color: #777;
+}
+
+.metrics-charts {
+  display: flex;
+  width: 100%;
+  justify-content: space-around;
+  gap: 20px;
+  height: 60px; /* Fixed height for charts */
+}
+
+.chart-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+}
+
+.chart-label {
+  font-size: 0.7rem;
+  color: #9a9a9a;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.chart-bars {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  height: 100%;
+  width: 100%;
+  border: 1px solid #444;
+  background-color: #333;
+  padding: 2px;
+  border-radius: 3px;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.chart-bar {
+  flex: 1;
+  background-color: #4a90e2;
+  min-width: 3px;
+  transition: height 0.2s ease-out;
+  border-radius: 1px 1px 0 0;
+}
