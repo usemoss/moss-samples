@@ -75,7 +75,7 @@ async def create_faq_index() -> None:
 
     print(
         f"Creating Moss index '{moss_config.index_name}' with {len(documents)} "
-        f"FAQ entries using {moss_config.model_id}..."
+        f"life detail entries using {moss_config.model_id}..."
     )
     created = await client.create_index(
         moss_config.index_name,
@@ -83,7 +83,7 @@ async def create_faq_index() -> None:
         moss_config.model_id
     )
     print("Index creation response:", created)
-    print("FAQ index ready for use!")
+    print("Life details index ready for use!")
 
 
 if __name__ == "__main__":
