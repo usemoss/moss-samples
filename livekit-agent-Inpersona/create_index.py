@@ -23,7 +23,7 @@ load_dotenv(".env")
 # Get configuration settings
 settings = get_settings()
 
-FAQ_PATH = Path(__file__).resolve().parent / "life.json"
+FAQ_PATH = Path(__file__).resolve().parent / settings.moss.data_path
 
 
 def _load_faq_documents() -> List[DocumentInfo]:

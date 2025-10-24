@@ -46,6 +46,7 @@ class MossConfig:
     index_name: str = "Inpersona-index-livekit"  # Change this to match your existing index name
     model_id: str = "moss-minilm"
     top_k_results: int = 6
+    data_path: str = "life.json"
 
 
 @dataclass
