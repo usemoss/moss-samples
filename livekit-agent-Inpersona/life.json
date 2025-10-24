@@ -1,0 +1,668 @@
+[
+    {
+      "id": "doc-1",
+      "text": "Yatharth Kapadia",
+      "metadata": {
+        "category": "contact",
+        "topic": "name",
+        "level": "heading"
+      }
+    },
+    {
+      "id": "doc-2",
+      "text": "+1 (930) 333-4182",
+      "metadata": {
+        "category": "contact",
+        "topic": "phone",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-3",
+      "text": "yatharth.k2@outlook.com",
+      "metadata": {
+        "category": "contact",
+        "topic": "email",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-4",
+      "text": "LinkedIn Profile",
+      "metadata": {
+        "category": "contact",
+        "topic": "linkedin",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-5",
+      "text": "GitHub Profile",
+      "metadata": {
+        "category": "contact",
+        "topic": "github",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-6",
+      "text": "Personal Website",
+      "metadata": {
+        "category": "contact",
+        "topic": "website",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-7",
+      "text": "Master’s in Computer Science, Indiana University Bloomington",
+      "metadata": {
+        "category": "education",
+        "topic": "degree_master",
+        "level": "heading"
+      }
+    },
+    {
+      "id": "doc-8",
+      "text": "Expected Graduation: May 2025 | Location: USA | GPA: 3.66/4",
+      "metadata": {
+        "category": "education",
+        "topic": "degree_master_details",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-9",
+      "text": "Relevant Courses: Applied Algorithm, Database Design, Data Mining, Computer Vision, Applied ML, Data Visualization",
+      "metadata": {
+        "category": "education",
+        "topic": "degree_master_courses",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-10",
+      "text": "Bachelor’s in Electronics & Communication, MIT WPU",
+      "metadata": {
+        "category": "education",
+        "topic": "degree_bachelor",
+        "level": "heading"
+      }
+    },
+    {
+      "id": "doc-11",
+      "text": "Graduation: May 2023 | Location: India | GPA: 3.73/4",
+      "metadata": {
+        "category": "education",
+        "topic": "degree_bachelor_details",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-12",
+      "text": "Relevant Courses: Object Oriented Coding, Data structure & Algorithms, Optimization Techniques, Fuzzy logic & Graph Theory, Data Science.",
+      "metadata": {
+        "category": "education",
+        "topic": "degree_bachelor_courses",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-13",
+      "text": "Languages & Databases: Python, C++, Go, SQL, TypeScript, GraphQL, MongoDB, Neo4j, AWS(DynamoDB), Redis",
+      "metadata": {
+        "category": "skills",
+        "topic": "languages_db",
+        "level": "item"
+      }
+    },
+    {
+      "id": "doc-14",
+      "text": "Frameworks & Tools: PyTorch, Django, Docker, Kubernetes (EKS), React, Next.js, Tailwind CSS, NodeJS, Express, FastAPI, AWS, Kafka",
+      "metadata": {
+        "category": "skills",
+        "topic": "frameworks_tools",
+        "level": "item"
+      }
+    },
+    {
+      "id": "doc-15",
+      "text": "Professional Skills: Stakeholder Management, Cross-functional Collaboration, Agile Methodologies, Design Data Intensive Systems",
+      "metadata": {
+        "category": "skills",
+        "topic": "professional",
+        "level": "item"
+      }
+    },
+    {
+      "id": "doc-16",
+      "text": "Software Developer, Haldune | Jun 2025 – Present, Chicago, USA",
+      "metadata": {
+        "category": "experience",
+        "topic": "Haldune_role",
+        "level": "heading"
+      }
+    },
+    {
+      "id": "doc-17",
+      "text": "Key Skills: Agentic Systems, LLM Orchestration, Real-Time Systems, Azure, Kubernetes",
+      "metadata": {
+        "category": "experience",
+        "topic": "Haldune_skills",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-18",
+      "text": "Pioneered a high-throughput retrieval system with ChromaDB, unlocking instant data access with sub-100ms lookups.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Haldune_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-19",
+      "text": "Deployed the retrieval system as a scalable FastAPI microservice on Kubernetes, designed to support over 10,000 documents.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Haldune_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-20",
+      "text": "Led the 'Deep Research Agentic Action' project to synthesize complex data from documents, conversations, and the web into a single, cited report.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Haldune_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-21",
+      "text": "Architected a multi-agent workflow on Azure AI Foundry using Microsoft AutoGen, implementing a fan-out/fan-in model for parallel processing.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Haldune_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-22",
+      "text": "Cut report generation time by over 70% (from 10 minutes to under 3) by architecting a parallelized 'society of minds' agent philosophy.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Haldune_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-23",
+      "text": "Delivered a seamless, real-time conversational AI using Azure Speech SDK and LiveKit, enabling human-like multi-speaker understanding by tracking 15 concurrent users with just 600ms latency.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Haldune_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-24",
+      "text": "Research Assistant, Kelley School of Business | Mar 2024 – Dec 2024, Bloomington, USA",
+      "metadata": {
+        "category": "experience",
+        "topic": "Kelley_role",
+        "level": "heading"
+      }
+    },
+    {
+      "id": "doc-25",
+      "text": "Key Skills: AI/LLM Security, Vulnerability Assessment, Risk Mitigation, Nvidia NeMo, Purple Llama",
+      "metadata": {
+        "category": "experience",
+        "topic": "Kelley_skills",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-26",
+      "text": "Assessed LLM security using Nvidia Garak, Microsoft Counterfit, and Purple Llama, reporting over 15 vulnerabilities.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Kelley_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-27",
+      "text": "Implemented Nvidia NeMo guardrails to mitigate 5 key AI security risks, reducing potential exploit vectors by 60% through targeted prompt filtering and response validation strategies.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Kelley_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-28",
+      "text": "Software Engineer Intern, Outspeed | Jun 2024 – Aug 2024, San Francisco, USA",
+      "metadata": {
+        "category": "experience",
+        "topic": "Outspeed_role",
+        "level": "heading"
+      }
+    },
+    {
+      "id": "doc-29",
+      "text": "Key Skills: LLM Engineering, Real-Time Systems, AWS, Performance Optimization",
+      "metadata": {
+        "category": "experience",
+        "topic": "Outspeed_skills",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-30",
+      "text": "Architected a GPU-backed speech-to-speech stack (Whisper STT → Llama 3.1 → Parler TTS) on AWS EKS; load-tested to 80 connections/min.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Outspeed_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-31",
+      "text": "Designed WebSocket API for the real-time speech-to-speech service, enabling persistent, low-latency connections for downstream client applications.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Outspeed_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-32",
+      "text": "Fine-tuned Llama-3.1-8B using QLoRA on Chatbot Arena and Orca datasets, improving customer-facing chat quality and multi-step reasoning.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Outspeed_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-33",
+      "text": "Optimized system performance through Multithreading, data queues and streaming for inter-service communication, bringing latency at p95 700 ms.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Outspeed_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-34",
+      "text": "Slashed inference costs by ~30% while maintaining a ≤6% quality degradation by replacing high-cost API calls with a self-hosted solution leveraging vLLM and TensorRT on A10G GPUs.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Outspeed_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-35",
+      "text": "Software Developer Intern, IDeaS | Jul 2022 – Jan 2023, Pune, India",
+      "metadata": {
+        "category": "experience",
+        "topic": "IDeaS_role",
+        "level": "heading"
+      }
+    },
+    {
+      "id": "doc-36",
+      "text": "Key Skills: Full-Stack, Big Data Engineering, ETL Pipelines, AWS",
+      "metadata": {
+        "category": "experience",
+        "topic": "IDeaS_skills",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-37",
+      "text": "Built React/Next.js/Python/Plotly/FastAPI-based analytics platform in collaboration with stakeholders at 5 multi-billion-dollar hospitality clients.",
+      "metadata": {
+        "category": "experience",
+        "topic": "IDeaS_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-38",
+      "text": "Enabled room pricing suggestion via 15+ KPIs tracked, replacing Excel macros, and saving 100+ engineering hours/month.",
+      "metadata": {
+        "category": "experience",
+        "topic": "IDeaS_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-39",
+      "text": "Slashed analytics processing time to 33% by architecting a Python multiprocessing data pipeline with fan-out model.",
+      "metadata": {
+        "category": "experience",
+        "topic": "IDeaS_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-40",
+      "text": "Implemented Jenkins-based CI/CD pipelines for automated deployment to AWS-EC2 and conducted code reviews to ensure a bug-free platform.",
+      "metadata": {
+        "category": "experience",
+        "topic": "IDeaS_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-41",
+      "text": "Collaborated with cross functional teams to develop Spark/Airflow-based ETL pipeline using AWS S3 Event Notifications and SQS triggers.",
+      "metadata": {
+        "category": "experience",
+        "topic": "IDeaS_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-42",
+      "text": "Ensured 100% data integrity by implementing 8 critical data validation tests within the ETL, including automated health report emails for officers.",
+      "metadata": {
+        "category": "experience",
+        "topic": "IDeaS_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-43",
+      "text": "Software Engineer Intern, Quidich Innovation Labs | May 2022 – Jun 2022, Mumbai, India",
+      "metadata": {
+        "category": "experience",
+        "topic": "Quidich_role",
+        "level": "heading"
+      }
+    },
+    {
+      "id": "doc-44",
+      "text": "Key Skills: Machine Learning, Algorithm Development, Cloud",
+      "metadata": {
+        "category": "experience",
+        "topic": "Quidich_skills",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-45",
+      "text": "Developed a scikit-learn based Pose Estimation algorithm using drone-captured coordinates and rule-based criteria to predict bowler release points with 97% accuracy, enabling analytics for 130 million Sony Liv viewers.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Quidich_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-46",
+      "text": "Deployed the Estimation algorithm to AWS Lambda, achieving 70-100ms processing time for high-stake, real-time live sports analytics on television.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Quidich_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-47",
+      "text": "Designed the player tracking system in YOLOv4 by integrating unique ID assignment and memory retention for detected players using Byte Track.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Quidich_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-48",
+      "text": "Software Developer Intern, Azodha | Sep 2021 – Apr 2022, New York, USA",
+      "metadata": {
+        "category": "experience",
+        "topic": "Azodha_role",
+        "level": "heading"
+      }
+    },
+    {
+      "id": "doc-49",
+      "text": "Key Skills: Cloud, NLP, MLOps, Infrastructure as Code, Full-Stack",
+      "metadata": {
+        "category": "experience",
+        "topic": "Azodha_skills",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-50",
+      "text": "Led the Open-Notif project, developing a CLI for user-company connectivity with AWS(Lambda, SNS, SQS), PostgreSQL, Twilio and Mailchimp.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Azodha_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-51",
+      "text": "Collaborated with product managers and healthcare clients to define HIPAA-compliant requirements for Open-Notif.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Azodha_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-52",
+      "text": "Implemented IaC by using AWS Chalice to architect and dispatch event-triggered messages, achieving sub-3-second notification delivery.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Azodha_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-53",
+      "text": "Built automated unit and integration tests with Pytest, ensuring 99% uptime for the Open-Notif notification system.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Azodha_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-54",
+      "text": "Architected the Ringisho app’s NLP framework, deploying BERT models for phrase suggestion and profanity detection, yielding 98% accuracy.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Azodha_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-55",
+      "text": "Deployed the Models on GCP Compute Engine with Docker and optimized Rest API for ad-hoc processing.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Azodha_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-56",
+      "text": "Crafted a web-based KYC platform leveraging WebAssembly, TensorFlow.js, OpenCV and JavaScript, achieving 90% accuracy in client-side processing and identity verification.",
+      "metadata": {
+        "category": "experience",
+        "topic": "Azodha_accomplishment",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-57",
+      "text": "Graduate Teaching Assistant - Elements of AI (Prof. David Leake); ML in Signal Processing (Prof. Jonathan Ponniah)",
+      "metadata": {
+        "category": "leadership_honors",
+        "topic": "teaching_assistant",
+        "level": "item"
+      }
+    },
+    {
+      "id": "doc-58",
+      "text": "1st prize - Smart India Hackathon by Dell",
+      "metadata": {
+        "category": "leadership_honors",
+        "topic": "award",
+        "level": "item"
+      }
+    },
+    {
+      "id": "doc-59",
+      "text": "4th prize - [Hackathon Name/Details Missing from Source]",
+      "metadata": {
+        "category": "leadership_honors",
+        "topic": "award",
+        "level": "item"
+      }
+    },
+    {
+      "id": "doc-60",
+      "text": "87th Rank - Amazon ML challenge by Amazon",
+      "metadata": {
+        "category": "leadership_honors",
+        "topic": "award",
+        "level": "item"
+      }
+    },
+    {
+      "id": "doc-61",
+      "text": "INpersona LLM | Skills: NLP, LLM, FullStack Development | Jan 2025 – Apr 2025",
+      "metadata": {
+        "category": "projects",
+        "topic": "INpersona_overview",
+        "level": "heading"
+      }
+    },
+    {
+      "id": "doc-62",
+      "text": "Developed an AI assistant using LLaMA 3.2 11B, LlamaIndex, Langchain and ChromaDB with React (TypeScript, Next.js, Tailwind CSS).",
+      "metadata": {
+        "category": "projects",
+        "topic": "INpersona_detail",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-63",
+      "text": "Reduced LLM latency by 40% with real-time streaming, multi-threaded backend, and dataclass-powered memory for instant, seamless interactions.",
+      "metadata": {
+        "category": "projects",
+        "topic": "INpersona_detail",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-64",
+      "text": "Implemented Redis caching for frequently asked questions, reducing response latency from 2000ms to 50ms (97.5% reduction) while decreasing LLM inference calls by 40%",
+      "metadata": {
+        "category": "projects",
+        "topic": "INpersona_detail",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-65",
+      "text": "Pioneered hybrid search system using Knowledge Graph(ChromaDB) and HyDE, delivering 10% more precise responses.",
+      "metadata": {
+        "category": "projects",
+        "topic": "INpersona_detail",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-66",
+      "text": "FaceInpainting | Skills: Computer Vision, Image Restoration and Algorithm Innovation | Jun 2021 – Jul 2021",
+      "metadata": {
+        "category": "projects",
+        "topic": "FaceInpainting_overview",
+        "level": "heading"
+      }
+    },
+    {
+      "id": "doc-67",
+      "text": "Implemented Partial Convolution architecture with PyTorch for image restoration, incorporating a novel approach by leveraging random walk algorithm to generate 50,000 specialized binary masks, preventing overfitting.",
+      "metadata": {
+        "category": "projects",
+        "topic": "FaceInpainting_detail",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-68",
+      "text": "Attained an impressive 97% accuracy in precisely reconstructing severely distorted facial features, with training on a dataset of 50,000 images.",
+      "metadata": {
+        "category": "projects",
+        "topic": "FaceInpainting_detail",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-69",
+      "text": "Email Reconciliation System | Skills: Full-Stack Development, Data Automation, Google Cloud | Jul 2025 – Aug 2025",
+      "metadata": {
+        "category": "projects",
+        "topic": "EmailRecon_overview",
+        "level": "heading"
+      }
+    },
+    {
+      "id": "doc-70",
+      "text": "Engineered a system to automate expense reconciliation, eliminating manual data entry by leveraging an AI-powered parsing and matching engine.",
+      "metadata": {
+        "category": "projects",
+        "topic": "EmailRecon_detail",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-71",
+      "text": "Delivered intuitive web application using Next.js, React, and Tailwind CSS, incorporating Google OAuth for seamless one-click user authentication.",
+      "metadata": {
+        "category": "projects",
+        "topic": "EmailRecon_detail",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-72",
+      "text": "Architected a universal parsing engine with Gemini API achieving 100% data extraction accuracy from receipt photos and bank statements across any bank's Excel format or document structure.",
+      "metadata": {
+        "category": "projects",
+        "topic": "EmailRecon_detail",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-73",
+      "text": "Developed a novel matching algorithm with weighted confidence scoring (amount 50%, date 30%, merchant 20%) that categorizes matches as exact, probable, possible, or uncertain with auto-acceptance at 70% confidence threshold.",
+      "metadata": {
+        "category": "projects",
+        "topic": "EmailRecon_detail",
+        "level": "detail"
+      }
+    },
+    {
+      "id": "doc-74",
+      "text": "Reduced manual reconciliation time by 97% by implementing an automated matching algorithm against the SQLite ledger.",
+      "metadata": {
+        "category": "projects",
+        "topic": "EmailRecon_detail",
+        "level": "detail"
+      }
+    }
+  ]

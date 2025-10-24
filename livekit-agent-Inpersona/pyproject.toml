@@ -1,7 +1,7 @@
 [project]
-name = "livekit-voice-agent"
+name = "livekit-agent-inpersona"
 version = "0.1.0"
-description = "Voice AI agent built with LiveKit Agents framework"
+description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
@@ -15,7 +15,6 @@ dependencies = [
     "inferedge-moss",
     "flask>=3.0.0",
     "flask-cors>=4.0.0",
-    "gunicorn>=21.0.0",
     "livekit>=0.17.0",
 ]
 
@@ -79,3 +78,4 @@ python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
+
