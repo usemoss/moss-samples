@@ -46,6 +46,7 @@ class MossConfig:
     index_name: str = "faq-index-livekit"
     model_id: str = "moss-minilm"
     top_k_results: int = 6
+    data_path: str = "faqs.json"
 
 
 @dataclass
