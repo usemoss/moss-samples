@@ -3,7 +3,7 @@ import json
 import time
 import os
 from dotenv import load_dotenv
-import yake  # <-- NEW: Import the keyword extractor
+import yake  # <-- Import the keyword extractor
 
 # Load API keys from .env file
 load_dotenv()
@@ -30,7 +30,7 @@ class PdfChunker:
             "api-key": unsiloed_api_key
         }
         
-        # --- NEW: Initialize the Keyword Extractor ---
+        # --- Initialize the Keyword Extractor ---
         # You can tune this: n=max ngram size, top=number of keywords
         self.kw_extractor = yake.KeywordExtractor(n=3, top=5, dediplication_threshold=0.9)
 
@@ -39,6 +39,8 @@ class PdfChunker:
         """
         Formats the /parse API results into the target list format
         with enriched (but not generative) metadata.
+        
+        --- MODIFIED AS PER YOUR REQUEST ---
         """
         final_json_list = []
         doc_id_counter = 1
@@ -60,29 +62,27 @@ class PdfChunker:
                 text_content = text_content.strip()
 
                 # --- Enriched Metadata (No GenAI) ---
-
+                
                 # 1. Self-Calculated Metadata
-                word_count = len(text_content.split())
+                # Get list of keywords
                 kw_list = self.kw_extractor.extract_keywords(text_content)
-                # Get just the keyword text, not the score
-                keywords = [kw[0] for kw in kw_list]
+                keywords_list = [kw[0] for kw in kw_list]
+                
+                # Convert list to a single comma-separated string (Request 2)
+                keywords_str = ", ".join(keywords_list)
 
-                # 2. API-Provided Structural Metadata (with defaults)
-                # We try to get these; if they don't exist, they will be None or []
+                # 2. API-Provided and Self-Calculated Metadata
+                # All values are strings as requested (Request 2)
                 metadata = {
+                    # API-Provided
                     "source_segment_type": segment.get("segment_type", "Unknown"),
-                    "page_number": segment.get("page_number", -1),
+                    "page_number": str(segment.get("page_number", -1)),
                     
-                    # Hierarchical info (if provided by API)
-                    "parent_id": segment.get("parent_id"), 
-                    "category_depth": segment.get("category_depth"),
+                    # Self-calculated
+                    "keywords": keywords_str
                     
-                    # Formatting info (if provided by API)
-                    "emphasized_text": segment.get("emphasized_text_contents", []),
-                    
-                    # Self-calculated info
-                    "text_word_count": word_count,
-                    "keywords": keywords
+                    # parent_id, category_depth, emphasized_text, and text_word_count
+                    # have been removed as requested (Request 1)
                 }
                 # --- End Enriched Metadata ---
 
