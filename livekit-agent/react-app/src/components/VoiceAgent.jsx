@@ -100,7 +100,6 @@ function VoiceAgent() {
   const [roomName, setRoomName] = useState('support-room')
   const [audioLevel, setAudioLevel] = useState(0)
   const [isAgentSpeaking, setIsAgentSpeaking] = useState(false)
-  const [agentReady, setAgentReady] = useState(false)
   
   // --- BEGIN METRICS STATE (MODIFIED) ---
   const [sessionMetrics, setSessionMetrics] = useState({ llm: [], tts: [], eou: [], stt: [], moss: [] });
@@ -110,24 +109,10 @@ function VoiceAgent() {
   const roomRef = useRef(null)
   const audioElRef = useRef(null) // Ref for our persistent <audio> element
   const audioContextRef = useRef(null)
+  const fallbackTimeoutRef = useRef(null)
 
   const isConnected = status === 'connected';
 
-  // Poll for agent readiness
-  useEffect(() => {
-    const checkReady = async () => {
-      try {
-        const res = await fetch('http://localhost:8080/ready')
-        const data = await res.json()
-        setAgentReady(data.ready)
-      } catch (e) {
-        setAgentReady(false)
-      }
-    }
-    const interval = setInterval(checkReady, 2000)
-    checkReady()
-    return () => clearInterval(interval)
-  }, [])
 
   /**
    * Fetches a token from the Python token server.
@@ -183,8 +168,16 @@ function VoiceAgent() {
         : `ws://${url}`
       
       await room.connect(connectionUrl, token)
-      setStatus('connected')
-      console.log('✓ Successfully connected to LiveKit room')
+      
+      console.log('✓ Successfully connected to LiveKit, waiting for agent ready signal...')
+      
+      // Fallback: If agent_ready signal doesn't come within 10 seconds, assume agent is ready
+      fallbackTimeoutRef.current = setTimeout(() => {
+        if (status === 'connecting') {
+          console.log('⚠️ Agent ready signal timeout - assuming agent is ready')
+          setStatus('connected')
+        }
+      }, 10000)
 
       // --- BEGIN DATA CHANNEL LISTENER ---
       room.on(RoomEvent.DataReceived, (payload, participant, kind) => {
@@ -203,7 +196,20 @@ function VoiceAgent() {
             console.log('Parsed metrics data:', metricsData);
             // -------------------------------------
 
-            if (metricsData.type && metricsData.data) {
+            // Debug: Check if we're receiving agent_ready
+            if (metricsData.type === 'agent_ready') {
+              console.log('🎉 RECEIVED AGENT_READY SIGNAL!');
+            }
+
+            if (metricsData.type === 'agent_ready') {
+              console.log('✓ Agent is ready!')
+              if (fallbackTimeoutRef.current) {
+                clearTimeout(fallbackTimeoutRef.current) // Clear the fallback timeout
+                fallbackTimeoutRef.current = null
+              }
+              setStatus('connected') // <-- SET STATUS TO CONNECTED HERE
+            } 
+            else if (metricsData.type && metricsData.data) { // Note the 'else if'
               // Update latest metric for KPI display
               setLatestMetrics(prev => ({ ...prev, [metricsData.type]: metricsData.data }));
 
@@ -317,6 +323,10 @@ function VoiceAgent() {
       audioContextRef.current.close()
       audioContextRef.current = null
     }
+    if (fallbackTimeoutRef.current) {
+      clearTimeout(fallbackTimeoutRef.current)
+      fallbackTimeoutRef.current = null
+    }
     resetMetrics(); // Reset metrics on cleanup
   }
 
@@ -360,7 +370,7 @@ function VoiceAgent() {
           <div className={`status-indicator ${status}`}>
             <span className="status-dot"></span>
             <span className="status-text">
-              {status === 'disconnected' && (agentReady ? 'Ready to connect' : 'Agent initializing...')}
+              {status === 'disconnected' && 'Ready to connect'}
               {status === 'connecting' && 'Connecting...'}
               {status === 'disconnecting' && 'Disconnecting...'}
               {status === 'connected' && 'Connected - Speak freely!'}
@@ -421,10 +431,9 @@ function VoiceAgent() {
             <button
               className="connect-button"
               onClick={connectToRoom}
-              disabled={status === 'connecting' || status === 'disconnecting' || !agentReady}
+              disabled={status === 'connecting' || status === 'disconnecting'}
             >
-              {status === 'connecting' ? 'Connecting...' : 
-               !agentReady ? 'Agent initializing...' : 'Start Call'}
+              {status === 'connecting' ? 'Connecting...' : 'Start Call'}
             </button>
           ) : (
             <button

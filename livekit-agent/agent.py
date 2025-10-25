@@ -287,11 +287,29 @@ async def entrypoint(ctx: agents.JobContext):
     # --- Start Agent Session ---
     try:
         logger.info("Starting agent session...")
+        agent = Assistant(ctx.proc.userdata["moss_client"], ctx.room)
         await session.start(
             room=ctx.room,
             # Pass the Moss client and room object to the agent
-            agent=Assistant(ctx.proc.userdata["moss_client"], ctx.room),
+            agent=agent,
         )
+        
+        # Send agent_ready signal after session starts
+        logger.info("🎉 Agent session started, sending 'agent_ready' signal.")
+        try:
+            payload = {"type": "agent_ready"}
+            json_payload = json.dumps(payload).encode("utf-8")
+            
+            logger.info(f"Sending agent_ready payload: {payload}")
+            
+            await ctx.room.local_participant.publish_data(
+                payload=json_payload,
+                reliable=True,
+            )
+            logger.info("✅ agent_ready signal sent successfully!")
+        except Exception as e:
+            logger.error(f"❌ Failed to send agent_ready signal: {e}")
+        
         logger.info("Agent session finished successfully")
 
     except Exception as e:

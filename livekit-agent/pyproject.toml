@@ -12,11 +12,11 @@ dependencies = [
     "livekit-plugins-turn-detector>=1.0.0",
     "livekit-agents[cartesia]~=1.2",
     "python-dotenv>=1.0.0",
-    "inferedge-moss",
     "flask>=3.0.0",
     "flask-cors>=4.0.0",
     "gunicorn>=21.0.0",
     "livekit>=0.17.0",
+    "inferedge-moss>=1.0.0b5",
 ]
 
 [project.optional-dependencies]
