@@ -23,6 +23,7 @@ from livekit.agents import (
     RunContext,
     MetricsCollectedEvent,
     metrics,
+    JobProcess,
 )
 from livekit.agents.llm import function_tool
 from livekit.plugins import cartesia, deepgram, openai, silero
@@ -53,78 +54,72 @@ logger.setLevel(logging.INFO)
 logger.propagate = False
 
 
-# --- 3. Component Verification ---
-
-async def verify_components_ready() -> Optional[Dict[str, Any]]:
+async def _load_moss_async(proc: JobProcess):
     """
-    Initialize and verify all voice pipeline components.
-    Returns a dictionary of components if successful, else None.
+    Asynchronous helper to load the Moss client and index.
     """
+    logger.info("Prewarming Moss client and loading index...")
     try:
-        logger.info("Verifying all voice pipeline components...")
-
-        logger.info("Initializing STT (Deepgram)...")
-        stt = deepgram.STT(
-            model=settings.stt.model, language=settings.stt.language
-        )
-        logger.info("✓ STT component ready")
-
-        logger.info("Initializing LLM (OpenAI)...")
-        llm = openai.LLM(
-            model=settings.llm.model, temperature=settings.llm.temperature
-        )
-        logger.info("✓ LLM component ready")
-
-        logger.info("Initializing TTS (Cartesia)...")
-        tts = cartesia.TTS(
-            model=settings.tts.model,
-            voice=settings.tts.voice,
-            speed=settings.tts.speed,
-        )
-        logger.info("✓ TTS component ready")
-
-        logger.info("Initializing VAD (Silero)...")
-        vad = silero.VAD.load()
-        logger.info("✓ VAD component ready")
-
-        logger.info("Initializing Moss client and loading index...")
         moss_client = MossClient(
             os.environ["MOSS_PROJECT_ID"], os.environ["MOSS_PROJECT_KEY"]
         )
+        # This is the slow part that needs to be awaited
         await moss_client.load_index(settings.moss.index_name)
+        
+        # Store the ready-to-use client in userdata
+        proc.userdata["moss_client"] = moss_client
         logger.info("✓ Moss client and index ready")
-
-        logger.info("All components verified and ready")
-        return {
-            "stt": stt,
-            "llm": llm,
-            "tts": tts,
-            "vad": vad,
-            "moss_client": moss_client,
-        }
-
+        
     except Exception as e:
-        logger.error(f"Component verification failed: {e}", exc_info=True)
-        return None
+        logger.critical(f"Failed to prewarm Moss client: {e}", exc_info=True)
+        # Re-raise the exception to stop the prewarming
+        raise
 
+# --- 2. Update your main SYNC prewarm function ---
 
-async def create_readiness_marker() -> Optional[Dict[str, Any]]:
+def prewarm(proc: JobProcess):
     """
-    Create a readiness marker file *after* all components are verified.
+    Main synchronous prewarm function.
+    This loads all components, including the async ones.
     """
-    components = await verify_components_ready()
-    ready_path = Path("/tmp/agent_ready")
+    print("Prewarming components...")
 
-    if components:
-        ready_path.touch()
-        logger.info("Agent fully ready - all components loaded and verified")
-        return components
-    else:
-        logger.error("Agent not ready - component loading failed")
-        if ready_path.exists():
-            ready_path.unlink()
-            logger.info("Removed readiness marker due to component failure")
-        return None
+    # --- Load all synchronous components ---
+    
+    print("Prewarming STT (Deepgram)...")
+    stt = deepgram.STT(
+        model=settings.stt.model, language=settings.stt.language
+    )
+    proc.userdata["stt"] = stt
+    
+    print("Prewarming LLM (OpenAI)...")
+    llm = openai.LLM(
+        model=settings.llm.model, temperature=settings.llm.temperature
+    )
+    proc.userdata["llm"] = llm
+    
+    print("Prewarming TTS (Cartesia)...")
+    tts = cartesia.TTS(
+        model=settings.tts.model, voice=settings.tts.voice, speed=settings.tts.speed
+    )
+    proc.userdata["tts"] = tts
+    
+    print("Prewarming VAD (Silero)...")
+    vad = silero.VAD.load()
+    proc.userdata["vad"] = vad
+
+    # --- Run the asynchronous loading part ---
+    try:
+        # This creates a new event loop, runs _load_moss_async(proc),
+        # and waits for it to finish before proceeding.
+        asyncio.run(_load_moss_async(proc))
+        
+    except Exception as e:
+        logger.error(f"Prewarming failed: {e}")
+        # Stop the worker from starting if prewarming fails
+        raise
+
+    logger.info("All components successfully prewarmed.")
 
 
 # --- 4. Agent Definition ---
@@ -271,19 +266,13 @@ async def entrypoint(ctx: agents.JobContext):
     Main entry point for the agent worker.
     """
     logger.info("Agent entrypoint starting...")
-
-    # Verify components and create readiness marker
-    components = await create_readiness_marker()
-    if not components:
-        logger.critical("Failed to initialize components, agent cannot start")
-        return
-
+    
     # Configure the voice pipeline session
     session = AgentSession(
-        stt=components["stt"],
-        llm=components["llm"],
-        tts=components["tts"],
-        vad=components["vad"],
+        stt=ctx.proc.userdata["stt"],
+        llm=ctx.proc.userdata["llm"],
+        tts=ctx.proc.userdata["tts"],
+        vad=ctx.proc.userdata["vad"],
     )
 
     # --- Metrics Integration ---
@@ -301,7 +290,7 @@ async def entrypoint(ctx: agents.JobContext):
         await session.start(
             room=ctx.room,
             # Pass the Moss client and room object to the agent
-            agent=Assistant(components["moss_client"], ctx.room),
+            agent=Assistant(ctx.proc.userdata["moss_client"], ctx.room),
         )
         logger.info("Agent session finished successfully")
 
@@ -316,4 +305,4 @@ async def entrypoint(ctx: agents.JobContext):
 
 if __name__ == "__main__":
     logging.info("Starting LiveKit Agent worker...")
-    agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))
+    agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint , prewarm_fnc=prewarm))
