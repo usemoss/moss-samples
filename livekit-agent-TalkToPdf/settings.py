@@ -49,7 +49,9 @@ class MossConfig:
 
 @dataclass
 class UnSiloedConfig:
-    data_path: str = "data/unslolied.pdf"
+    data_path: str = ""
+    max_tokens_per_chunk: int = 100  # Token limit for each chunk
+    overlap_tokens: int = 25  # Number of tokens to overlap between chunks
 
 
 @dataclass
