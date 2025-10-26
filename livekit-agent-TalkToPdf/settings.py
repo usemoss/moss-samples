@@ -65,14 +65,15 @@ class AgentConfig:
     unsiloed: UnSiloedConfig = field(default_factory=UnSiloedConfig)
     
     # Agent behavior settings
-    instructions: str = """You are a warm, professional customer support agent for our ecommerce help desk.
-            Before responding to any user, always call the `search_support_faqs` tool to gather
-            the most relevant articles from the Moss-powered FAQ index. Use that material to craft grounded, step-by-step assistance,
-            quote key policies when helpful, and acknowledge when information is unavailable.
-            Keep responses concise, empathetic, and action-oriented, and invite follow-up
-            questions when appropriate."""
+    instructions: str = """You are a helpful AI assistant that can answer questions about the PDF document content.
+            Before responding to any user, always call the `search_support_faqs` tool to search through
+            the PDF document content using the Moss-powered index. Use the retrieved information to provide
+            accurate, detailed answers based on the PDF content. When quoting information, be specific about
+            what section or part of the document it comes from. If the information is not available in the PDF,
+            clearly state that the information is not found in the document. Keep responses conversational,
+            helpful, and informative. Feel free to ask clarifying questions if the user's question is unclear."""
     
-    initial_greeting_instructions: str = "Greet the user warmly and ask how you can help."
+    initial_greeting_instructions: str = "Hello! I'm here to help you with questions about the PDF document. What would you like to know about the content?"
 
 
 # Global settings instance
