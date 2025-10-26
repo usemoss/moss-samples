@@ -17,19 +17,32 @@ from inferedge_moss import MossClient
 
 # Load environment variables
 load_dotenv()
+class colors: # You may need to change color settings
+    RED = '\033[31m'
+    ENDC = '\033[m'
+    GREEN = '\033[32m'
+    YELLOW = '\033[33m'
+    BLUE = '\033[34m'
+
 
 async def load_and_query_sample():
     """Simple sample showing how to load an existing index and perform queries."""
-    print("=" * 40)
-    print(f"Moss SDK - Load Index & Query Sample")
-    print("=" * 40)
+    print(colors.BLUE + "=" * 40 + colors.ENDC)
+    print(f"{colors.BLUE}Moss SDK - Load Index & Query Sample{colors.ENDC}")
+    print(colors.BLUE + "=" * 40 + colors.ENDC)
 
     # Load configuration from environment variables
     project_id = os.getenv("MOSS_PROJECT_ID")
     project_key = os.getenv("MOSS_PROJECT_KEY")
     index_name = os.getenv("MOSS_INDEX_NAME")
 
-    print(f"Using index: {index_name}")
+    # Validate required environment variables
+    if not all([project_id, project_key, index_name]):
+        print("Error: Missing required environment variables!")
+        print("Please set MOSS_PROJECT_ID, MOSS_PROJECT_KEY, and MOSS_INDEX_NAME in .env file")
+        return
+
+    print(f"{colors.BLUE}Using index: {index_name}{colors.ENDC}")
 
     # Initialize Moss client
     client = MossClient(project_id, project_key)
@@ -38,19 +51,19 @@ async def load_and_query_sample():
         # Load the index for querying
         print(f"\nLoading index...")
         await client.load_index(index_name)
-        print(f"Index loaded successfully")
-        print("=" * 40)
+        print(f"{colors.GREEN}Index loaded successfully{colors.ENDC}")
+        print(colors.BLUE + "=" * 40 + colors.ENDC)
 
-        print(f"\nPerforming sample search...\n")
+        print(f"\n{colors.BLUE}Performing sample search... {colors.ENDC}\n")
         query = "refund processing time and policy"
         results = await client.query(index_name, query, 6)
 
-        print(f"Found {len(results.docs)} results in {results.time_taken_ms}ms\n")
+        print(f"{colors.GREEN}Found {len(results.docs)} results in {results.time_taken_ms}ms{colors.ENDC}\n")
         for j, result in enumerate(results.docs, 1):
-            print(f"[{result.id}] Score: {result.score:.3f}")
+            print(f"{colors.YELLOW}[{result.id}] Score: {result.score:.3f}{colors.ENDC}")
             print(f"     {result.text}\n")
 
-        print(f"\nSample completed successfully!")
+        print(f"\n{colors.GREEN}Sample completed successfully!{colors.ENDC}")
 
     except Exception as error:
         print(f"Error: {error}")
