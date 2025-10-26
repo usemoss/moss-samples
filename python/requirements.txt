@@ -1,2 +1,0 @@
-inferedge-moss
-python-dotenv
