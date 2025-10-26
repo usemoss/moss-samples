@@ -9,7 +9,7 @@ const LivekitMossVoiceAgent = () => {
           Livekit-Moss-Voice Agent
         </h1>
         <p className="text-center text-gray-600 dark:text-gray-400 mb-16 max-w-2xl mx-auto">
-          A powerful voice agent that combines LiveKit's real-time communication capabilities with Moss's semantic search intelligence
+          A powerful voice agent that combines LiveKit&apos;s real-time communication capabilities with Moss&apos;s semantic search intelligence
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
