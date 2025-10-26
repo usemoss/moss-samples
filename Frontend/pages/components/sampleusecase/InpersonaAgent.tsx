@@ -55,7 +55,7 @@ const InpersonaAgent = () => {
                 rel="noreferrer"
                 className="px-6 py-3 rounded-lg bg-gradient-to-r from-pink-600 via-fuchsia-600 to-purple-600 text-white font-semibold hover:shadow-lg hover:scale-105 transition-all duration-200"
               >
-                Explore Demo
+                Try It Now
               </a>
               <a 
                 href={data.github} 
