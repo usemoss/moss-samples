@@ -1,5 +1,4 @@
 import requests
-import json
 import time
 import os
 from dotenv import load_dotenv
@@ -39,8 +38,8 @@ class PdfChunker:
         
         # Get settings for token limits
         self.settings = get_settings()
-        self.max_tokens_per_chunk = self.settings.unslolied.max_tokens_per_chunk
-        self.overlap_tokens = self.settings.unslolied.overlap_tokens
+        self.max_tokens_per_chunk = self.settings.unsiloed.max_tokens_per_chunk
+        self.overlap_tokens = self.settings.unsiloed.overlap_tokens
 
     def _count_tokens(self, text: str) -> int:
         """
@@ -106,11 +105,10 @@ class PdfChunker:
             print("Warning: No chunks were returned from the parse API.")
             return []
 
-        print(f"Processing {len(chunks)} chunks with OCR item concatenation...")
+        print(f"Processing {len(chunks)} chunks...")
 
         # Process each chunk individually
         for chunk_idx, chunk in enumerate(chunks):
-            print(f"Processing chunk {chunk_idx + 1}/{len(chunks)}")
             
             # Collect all OCR text from all segments in this chunk
             chunk_texts = []
@@ -143,7 +141,6 @@ class PdfChunker:
                 page_numbers.append(segment.get("page_number", -1))
             
             if not chunk_texts:
-                print(f"  No valid content found in chunk {chunk_idx + 1}, creating empty index")
                 # Create an empty index for chunks with no content
                 chunk_id = f"doc-{doc_id_counter}"
                 doc_id_counter += 1
@@ -173,21 +170,16 @@ class PdfChunker:
             concatenated_chunk_text = " ".join(chunk_texts)
             token_count = self._count_tokens(concatenated_chunk_text)
             
-            print(f"  Chunk contains {len(chunk_texts)} segments, {total_ocr_items} OCR items, {token_count} tokens")
-            
             if token_count <= self.max_tokens_per_chunk:
                 # Chunk fits within token limit, create single index
                 chunks_for_chunk = [concatenated_chunk_text]
-                print(f"  Chunk fits within limit ({token_count} tokens)")
             else:
                 # Chunk exceeds token limit, split it
-                print(f"  Chunk exceeds token limit ({token_count} > {self.max_tokens_per_chunk}). Splitting...")
                 chunks_for_chunk = self._create_overlapping_chunks(
                     concatenated_chunk_text, 
                     self.max_tokens_per_chunk, 
                     self.overlap_tokens
                 )
-                print(f"  Split into {len(chunks_for_chunk)} sub-chunks")
             
             # Create final documents for each chunk/sub-chunk with UNIQUE IDs
             for i, chunk_text in enumerate(chunks_for_chunk):
@@ -225,7 +217,7 @@ class PdfChunker:
                 
                 final_json_list.append(formatted_doc)
         
-        print(f"Created {len(final_json_list)} total documents from {len(chunks)} original chunks")
+        print(f"Created {len(final_json_list)} documents from {len(chunks)} chunks")
         return final_json_list
 
     def process_pdf(self, pdf_file_path: str, poll_interval: int = 5) -> list[dict]:
@@ -238,7 +230,7 @@ class PdfChunker:
             raise FileNotFoundError(f"No file found at {pdf_file_path}")
 
         # === Step 1: Submit Job to /parse endpoint ===
-        print(f"Submitting parse job for {pdf_file_path}...")
+        print("Submitting PDF for processing...")
         
         data = {
             "segmentation_method": "Smart Layout Detection",
@@ -266,12 +258,11 @@ class PdfChunker:
         if not job_id:
             raise Exception(f"Failed to create parse job: {job_info.get('message')}")
         
-        print(f"Job created successfully: {job_id}")
-        print(f"Quota remaining: {job_info.get('quota_remaining')}")
+        print(f"Job created: {job_id}")
 
         # === Step 2: Poll for Completion ===
         status_url = f"{self.unsiloed_base_url}/parse/{job_id}"
-        print("Polling for job completion...")
+        print("Processing PDF...")
         
         raw_results = {}
         while True:
@@ -283,13 +274,12 @@ class PdfChunker:
                 status = status_data.get("status")
 
                 if status == "Succeeded":
-                    print("Parse job completed successfully.")
+                    print("PDF processing completed.")
                     raw_results = status_data
                     break
                 elif status == "Failed":
                     raise Exception(f"Job failed: {status_data.get('message', 'Unknown error')}")
                 else:
-                    print(f"Job status: {status}. Waiting {poll_interval}s...")
                     time.sleep(poll_interval)
 
             except requests.exceptions.HTTPError as e:
@@ -298,10 +288,10 @@ class PdfChunker:
 
         # === Step 3: Save Raw Results and Format the Results ===
         # Save JSON Raw Results before enriching
-        raw_json_filename = "raw_parse_results.json"
-        with open(raw_json_filename, 'w', encoding='utf-8') as f:
-            json.dump(raw_results, f, indent=2)
-        print(f"Raw JSON results saved to {raw_json_filename}")
+        # raw_json_filename = "raw_parse_results.json"
+        # with open(raw_json_filename, 'w', encoding='utf-8') as f:
+        #     json.dump(raw_results, f, indent=2)
+        # print(f"Raw JSON results saved to {raw_json_filename}")
 
         # Call the updated formatting function and return enriched results
         return self._format_results_enriched(raw_results)
@@ -316,7 +306,7 @@ if __name__ == "__main__":
     if not UNSILOED_KEY:
         raise ValueError("Please set 'UNSILOED_API_KEY' in your .env file.")
             
-    PDF_PATH = settings.unslolied.data_path
+    PDF_PATH = settings.unsiloed.data_path
     
     if not os.path.exists(PDF_PATH):
         print(f"Error: The file '{PDF_PATH}' was not found.")
@@ -325,13 +315,13 @@ if __name__ == "__main__":
             converter = PdfChunker(unsiloed_api_key=UNSILOED_KEY)
             json_data = converter.process_pdf(PDF_PATH)
             
-            print("\n--- Formatted JSON Output (Enriched) ---")
-            print(json.dumps(json_data, indent=2))
+            print("\n--- Processed Documents ---")
+            print(f"Generated {len(json_data)} document chunks")
             
-            output_filename = f"{os.path.splitext(PDF_PATH)[0]}_parsed.json"
-            with open(output_filename, 'w') as f:
-                json.dump(json_data, f, indent=2)
-            print(f"\nResults also saved to {output_filename}")
+            # output_filename = f"{os.path.splitext(PDF_PATH)[0]}_parsed.json"
+            # with open(output_filename, 'w') as f:
+            #     json.dump(json_data, f, indent=2)
+            # print(f"\nResults also saved to {output_filename}")
 
         except Exception as e:
             print(f"An unexpected error occurred: {e}")

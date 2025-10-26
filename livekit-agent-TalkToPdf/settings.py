@@ -43,13 +43,13 @@ class VADConfig:
 @dataclass
 class MossConfig:
     """Moss FAQ index configuration."""
-    index_name: str = "faq-index-livekit"
+    index_name: str = "TalkToPdf-index-livekit"
     model_id: str = "moss-minilm"
     top_k_results: int = 6
 
 @dataclass
 class UnSiloedConfig:
-    data_path: str = ""
+    data_path: str = "Yatharth-Kapadia-Resume-ALL.pdf"
     max_tokens_per_chunk: int = 100  # Token limit for each chunk
     overlap_tokens: int = 25  # Number of tokens to overlap between chunks
 
@@ -62,7 +62,7 @@ class AgentConfig:
     tts: TTSConfig = field(default_factory=TTSConfig)
     vad: VADConfig = field(default_factory=VADConfig)
     moss: MossConfig = field(default_factory=MossConfig)
-    unslolied: UnSiloedConfig = field(default_factory=UnSiloedConfig)
+    unsiloed: UnSiloedConfig = field(default_factory=UnSiloedConfig)
     
     # Agent behavior settings
     instructions: str = """You are a warm, professional customer support agent for our ecommerce help desk.
