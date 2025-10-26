@@ -43,7 +43,7 @@ class VADConfig:
 @dataclass
 class MossConfig:
     """Moss FAQ index configuration."""
-    index_name: str = "Moss-Sample-Index"
+    index_name: str = "faq-index-livekit"
     model_id: str = "moss-minilm"
     top_k_results: int = 6
     data_path: str = "moss-sample-data.json"
