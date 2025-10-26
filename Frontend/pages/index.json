@@ -20,30 +20,49 @@
     "secondary": "in-browser, on the edge, or in the cloud."
   },
   "projects": {
-    "title": "Sample Usecase",
-    "projects": [
-      {
-        "title": "Support Agent",
-        "description": "Describe the project being very specific, you can use the Twitter standard: no more than 280 characters: complement the information: the skills learned or reinforced in its realization and how you faced it, prove to be proactive in the search for solutions.",
-        "url": "http://www.example.com/project1",
-        "github": "http://www.example.com/github",
-        "image": "/placeholder-700x350.png"
-      },
-      {
-				"title": "Project 2",
-				"description": "Demonstrate in this description the skills of a programmer: such as having commitment, having perseverance and accepting alternative solutions. Remember that being a portfolio you are not selling the project, you are selling yourself, it reflects the resources used: Frameworks, libraries, platforms, etc.",
-				"url": "http://www.example.com/project2",
-        "github": "http://www.example.com/github",
-				"image": "/placeholder-700x350.png"
-			},
-      {
-				"title": "Project 3",
-				"description": "If the project was collaborative, reflect it in this description, that will demonstrate communication and/or leadership skills. Additionally, if you made use of the mastery of a second language, it will reflect on you professionalism.",
-				"url": "http://www.example.com/project3",
-        "github": "http://www.example.com/github",
-				"image": "/placeholder-700x350.png"
-			}
-    ]
+    "title": "Projects",
+    "projects": []
+  },
+  "sampleUseCases": {
+    "livekitMossVoiceAgent": {
+      "title": "Livekit-Moss-Voice-Agent",
+      "subtitle": "Real-time Voice Intelligence",
+      "description": "Experience the future of conversational AI with our LiveKit-Moss Voice Agent. This innovative solution combines real-time voice communication with intelligent semantic search capabilities, enabling natural and context-aware conversations.",
+      "features": [
+        "Real-time Processing: Instant voice recognition and response generation",
+        "Semantic Understanding: Context-aware responses powered by Moss",
+        "Scalable Architecture: Built for enterprise-grade performance"
+      ],
+      "url": "http://www.example.com/livekit-demo",
+      "github": "http://www.example.com/livekit-github",
+      "image": "/placeholder-700x350.png"
+    },
+    "talkToYourPdf": {
+      "title": "TalkToYourPdf",
+      "subtitle": "Intelligent Document Conversations",
+      "description": "TalkToYourPdf revolutionizes how you interact with documents. Upload any PDF and engage in natural conversations about its content. Our AI understands context, extracts key information, and provides accurate answers to your questions.",
+      "features": [
+        "Document Analysis: Advanced PDF parsing and content extraction",
+        "Natural Queries: Ask questions in plain language about your documents",
+        "Context Awareness: Understands document structure and relationships"
+      ],
+      "url": "http://www.example.com/talktopdf-demo",
+      "github": "http://www.example.com/talktopdf-github",
+      "image": "/placeholder-700x350.png"
+    },
+    "inpersonaAgent": {
+      "title": "InpersonaAgent",
+      "subtitle": "Personalized AI Experiences",
+      "description": "InpersonaAgent enables you to create custom AI personas that adapt to your specific needs. Whether it's customer support, content creation, or specialized assistance, our platform allows you to build intelligent agents that understand your domain and provide relevant responses.",
+      "features": [
+        "Custom Personas: Build AI agents tailored to your specific requirements",
+        "Domain Expertise: Train agents on your specific knowledge base",
+        "Seamless Integration: Easy deployment across multiple platforms"
+      ],
+      "url": "http://www.example.com/inpersona-demo",
+      "github": "http://www.example.com/inpersona-github",
+      "image": "/placeholder-700x350.png"
+    }
   },
   "contact": {
     "title": "Contact",
