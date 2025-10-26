@@ -1,0 +1,81 @@
+[project]
+name = "livekit-voice-agent"
+version = "0.1.0"
+description = "Voice AI agent built with LiveKit Agents framework"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "livekit-agents[mcp]>=1.2.0",
+    "livekit-plugins-openai>=1.0.0",
+    "livekit-plugins-deepgram>=1.0.0",
+    "livekit-plugins-silero>=1.0.0",
+    "livekit-plugins-turn-detector>=1.0.0",
+    "livekit-agents[cartesia]~=1.2",
+    "python-dotenv>=1.0.0",
+    "inferedge-moss",
+    "flask>=3.0.0",
+    "flask-cors>=4.0.0",
+    "gunicorn>=21.0.0",
+    "livekit>=0.17.0",
+]
+
+[project.optional-dependencies]
+# Additional TTS providers
+tts = [
+    "livekit-plugins-cartesia>=1.0.0",
+    "livekit-plugins-elevenlabs>=1.0.0"
+]
+
+# Additional LLM providers
+llm = [
+    "livekit-plugins-anthropic>=1.0.0",
+    "livekit-plugins-google>=1.0.0",
+    "livekit-plugins-groq>=1.0.0",
+]
+
+# Additional STT providers
+stt = [
+    "livekit-plugins-assemblyai>=1.0.0",
+    "livekit-plugins-azure>=1.0.0",
+]
+
+# Development dependencies
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+]
+
+# All optional dependencies
+all = [
+    "livekit-plugins-cartesia>=1.0.0",
+    "livekit-plugins-elevenlabs>=1.0.0",
+    "livekit-plugins-anthropic>=1.0.0",
+    "livekit-plugins-google>=1.0.0",
+    "livekit-plugins-groq>=1.0.0",
+    "livekit-plugins-assemblyai>=1.0.0",
+    "livekit-plugins-azure>=1.0.0",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311"]
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I", "N", "W"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
