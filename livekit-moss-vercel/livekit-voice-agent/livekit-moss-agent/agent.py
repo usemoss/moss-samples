@@ -5,18 +5,20 @@ The simplest possible LiveKit voice agent to get you started.
 Requires only OpenAI and Deepgram API keys.
 """
 
+import asyncio
 import json
 import logging
 import os
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Optional
 
 from dotenv import load_dotenv
 from inferedge_moss import MossClient
 from livekit import agents, rtc
-from livekit.agents import Agent, AgentSession, RunContext, ChatMessage, ChatRole
-from livekit.agents.llm import function_tool, ChatChunk
-from livekit.plugins import deepgram, openai, silero, cartesia
+from livekit.agents import Agent, AgentSession, ChatMessage, ChatRole, RunContext
+from livekit.agents.llm import ChatChunk, function_tool
+from livekit.plugins import cartesia, deepgram, openai, silero
+from pydantic import BaseModel
 
 # Load environment variables
 load_dotenv(".env.local")
@@ -33,14 +35,29 @@ logger.setLevel(logging.INFO)
 logger.propagate = False
 
 
+class IndexQuery(BaseModel):
+    """A single index query mapping."""
+
+    index_name: str
+    question: str
+
+
+class IndexQueries(BaseModel):
+    """Container for multiple index queries."""
+
+    queries: list[IndexQuery]
+
+
 class Assistant(Agent):
     """Customer support voice agent powered by the Moss FAQ index."""
 
     def __init__(self, room: Optional[rtc.Room] = None):
         super().__init__(
             instructions="""You are a warm, professional customer support agent for our ecommerce help desk.
-            Call `search_support_faqs` BEFORE crafting your answer so your reply is grounded.
-            Use retrieved FAQ snippets to produce concise, empathetic, action-oriented responses, not bullet points; acknowledge when information isn't available."""
+            Call `search_support_faqs` BEFORE crafting your answer so your reply is grounded. Pass a queries object with a list of index queries (each with index_name and question fields) to search multiple indices efficiently in one call.
+            Use retrieved FAQ snippets to produce concise, empathetic, action-oriented responses, not bullet points; acknowledge when information isn't available.
+            For FAQ related questions please use index name "faq-index-livekit"
+            """
         )
 
         project_id = os.environ["MOSS_PROJECT_ID"]
@@ -170,14 +187,17 @@ class Assistant(Agent):
         return _generator()
 
     @function_tool
-    async def search_support_faqs(self, context: RunContext, question: str) -> str:
-        """Retrieve relevant FAQ answers using Moss semantic search."""
+    async def search_support_faqs(self, context: RunContext, queries: IndexQueries) -> str:
+        """Retrieve relevant FAQ answers using Moss semantic search across multiple indices.
 
-        query = question.strip()
-        if not query:
-            return "No question provided for FAQ search."
+        Args:
+            queries: Container with list of index queries, each mapping index_name to question
+        """
 
-        logger.info("Received support query: %s", query)
+        if not queries or not hasattr(queries, "queries") or not queries.queries:
+            return "No queries provided for FAQ search."
+
+        logger.info("Received support queries: %s", queries.queries)
 
         # --- Early history-based skip: ensure at least one real user message exists ---
         # If there is no prior user message, we treat this as an initial assistant self-prompt or greeting classification.
@@ -209,29 +229,54 @@ class Assistant(Agent):
                 )
             return summary
 
-        results = await self._moss_client.query(self._moss_index_name, query, 3)
-        logger.info(
-            "Moss query completed in %sms", getattr(results, "time_taken_ms", "?")
-        )
+        # Query each question individually to maintain connection between query and results
+        async def query_single(q: IndexQuery):
+            """Query a single index/question pair and return the result."""
+            query = q.question.strip()
+            if not query:
+                return q, None
 
-        docs = list(getattr(results, "docs", []) or [])
-        if not docs:
-            logger.info("No FAQ matches returned for query: %s", query)
+            logger.info("Querying index '%s' with question: %s", q.index_name, query)
+            try:
+                results = await self._moss_client.query(q.index_name, query, 3)
+                logger.info(
+                    "Moss query for '%s' completed in %sms",
+                    q.index_name,
+                    getattr(results, "time_taken_ms", "?")
+                )
+                return q, results
+            except Exception:
+                logger.exception("Failed to query index '%s'", q.index_name)
+                return q, None
+
+        # Run all queries concurrently, keeping track of which query each result belongs to
+        tasks = [query_single(q) for q in queries.queries]
+        results_list = await asyncio.gather(*tasks)
+
+        # Collect all matches from all queries
+        all_docs = []
+        for query, results in results_list:
+            if results:
+                docs = list(getattr(results, "docs", []) or [])
+                all_docs.extend(docs)
+                logger.info("Retrieved %d docs for query '%s' from index '%s'", len(docs), query.question, query.index_name)
+
+        if not all_docs:
             summary = "No FAQ matches found."
+            logger.info("No FAQ matches returned for any query")
         else:
             match_texts = [
                 (doc.text or "").strip()
-                for doc in docs
+                for doc in all_docs
             ]
 
             full_text = "\n\n".join(match_texts)
+            summary = full_text
 
             logger.info(
-                "Top Moss matches for %r:\n%s",
-                query,
-                full_text,
+                "Found %d total matches across all indices",
+                len(all_docs)
             )
-            summary = full_text
 
         if history:
             history.add_message(
@@ -242,34 +287,41 @@ class Assistant(Agent):
 
         if self._room:
             try:
-                matches = []
-                for doc in docs:
-                    text = (doc.text or "").strip()
-                    match_entry = {"text": text}
-                    score = getattr(doc, "score", None)
-                    if score is None:
-                        score = getattr(doc, "similarity", None)
-                    if score is not None:
-                        try:
-                            match_entry["score"] = float(score)
-                        except (TypeError, ValueError):
-                            pass
-                    metadata = getattr(doc, "metadata", None)
-                    if metadata:
-                        match_entry["metadata"] = metadata
-                    matches.append(match_entry)
+                # Send separate events for each query so users can see which query got which results
+                for query, results in results_list:
+                    if not results:
+                        continue
 
-                payload = {
-                    "type": "moss_context",
-                    "data": {
-                        "query": query,
-                        "matches": matches,
-                        "time_taken_ms": getattr(results, "time_taken_ms", None),
-                        "timestamp": datetime.now(UTC).timestamp(),
-                    },
-                }
-                encoded = json.dumps(payload, default=str).encode("utf-8")
-                await self._room.local_participant.publish_data(payload=encoded, reliable=True)
+                    # Build matches array for this specific query
+                    matches = []
+                    docs = list(getattr(results, "docs", []) or [])
+                    for doc in docs:
+                        text = (doc.text or "").strip()
+                        match_entry = {"text": text}
+                        score = getattr(doc, "score", None)
+                        if score is None:
+                            score = getattr(doc, "similarity", None)
+                        if score is not None:
+                            try:
+                                match_entry["score"] = float(score)
+                            except (TypeError, ValueError):
+                                pass
+                        metadata = getattr(doc, "metadata", None)
+                        if metadata:
+                            match_entry["metadata"] = metadata
+                        matches.append(match_entry)
+
+                    # Send separate event for this query with its specific results
+                    payload = {
+                        "type": "moss_context",
+                        "data": {
+                            "query": query.question,
+                            "matches": matches,
+                            "timestamp": datetime.now(UTC).timestamp(),
+                        },
+                    }
+                    encoded = json.dumps(payload, default=str).encode("utf-8")
+                    await self._room.local_participant.publish_data(payload=encoded, reliable=True)
             except Exception:
                 logger.exception("Failed to publish Moss context data")
 
