@@ -34,6 +34,6 @@ This repo bundles thin, working examples that show how to talk to Moss from Pyth
 
 ## Learn More
 
-- API reference and latest tooling: [docs](https://moss-docs-seven.vercel.app/)
+- API reference and latest tooling: [docs](https://docs.usemoss.dev/)
   
 If you spot gaps or want another language example, open an issue or PR—we track feedback closely.
