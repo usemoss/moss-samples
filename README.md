@@ -5,6 +5,8 @@ Moss is a high-performance runtime for real-time semantic search. It delivers su
 
 This repo bundles thin, working examples that show how to talk to Moss from Python and JavaScript. Each sample keeps the scaffolding light so you can copy the essentials straight into your own projects.
 
+**Join our [discord server](https://discord.gg/Z9TGpJWF) to get onboarded!**
+
 ## Using Moss Portal
 
 > ![Moss Portal walkthrough](https://github.com/user-attachments/assets/c3db9d2d-0df5-4cec-99fd-7d49d0a30844)
