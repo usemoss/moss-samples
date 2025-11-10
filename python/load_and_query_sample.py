@@ -42,8 +42,8 @@ async def load_and_query_sample():
         print("=" * 40)
 
         print(f"\nPerforming sample search...\n")
-        query = "refund processing time and policy"
-        results = await client.query(index_name, query, 6)
+        query = "What's the next talk? current time is 12:30 PM"
+        results = await client.query(index_name, query, 3)
 
         print(f"Found {len(results.docs)} results in {results.time_taken_ms}ms\n")
         for j, result in enumerate(results.docs, 1):
