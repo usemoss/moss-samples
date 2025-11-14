@@ -9,7 +9,8 @@ This repo bundles thin, working examples that show how to talk to Moss from Pyth
 
 ## Using Moss Portal
 
-- Visit [usemoss.dev](https://usemoss.dev/) to create an account, confirm your email, and sign in.
+- Visit [usemoss.dev](https://usemoss.dev/) - click on signup/login on the top right
+  - confirm your email, and sign in.
 - Inside the default project you will see two plans:
   - Free Tier ($0) offers 1 project, 3 indexes, and 1,000 items per index with community support;
   - Developer Workspace ($2000/month + usage) adds unlimited projects/indexes plus 100 GB storage, 100 GB ingestion, 1 TB egress, and priority support.
