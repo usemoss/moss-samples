@@ -1,0 +1,189 @@
+[
+  {
+    "id": "conv-2283482.0-msg-1",
+    "text": "Shipment hasn't moved from FedEx facility for 8 business days. Where is my parcel?",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "1",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-2",
+    "text": "I see the last scan was at our Seattle freight hub. I'll request immediate priority dispatch for your shipment.",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "2",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-3",
+    "text": "Tracking number 1Z999AA1072582 shows package stuck at Phoenix warehouse since Thursday. Expected delivery was yesterday.",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "3",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-4",
+    "text": "Let me contact FedEx dispatch center to trace your parcel's current warehouse location and transit status.",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "4",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-5",
+    "text": "Delivery driver left my shipment exposed to rain. Box completely soaked, contents damaged beyond use.",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "5",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-6",
+    "text": "That's unacceptable. I'm filing a carrier complaint and processing immediate replacement shipment via overnight courier.",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "6",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-7",
+    "text": "Courier marked delivered at 8:00 AM but nothing on doorstep. Checked mailbox, porch, garage - no package anywhere.",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "7",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-8",
+    "text": "I'll pull up the delivery photo and GPS coordinates from the courier's scan to locate where package was left.",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "8",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-9",
+    "text": "Shipment hasn't moved from DHL facility for 11 business days. Where is my parcel?",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "9",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-10",
+    "text": "I see the last scan was at our Newark freight hub. I'll request immediate priority dispatch for your shipment.",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "10",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-11",
+    "text": "Tracking number 1Z999AA10861126 shows package stuck at Memphis warehouse since Friday. Expected delivery was last week.",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "11",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-12",
+    "text": "Let me contact UPS dispatch center to trace your parcel's current warehouse location and transit status.",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "12",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-13",
+    "text": "Delivery driver left my shipment exposed to rain. Box completely soaked, contents damaged beyond use.",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "13",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-14",
+    "text": "That's unacceptable. I'm filing a carrier complaint and processing immediate replacement shipment via overnight courier.",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "14",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-15",
+    "text": "Courier marked delivered at 1:45 PM but nothing on doorstep. Checked mailbox, porch, garage - no package anywhere.",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "15",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-16",
+    "text": "I'll pull up the delivery photo and GPS coordinates from the courier's scan to locate where package was left.",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "16",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2283482.0-msg-17",
+    "text": "Shipment hasn't moved from Amazon Logistics facility for 7 business days. Where is my parcel?",
+    "metadata": {
+      "conversation_id": "2283482.0",
+      "message_number": "17",
+      "total_messages": "17",
+      "num_messages": "17",
+      "topic": "0"
+    }
+  }
+]

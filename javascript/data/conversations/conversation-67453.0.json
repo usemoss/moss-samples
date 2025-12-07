@@ -1,0 +1,79 @@
+[
+  {
+    "id": "conv-67453.0-msg-1",
+    "text": "Item stopped working after 3 days. Manufacturing defect, not user damage. Past 30-day return window. Warranty coverage or exception possible?",
+    "metadata": {
+      "conversation_id": "67453.0",
+      "message_number": "1",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-67453.0-msg-2",
+    "text": "Duplicate order return accepted. Unopened item in original packaging qualifies for full refund. No restocking fee. Return label emailed for $139 refund.",
+    "metadata": {
+      "conversation_id": "67453.0",
+      "message_number": "2",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-67453.0-msg-3",
+    "text": "Initiated return 10 days ago via UPS Store. Tracking shows delivered to return center 5 days ago. Still no refund $249.99 processed.",
+    "metadata": {
+      "conversation_id": "67453.0",
+      "message_number": "3",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-67453.0-msg-4",
+    "text": "Return received at center 5 days ago. Inspection complete. Processing $29.99 refund now - expect in payment method within 3-5 business days.",
+    "metadata": {
+      "conversation_id": "67453.0",
+      "message_number": "4",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-67453.0-msg-5",
+    "text": "Accidentally ordered duplicate laptop. One unopened in original packaging. Can I return just unopened one? Need return label and refund $89.99.",
+    "metadata": {
+      "conversation_id": "67453.0",
+      "message_number": "5",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-67453.0-msg-6",
+    "text": "Return authorized - RMA number RMA759407. Return window active 3 more days. Prepaid return label sent. Drop off at UPS Store, refund after inspection.",
+    "metadata": {
+      "conversation_id": "67453.0",
+      "message_number": "6",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-67453.0-msg-7",
+    "text": "Need return authorization for coffee maker - doesn't fit properly. Original packaging intact, tags attached, unused condition. Bought 6 days ago.",
+    "metadata": {
+      "conversation_id": "67453.0",
+      "message_number": "7",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  }
+]

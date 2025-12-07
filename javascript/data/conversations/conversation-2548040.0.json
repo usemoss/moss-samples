@@ -1,0 +1,90 @@
+[
+  {
+    "id": "conv-2548040.0-msg-1",
+    "text": "UPS tracking shows 'delivered to front desk' but building concierge has no record. Package weight was 22 lbs.",
+    "metadata": {
+      "conversation_id": "2548040.0",
+      "message_number": "1",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2548040.0-msg-2",
+    "text": "I'll contact building concierge with parcel tracking details and delivery photo. May need to check mailroom or storage area.",
+    "metadata": {
+      "conversation_id": "2548040.0",
+      "message_number": "2",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2548040.0-msg-3",
+    "text": "Package contents shifted during transit. Heard items broken inside box. External damage visible - corners crushed, tape torn.",
+    "metadata": {
+      "conversation_id": "2548040.0",
+      "message_number": "3",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2548040.0-msg-4",
+    "text": "That violates signature protocol. I'm filing carrier violation report and updating your delivery preferences for future shipments.",
+    "metadata": {
+      "conversation_id": "2548040.0",
+      "message_number": "4",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2548040.0-msg-5",
+    "text": "Signature required delivery but driver just left package at mailroom without any signature. Security risk for valuable shipment.",
+    "metadata": {
+      "conversation_id": "2548040.0",
+      "message_number": "5",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2548040.0-msg-6",
+    "text": "I'll approve immediate damaged shipment claim. Replacement parcel will dispatch overnight via FedEx with priority freight handling.",
+    "metadata": {
+      "conversation_id": "2548040.0",
+      "message_number": "6",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2548040.0-msg-7",
+    "text": "Delivery window was 2-6 PM. Courier arrived at 9 AM when nobody home. Now rescheduled for next Wednesday.",
+    "metadata": {
+      "conversation_id": "2548040.0",
+      "message_number": "7",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2548040.0-msg-8",
+    "text": "I apologize for missed delivery window. I'll request specific time slot with dispatch and send courier tracking updates to your phone.",
+    "metadata": {
+      "conversation_id": "2548040.0",
+      "message_number": "8",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  }
+]

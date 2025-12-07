@@ -1,0 +1,90 @@
+[
+  {
+    "id": "conv-973093.0-msg-1",
+    "text": "Prime Video buffers every 30 seconds on Fire TV Stick 4K. Internet speed test shows 150 Mbps download, router 5 feet away.",
+    "metadata": {
+      "conversation_id": "973093.0",
+      "message_number": "1",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-973093.0-msg-2",
+    "text": "Authentication error means credential sync problem. Log out completely, clear app cache and cookies, reboot device, then re-login.",
+    "metadata": {
+      "conversation_id": "973093.0",
+      "message_number": "2",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-973093.0-msg-3",
+    "text": "Amazon Music app throws 'authentication failed' error on Android 13 device. WiFi connected, browser works fine, just app fails.",
+    "metadata": {
+      "conversation_id": "973093.0",
+      "message_number": "3",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-973093.0-msg-4",
+    "text": "That's app-device desync. Device is online but app can't detect. Forget device in app, reboot Echo Show, re-discover in app settings.",
+    "metadata": {
+      "conversation_id": "973093.0",
+      "message_number": "4",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-973093.0-msg-5",
+    "text": "Shopping app won't load product images on iOS 17 iPhone 14. Blank squares everywhere. Cellular data and WiFi both tested.",
+    "metadata": {
+      "conversation_id": "973093.0",
+      "message_number": "5",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-973093.0-msg-6",
+    "text": "Buffering with high bandwidth indicates app cache issue. Clear Prime Video cache, change streaming quality to 1080p, reboot Fire Stick.",
+    "metadata": {
+      "conversation_id": "973093.0",
+      "message_number": "6",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-973093.0-msg-7",
+    "text": "Echo Show 8 displays 'offline' in Alexa app but device responds to voice commands. Firmware version 1.2.3, app version 2.5.6.",
+    "metadata": {
+      "conversation_id": "973093.0",
+      "message_number": "7",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-973093.0-msg-8",
+    "text": "Image loading failure on iOS 17 suggests CDN issue. Try changing DNS to 8.8.8.8, disable any VPN, force quit app, reinstall.",
+    "metadata": {
+      "conversation_id": "973093.0",
+      "message_number": "8",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "1"
+    }
+  }
+]

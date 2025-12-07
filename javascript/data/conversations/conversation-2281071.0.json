@@ -1,0 +1,101 @@
+[
+  {
+    "id": "conv-2281071.0-msg-1",
+    "text": "Delivery attempt notice says driver couldn't access building, but I was home all day. Doorbell camera shows no courier.",
+    "metadata": {
+      "conversation_id": "2281071.0",
+      "message_number": "1",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2281071.0-msg-2",
+    "text": "I'll review doorbell footage timestamps against courier's delivery scan. This appears to be a false attempt entry.",
+    "metadata": {
+      "conversation_id": "2281071.0",
+      "message_number": "2",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2281071.0-msg-3",
+    "text": "Wrong address on shipping label. Package sent to 123 Oak Street instead of 123 Elm Street. Different neighborhood entirely.",
+    "metadata": {
+      "conversation_id": "2281071.0",
+      "message_number": "3",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2281071.0-msg-4",
+    "text": "I can see the incorrect shipping label in our warehouse system. I'll intercept the parcel and correct the delivery address now.",
+    "metadata": {
+      "conversation_id": "2281071.0",
+      "message_number": "4",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2281071.0-msg-5",
+    "text": "Parcel weighing 15 lbs dispatched from Dallas warehouse. Tracking stuck on 'in-transit' for 8 business days.",
+    "metadata": {
+      "conversation_id": "2281071.0",
+      "message_number": "5",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2281071.0-msg-6",
+    "text": "I'm escalating to our logistics coordinator to prevent further rescheduling and lock in guaranteed delivery for Friday.",
+    "metadata": {
+      "conversation_id": "2281071.0",
+      "message_number": "6",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2281071.0-msg-7",
+    "text": "Package routing shows Amazon Logistics rescheduled delivery three times. Original estimate was Monday, now showing next Monday.",
+    "metadata": {
+      "conversation_id": "2281071.0",
+      "message_number": "7",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2281071.0-msg-8",
+    "text": "That transit time is excessive. I'll open a freight investigation with UPS and expedite your parcel shipment immediately.",
+    "metadata": {
+      "conversation_id": "2281071.0",
+      "message_number": "8",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2281071.0-msg-9",
+    "text": "Delivery attempt notice says driver couldn't access building, but I was home all day. Doorbell camera shows no courier.",
+    "metadata": {
+      "conversation_id": "2281071.0",
+      "message_number": "9",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "0"
+    }
+  }
+]

@@ -1,0 +1,112 @@
+[
+  {
+    "id": "conv-304621.0-msg-1",
+    "text": "Courier marked delivered at 5:45 PM but nothing on doorstep. Checked mailbox, porch, garage - no package anywhere.",
+    "metadata": {
+      "conversation_id": "304621.0",
+      "message_number": "1",
+      "total_messages": "10",
+      "num_messages": "10",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-304621.0-msg-2",
+    "text": "Let me contact UPS dispatch center to trace your parcel's current warehouse location and transit status.",
+    "metadata": {
+      "conversation_id": "304621.0",
+      "message_number": "2",
+      "total_messages": "10",
+      "num_messages": "10",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-304621.0-msg-3",
+    "text": "Delivery driver left my shipment exposed to rain. Box completely soaked, contents damaged beyond use.",
+    "metadata": {
+      "conversation_id": "304621.0",
+      "message_number": "3",
+      "total_messages": "10",
+      "num_messages": "10",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-304621.0-msg-4",
+    "text": "That's unacceptable. I'm filing a carrier complaint and processing immediate replacement shipment via overnight courier.",
+    "metadata": {
+      "conversation_id": "304621.0",
+      "message_number": "4",
+      "total_messages": "10",
+      "num_messages": "10",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-304621.0-msg-5",
+    "text": "Shipment hasn't moved from DHL facility for 12 business days. Where is my parcel?",
+    "metadata": {
+      "conversation_id": "304621.0",
+      "message_number": "5",
+      "total_messages": "10",
+      "num_messages": "10",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-304621.0-msg-6",
+    "text": "I'll pull up the delivery photo and GPS coordinates from the courier's scan to locate where package was left.",
+    "metadata": {
+      "conversation_id": "304621.0",
+      "message_number": "6",
+      "total_messages": "10",
+      "num_messages": "10",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-304621.0-msg-7",
+    "text": "Tracking number 1Z999AA10123274 shows package stuck at Memphis warehouse since Friday. Expected delivery was two days ago.",
+    "metadata": {
+      "conversation_id": "304621.0",
+      "message_number": "7",
+      "total_messages": "10",
+      "num_messages": "10",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-304621.0-msg-8",
+    "text": "I see the last scan was at our Atlanta freight hub. I'll request immediate priority dispatch for your shipment.",
+    "metadata": {
+      "conversation_id": "304621.0",
+      "message_number": "8",
+      "total_messages": "10",
+      "num_messages": "10",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-304621.0-msg-9",
+    "text": "Courier marked delivered at 11:45 AM but nothing on doorstep. Checked mailbox, porch, garage - no package anywhere.",
+    "metadata": {
+      "conversation_id": "304621.0",
+      "message_number": "9",
+      "total_messages": "10",
+      "num_messages": "10",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-304621.0-msg-10",
+    "text": "Let me contact UPS dispatch center to trace your parcel's current warehouse location and transit status.",
+    "metadata": {
+      "conversation_id": "304621.0",
+      "message_number": "10",
+      "total_messages": "10",
+      "num_messages": "10",
+      "topic": "0"
+    }
+  }
+]

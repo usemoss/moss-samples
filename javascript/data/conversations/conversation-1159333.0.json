@@ -1,0 +1,255 @@
+[
+  {
+    "id": "conv-1159333.0-msg-1",
+    "text": "Shopping app login keeps failing. Password correct (works on website). Cleared cache, reinstalled app twice. Echo Show iOS 3.3.6.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "1",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-2",
+    "text": "Device registration desync. Deregister device completely from account, factory reset Kindle, re-register with Amazon account credentials.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "2",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-3",
+    "text": "Kindle books won't download. Error says 'device not registered' but account shows device registered. Fire Tablet OS version 2.0.1.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "3",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-4",
+    "text": "App login failure while website works indicates keychain issue on iOS. Disable autofill, manually type credentials, update app to latest version.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "4",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-5",
+    "text": "Alexa won't respond to wake word on Echo Dot. Blue light ring doesn't activate. Device firmware 2.4.1, tried factory reset already.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "5",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-6",
+    "text": "Backup failure with enabled auto-backup means permission issue. Check app permissions for camera, storage, background data on Android 13.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "6",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-7",
+    "text": "Amazon Photos app won't backup photos on Samsung Galaxy S22 running Android 13. Auto-backup enabled, WiFi connected, 50GB free storage.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "7",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-8",
+    "text": "Wake word failure after factory reset suggests microphone hardware issue. Check microphone holes aren't blocked, test with different wake word.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "8",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-9",
+    "text": "Shopping app login keeps failing. Password correct (works on website). Cleared cache, reinstalled app twice. Samsung Galaxy iOS 1.7.8.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "9",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-10",
+    "text": "Device registration desync. Deregister device completely from account, factory reset Kindle, re-register with Amazon account credentials.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "10",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-11",
+    "text": "Kindle books won't download. Error says 'device not registered' but account shows device registered. Fire Tablet OS version 2.5.4.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "11",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-12",
+    "text": "App login failure while website works indicates keychain issue on iOS. Disable autofill, manually type credentials, update app to latest version.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "12",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-13",
+    "text": "Alexa won't respond to wake word on Echo Dot. Blue light ring doesn't activate. Device firmware 3.8.4, tried factory reset already.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "13",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-14",
+    "text": "Backup failure with enabled auto-backup means permission issue. Check app permissions for camera, storage, background data on Android 13.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "14",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-15",
+    "text": "Amazon Photos app won't backup photos on Samsung Galaxy S22 running Android 13. Auto-backup enabled, WiFi connected, 50GB free storage.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "15",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-16",
+    "text": "Wake word failure after factory reset suggests microphone hardware issue. Check microphone holes aren't blocked, test with different wake word.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "16",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-17",
+    "text": "Shopping app login keeps failing. Password correct (works on website). Cleared cache, reinstalled app twice. Kindle iOS 3.4.1.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "17",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-18",
+    "text": "Device registration desync. Deregister device completely from account, factory reset Kindle, re-register with Amazon account credentials.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "18",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-19",
+    "text": "Kindle books won't download. Error says 'device not registered' but account shows device registered. Fire Tablet OS version 4.0.1.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "19",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-20",
+    "text": "App login failure while website works indicates keychain issue on iOS. Disable autofill, manually type credentials, update app to latest version.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "20",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-21",
+    "text": "Alexa won't respond to wake word on Echo Dot. Blue light ring doesn't activate. Device firmware 1.0.5, tried factory reset already.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "21",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-22",
+    "text": "Backup failure with enabled auto-backup means permission issue. Check app permissions for camera, storage, background data on Android 13.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "22",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-1159333.0-msg-23",
+    "text": "Amazon Photos app won't backup photos on Samsung Galaxy S22 running Android 13. Auto-backup enabled, WiFi connected, 50GB free storage.",
+    "metadata": {
+      "conversation_id": "1159333.0",
+      "message_number": "23",
+      "total_messages": "23",
+      "num_messages": "23",
+      "topic": "1"
+    }
+  }
+]

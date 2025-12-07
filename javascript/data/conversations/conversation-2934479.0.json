@@ -1,0 +1,123 @@
+[
+  {
+    "id": "conv-2934479.0-msg-1",
+    "text": "Wrong item delivered. Ordered headphones in blue size Large, received cable in red size Small. Need correct item shipped, return label for wrong one.",
+    "metadata": {
+      "conversation_id": "2934479.0",
+      "message_number": "1",
+      "total_messages": "11",
+      "num_messages": "11",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-2934479.0-msg-2",
+    "text": "Defective item qualifies for returnless refund. Full $249.99 refund processing to payment method ending 2249. Dispose of defective monitor.",
+    "metadata": {
+      "conversation_id": "2934479.0",
+      "message_number": "2",
+      "total_messages": "11",
+      "num_messages": "11",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-2934479.0-msg-3",
+    "text": "Item arrived damaged - box crushed during shipping, headphones broken into pieces. Packaging inadequate. Need replacement or full refund $249.99.",
+    "metadata": {
+      "conversation_id": "2934479.0",
+      "message_number": "3",
+      "total_messages": "11",
+      "num_messages": "11",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-2934479.0-msg-4",
+    "text": "Item not as described qualifies for return. You're within 30-day return policy. Prepaid label sent to email. Full refund $249.99 after inspection.",
+    "metadata": {
+      "conversation_id": "2934479.0",
+      "message_number": "4",
+      "total_messages": "11",
+      "num_messages": "11",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-2934479.0-msg-5",
+    "text": "laptop doesn't match description. Listed as stainless steel but received plastic. Poor quality, not resellable. Return within 30-day window?",
+    "metadata": {
+      "conversation_id": "2934479.0",
+      "message_number": "5",
+      "total_messages": "11",
+      "num_messages": "11",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-2934479.0-msg-6",
+    "text": "Damaged arrival is unacceptable. Immediate replacement keyboard shipping today. Return label generated - drop off at any UPS Store or Kohls location.",
+    "metadata": {
+      "conversation_id": "2934479.0",
+      "message_number": "6",
+      "total_messages": "11",
+      "num_messages": "11",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-2934479.0-msg-7",
+    "text": "Received defective monitor - screen cracked, won't power on. Need prepaid return label and full refund $89.99 to original payment method.",
+    "metadata": {
+      "conversation_id": "2934479.0",
+      "message_number": "7",
+      "total_messages": "11",
+      "num_messages": "11",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-2934479.0-msg-8",
+    "text": "I apologize for wrong item. Correct monitor blue size Large shipping now via overnight. Prepaid return label emailed for incorrect adapter.",
+    "metadata": {
+      "conversation_id": "2934479.0",
+      "message_number": "8",
+      "total_messages": "11",
+      "num_messages": "11",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-2934479.0-msg-9",
+    "text": "Wrong item delivered. Ordered laptop in blue size Large, received charger in red size Small. Need correct item shipped, return label for wrong one.",
+    "metadata": {
+      "conversation_id": "2934479.0",
+      "message_number": "9",
+      "total_messages": "11",
+      "num_messages": "11",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-2934479.0-msg-10",
+    "text": "Defective item qualifies for returnless refund. Full $89.99 refund processing to payment method ending 4727. Dispose of defective tablet.",
+    "metadata": {
+      "conversation_id": "2934479.0",
+      "message_number": "10",
+      "total_messages": "11",
+      "num_messages": "11",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-2934479.0-msg-11",
+    "text": "Item arrived damaged - box crushed during shipping, monitor broken into pieces. Packaging inadequate. Need replacement or full refund $14.99.",
+    "metadata": {
+      "conversation_id": "2934479.0",
+      "message_number": "11",
+      "total_messages": "11",
+      "num_messages": "11",
+      "topic": "3"
+    }
+  }
+]

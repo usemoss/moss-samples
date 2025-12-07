@@ -38,7 +38,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@inferedge/moss": "^1.0.0-beta.1",
+    "@inferedge/moss": "^1.0.0-beta.2",
     "dotenv": "^17.2.3"
   },
   "devDependencies": {

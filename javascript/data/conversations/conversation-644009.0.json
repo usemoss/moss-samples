@@ -1,0 +1,101 @@
+[
+  {
+    "id": "conv-644009.0-msg-1",
+    "text": "Amazon Photos app won't backup photos on Samsung Galaxy S22 running Android 13. Auto-backup enabled, WiFi connected, 50GB free storage.",
+    "metadata": {
+      "conversation_id": "644009.0",
+      "message_number": "1",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-644009.0-msg-2",
+    "text": "Backup failure with enabled auto-backup means permission issue. Check app permissions for camera, storage, background data on Android 13.",
+    "metadata": {
+      "conversation_id": "644009.0",
+      "message_number": "2",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-644009.0-msg-3",
+    "text": "Shopping app login keeps failing. Password correct (works on website). Cleared cache, reinstalled app twice. Fire TV iOS 5.0.2.",
+    "metadata": {
+      "conversation_id": "644009.0",
+      "message_number": "3",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-644009.0-msg-4",
+    "text": "App login failure while website works indicates keychain issue on iOS. Disable autofill, manually type credentials, update app to latest version.",
+    "metadata": {
+      "conversation_id": "644009.0",
+      "message_number": "4",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-644009.0-msg-5",
+    "text": "Alexa won't respond to wake word on Echo Dot. Blue light ring doesn't activate. Device firmware 1.8.8, tried factory reset already.",
+    "metadata": {
+      "conversation_id": "644009.0",
+      "message_number": "5",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-644009.0-msg-6",
+    "text": "Wake word failure after factory reset suggests microphone hardware issue. Check microphone holes aren't blocked, test with different wake word.",
+    "metadata": {
+      "conversation_id": "644009.0",
+      "message_number": "6",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-644009.0-msg-7",
+    "text": "Kindle books won't download. Error says 'device not registered' but account shows device registered. Fire Tablet OS version 1.2.4.",
+    "metadata": {
+      "conversation_id": "644009.0",
+      "message_number": "7",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-644009.0-msg-8",
+    "text": "Device registration desync. Deregister device completely from account, factory reset Kindle, re-register with Amazon account credentials.",
+    "metadata": {
+      "conversation_id": "644009.0",
+      "message_number": "8",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-644009.0-msg-9",
+    "text": "Amazon Photos app won't backup photos on Samsung Galaxy S22 running Android 13. Auto-backup enabled, WiFi connected, 50GB free storage.",
+    "metadata": {
+      "conversation_id": "644009.0",
+      "message_number": "9",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "1"
+    }
+  }
+]

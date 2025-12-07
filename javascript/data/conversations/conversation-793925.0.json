@@ -1,0 +1,79 @@
+[
+  {
+    "id": "conv-793925.0-msg-1",
+    "text": "Credit card statement shows $29.99 charge on November 21 but I cancelled Prime membership on October 16. Need refund for unauthorized billing.",
+    "metadata": {
+      "conversation_id": "793925.0",
+      "message_number": "1",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "2"
+    }
+  },
+  {
+    "id": "conv-793925.0-msg-2",
+    "text": "I see the charge after cancellation date. That's billing error. Processing $89.99 refund to your payment method within 3-5 business days.",
+    "metadata": {
+      "conversation_id": "793925.0",
+      "message_number": "2",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "2"
+    }
+  },
+  {
+    "id": "conv-793925.0-msg-3",
+    "text": "Subscribed to Prime Student discount $14.99 annually. Graduated last month. Need to switch to regular Prime membership billing.",
+    "metadata": {
+      "conversation_id": "793925.0",
+      "message_number": "3",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "2"
+    }
+  },
+  {
+    "id": "conv-793925.0-msg-4",
+    "text": "Free trial shouldn't charge upfront. That's incorrect billing. I'll refund $29.99 immediately and restart your 30-day trial period correctly.",
+    "metadata": {
+      "conversation_id": "793925.0",
+      "message_number": "4",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "2"
+    }
+  },
+  {
+    "id": "conv-793925.0-msg-5",
+    "text": "Enrolled in 30-day free trial on November 7. Got charged $139 immediately instead of after trial period. Trial supposed to be free.",
+    "metadata": {
+      "conversation_id": "793925.0",
+      "message_number": "5",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "2"
+    }
+  },
+  {
+    "id": "conv-793925.0-msg-6",
+    "text": "I'll transition your Prime Student membership to regular Prime. Billing cycle adjusts to $14.99 monthly. Benefits remain identical.",
+    "metadata": {
+      "conversation_id": "793925.0",
+      "message_number": "6",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "2"
+    }
+  },
+  {
+    "id": "conv-793925.0-msg-7",
+    "text": "Annual Prime membership $89.99 auto-renewed on November 5 without notification. Want to downgrade to monthly $14.99 subscription instead.",
+    "metadata": {
+      "conversation_id": "793925.0",
+      "message_number": "7",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "2"
+    }
+  }
+]

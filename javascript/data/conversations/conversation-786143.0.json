@@ -1,0 +1,101 @@
+[
+  {
+    "id": "conv-786143.0-msg-1",
+    "text": "Trying to share Prime benefits with household member. Added to Amazon Household but they can't access Prime Music streaming service.",
+    "metadata": {
+      "conversation_id": "786143.0",
+      "message_number": "1",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "2"
+    }
+  },
+  {
+    "id": "conv-786143.0-msg-2",
+    "text": "Household sharing for Prime Music requires separate step. I'll enable streaming benefits for added household member in membership settings.",
+    "metadata": {
+      "conversation_id": "786143.0",
+      "message_number": "2",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "2"
+    }
+  },
+  {
+    "id": "conv-786143.0-msg-3",
+    "text": "Can't access Prime Video streaming despite active membership. Account shows Prime expires November 14. All payment methods current and valid.",
+    "metadata": {
+      "conversation_id": "786143.0",
+      "message_number": "3",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "2"
+    }
+  },
+  {
+    "id": "conv-786143.0-msg-4",
+    "text": "Two-day shipping unavailable could be seller issue. Prime only applies to Prime-eligible items. I'll help filter for Prime shipping options.",
+    "metadata": {
+      "conversation_id": "786143.0",
+      "message_number": "4",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "2"
+    }
+  },
+  {
+    "id": "conv-786143.0-msg-5",
+    "text": "Prime membership benefits say two-day shipping but checkout shows 5-7 days for all items. Paying $249.99 monthly for nothing.",
+    "metadata": {
+      "conversation_id": "786143.0",
+      "message_number": "5",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "2"
+    }
+  },
+  {
+    "id": "conv-786143.0-msg-6",
+    "text": "Prime Video access issue despite active membership. Let me refresh your subscription entitlements. Should restore streaming within 10 minutes.",
+    "metadata": {
+      "conversation_id": "786143.0",
+      "message_number": "6",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "2"
+    }
+  },
+  {
+    "id": "conv-786143.0-msg-7",
+    "text": "Want to cancel Prime membership before renewal date November 7. Already used Prime Video twice this month. Will I get prorated refund?",
+    "metadata": {
+      "conversation_id": "786143.0",
+      "message_number": "7",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "2"
+    }
+  },
+  {
+    "id": "conv-786143.0-msg-8",
+    "text": "You can cancel anytime. Since you used Prime Video benefits this month, no prorated refund available. Membership active until November 24.",
+    "metadata": {
+      "conversation_id": "786143.0",
+      "message_number": "8",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "2"
+    }
+  },
+  {
+    "id": "conv-786143.0-msg-9",
+    "text": "Trying to share Prime benefits with household member. Added to Amazon Household but they can't access Prime Music streaming service.",
+    "metadata": {
+      "conversation_id": "786143.0",
+      "message_number": "9",
+      "total_messages": "9",
+      "num_messages": "9",
+      "topic": "2"
+    }
+  }
+]

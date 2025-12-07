@@ -1,0 +1,90 @@
+[
+  {
+    "id": "conv-613945.0-msg-1",
+    "text": "Item arrived damaged - box crushed during shipping, coffee maker broken into pieces. Packaging inadequate. Need replacement or full refund $14.99.",
+    "metadata": {
+      "conversation_id": "613945.0",
+      "message_number": "1",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-613945.0-msg-2",
+    "text": "Damaged arrival is unacceptable. Immediate replacement headphones shipping today. Return label generated - drop off at any UPS Store or Kohls location.",
+    "metadata": {
+      "conversation_id": "613945.0",
+      "message_number": "2",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-613945.0-msg-3",
+    "text": "Received defective tablet - screen cracked, won't power on. Need prepaid return label and full refund $139 to original payment method.",
+    "metadata": {
+      "conversation_id": "613945.0",
+      "message_number": "3",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-613945.0-msg-4",
+    "text": "I apologize for wrong item. Correct desk chair blue size Large shipping now via overnight. Prepaid return label emailed for incorrect charger.",
+    "metadata": {
+      "conversation_id": "613945.0",
+      "message_number": "4",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-613945.0-msg-5",
+    "text": "Wrong item delivered. Ordered tablet in blue size Large, received adapter in red size Small. Need correct item shipped, return label for wrong one.",
+    "metadata": {
+      "conversation_id": "613945.0",
+      "message_number": "5",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-613945.0-msg-6",
+    "text": "Defective item qualifies for returnless refund. Full $139 refund processing to payment method ending 9841. Dispose of defective headphones.",
+    "metadata": {
+      "conversation_id": "613945.0",
+      "message_number": "6",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-613945.0-msg-7",
+    "text": "tablet doesn't match description. Listed as stainless steel but received plastic. Poor quality, not resellable. Return within 30-day window?",
+    "metadata": {
+      "conversation_id": "613945.0",
+      "message_number": "7",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-613945.0-msg-8",
+    "text": "Item not as described qualifies for return. You're within 30-day return policy. Prepaid label sent to email. Full refund $89.99 after inspection.",
+    "metadata": {
+      "conversation_id": "613945.0",
+      "message_number": "8",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "3"
+    }
+  }
+]

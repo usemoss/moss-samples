@@ -1,0 +1,90 @@
+[
+  {
+    "id": "conv-2416112.0-msg-1",
+    "text": "Tracking number 1Z999AA10102199 shows package stuck at Atlanta warehouse since Thursday. Expected delivery was Monday.",
+    "metadata": {
+      "conversation_id": "2416112.0",
+      "message_number": "1",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2416112.0-msg-2",
+    "text": "I see the last scan was at our Memphis freight hub. I'll request immediate priority dispatch for your shipment.",
+    "metadata": {
+      "conversation_id": "2416112.0",
+      "message_number": "2",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2416112.0-msg-3",
+    "text": "Courier marked delivered at 10:30 PM but nothing on doorstep. Checked mailbox, porch, garage - no package anywhere.",
+    "metadata": {
+      "conversation_id": "2416112.0",
+      "message_number": "3",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2416112.0-msg-4",
+    "text": "That's unacceptable. I'm filing a carrier complaint and processing immediate replacement shipment via overnight courier.",
+    "metadata": {
+      "conversation_id": "2416112.0",
+      "message_number": "4",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2416112.0-msg-5",
+    "text": "Shipment hasn't moved from DHL facility for 9 business days. Where is my parcel?",
+    "metadata": {
+      "conversation_id": "2416112.0",
+      "message_number": "5",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2416112.0-msg-6",
+    "text": "Let me contact Amazon Logistics dispatch center to trace your parcel's current warehouse location and transit status.",
+    "metadata": {
+      "conversation_id": "2416112.0",
+      "message_number": "6",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2416112.0-msg-7",
+    "text": "Delivery driver left my shipment exposed to rain. Box completely soaked, contents damaged beyond use.",
+    "metadata": {
+      "conversation_id": "2416112.0",
+      "message_number": "7",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  },
+  {
+    "id": "conv-2416112.0-msg-8",
+    "text": "I'll pull up the delivery photo and GPS coordinates from the courier's scan to locate where package was left.",
+    "metadata": {
+      "conversation_id": "2416112.0",
+      "message_number": "8",
+      "total_messages": "8",
+      "num_messages": "8",
+      "topic": "0"
+    }
+  }
+]

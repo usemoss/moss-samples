@@ -1,0 +1,563 @@
+[
+  {
+    "id": "conv-522478.0-msg-1",
+    "text": "Fire Stick outputs black screen after latest firmware update to version 2.5.3. Audio works but no video display.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "1",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-2",
+    "text": "Kindle app freeze indicates insufficient RAM. Force quit app, clear all cached data, disable background apps, then restart device.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "2",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-3",
+    "text": "Alexa app won't sync with Echo Dot 4th generation. Device firmware 3.7.3, smartphone OS Fire OS 7.2. Connection times out.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "3",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-4",
+    "text": "That's a sync issue. Try factory reset on Echo Dot, then re-pair in Alexa app. Ensure both devices on same WiFi network SSID.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "4",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-5",
+    "text": "Prime Video app version 6.12.1 crashes immediately on Samsung Galaxy running iPadOS 16. Error code server error displays before crash.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "5",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-6",
+    "text": "Let's troubleshoot that crash. First, uninstall app completely, reboot Fire Stick, then reinstall from app store. Check OS compatibility.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "6",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-7",
+    "text": "Kindle app freezes on loading screen. Fire Tablet 10 HD with 2GB RAM, 64GB storage. Cleared cache twice, still unresponsive.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "7",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-8",
+    "text": "Black screen after firmware update suggests display driver issue. Try factory reset Fire Stick to previous firmware version 3.7.7.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "8",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-9",
+    "text": "Fire Stick outputs black screen after latest firmware update to version 2.4.2. Audio works but no video display.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "9",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-10",
+    "text": "Kindle app freeze indicates insufficient RAM. Force quit app, clear all cached data, disable background apps, then restart device.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "10",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-11",
+    "text": "Alexa app won't sync with Echo Dot 4th generation. Device firmware 5.7.8, smartphone OS iPadOS 16. Connection times out.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "11",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-12",
+    "text": "That's a sync issue. Try factory reset on Echo Dot, then re-pair in Alexa app. Ensure both devices on same WiFi network SSID.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "12",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-13",
+    "text": "Prime Video app version 6.12.1 crashes immediately on iPhone running Windows 11. Error code server error displays before crash.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "13",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-14",
+    "text": "Let's troubleshoot that crash. First, uninstall app completely, reboot Echo Show, then reinstall from app store. Check OS compatibility.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "14",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-15",
+    "text": "Kindle app freezes on loading screen. Fire Tablet 10 HD with 2GB RAM, 64GB storage. Cleared cache twice, still unresponsive.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "15",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-16",
+    "text": "Black screen after firmware update suggests display driver issue. Try factory reset Fire Stick to previous firmware version 3.4.4.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "16",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-17",
+    "text": "Fire Stick outputs black screen after latest firmware update to version 4.3.6. Audio works but no video display.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "17",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-18",
+    "text": "Kindle app freeze indicates insufficient RAM. Force quit app, clear all cached data, disable background apps, then restart device.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "18",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-19",
+    "text": "Alexa app won't sync with Echo Dot 4th generation. Device firmware 3.5.3, smartphone OS iPadOS 16. Connection times out.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "19",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-20",
+    "text": "That's a sync issue. Try factory reset on Echo Dot, then re-pair in Alexa app. Ensure both devices on same WiFi network SSID.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "20",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-21",
+    "text": "Prime Video app version 6.12.1 crashes immediately on Kindle running Windows 11. Error code SSL certificate error displays before crash.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "21",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-22",
+    "text": "Let's troubleshoot that crash. First, uninstall app completely, reboot Echo Show, then reinstall from app store. Check OS compatibility.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "22",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-23",
+    "text": "Kindle app freezes on loading screen. Fire Tablet 10 HD with 2GB RAM, 64GB storage. Cleared cache twice, still unresponsive.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "23",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-24",
+    "text": "Black screen after firmware update suggests display driver issue. Try factory reset Fire Stick to previous firmware version 4.4.1.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "24",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-25",
+    "text": "Fire Stick outputs black screen after latest firmware update to version 2.8.0. Audio works but no video display.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "25",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-26",
+    "text": "Kindle app freeze indicates insufficient RAM. Force quit app, clear all cached data, disable background apps, then restart device.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "26",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-27",
+    "text": "Alexa app won't sync with Echo Dot 4th generation. Device firmware 1.0.3, smartphone OS iPadOS 16. Connection times out.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "27",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-28",
+    "text": "That's a sync issue. Try factory reset on Echo Dot, then re-pair in Alexa app. Ensure both devices on same WiFi network SSID.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "28",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-29",
+    "text": "Prime Video app version 6.12.1 crashes immediately on iPhone running iPadOS 16. Error code server error displays before crash.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "29",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-30",
+    "text": "Let's troubleshoot that crash. First, uninstall app completely, reboot Fire TV, then reinstall from app store. Check OS compatibility.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "30",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-31",
+    "text": "Kindle app freezes on loading screen. Fire Tablet 10 HD with 2GB RAM, 64GB storage. Cleared cache twice, still unresponsive.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "31",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-32",
+    "text": "Black screen after firmware update suggests display driver issue. Try factory reset Fire Stick to previous firmware version 4.0.4.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "32",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-33",
+    "text": "Fire Stick outputs black screen after latest firmware update to version 1.4.5. Audio works but no video display.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "33",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-34",
+    "text": "Kindle app freeze indicates insufficient RAM. Force quit app, clear all cached data, disable background apps, then restart device.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "34",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-35",
+    "text": "Alexa app won't sync with Echo Dot 4th generation. Device firmware 4.4.6, smartphone OS iPadOS 16. Connection times out.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "35",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-36",
+    "text": "That's a sync issue. Try factory reset on Echo Dot, then re-pair in Alexa app. Ensure both devices on same WiFi network SSID.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "36",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-37",
+    "text": "Prime Video app version 6.12.1 crashes immediately on Fire Stick running Fire OS 7.2. Error code SSL certificate error displays before crash.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "37",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-38",
+    "text": "Let's troubleshoot that crash. First, uninstall app completely, reboot Kindle, then reinstall from app store. Check OS compatibility.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "38",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-39",
+    "text": "Kindle app freezes on loading screen. Fire Tablet 10 HD with 2GB RAM, 64GB storage. Cleared cache twice, still unresponsive.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "39",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-40",
+    "text": "Black screen after firmware update suggests display driver issue. Try factory reset Fire Stick to previous firmware version 2.0.2.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "40",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-41",
+    "text": "Fire Stick outputs black screen after latest firmware update to version 3.6.7. Audio works but no video display.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "41",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-42",
+    "text": "Kindle app freeze indicates insufficient RAM. Force quit app, clear all cached data, disable background apps, then restart device.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "42",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-43",
+    "text": "Alexa app won't sync with Echo Dot 4th generation. Device firmware 4.2.5, smartphone OS Fire OS 7.2. Connection times out.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "43",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-44",
+    "text": "That's a sync issue. Try factory reset on Echo Dot, then re-pair in Alexa app. Ensure both devices on same WiFi network SSID.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "44",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-45",
+    "text": "Prime Video app version 6.12.1 crashes immediately on Echo Dot running iOS 17. Error code server error displays before crash.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "45",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-46",
+    "text": "Let's troubleshoot that crash. First, uninstall app completely, reboot Fire Tablet, then reinstall from app store. Check OS compatibility.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "46",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-47",
+    "text": "Kindle app freezes on loading screen. Fire Tablet 10 HD with 2GB RAM, 64GB storage. Cleared cache twice, still unresponsive.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "47",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-48",
+    "text": "Black screen after firmware update suggests display driver issue. Try factory reset Fire Stick to previous firmware version 1.7.3.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "48",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-49",
+    "text": "Fire Stick outputs black screen after latest firmware update to version 1.2.2. Audio works but no video display.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "49",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-50",
+    "text": "Kindle app freeze indicates insufficient RAM. Force quit app, clear all cached data, disable background apps, then restart device.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "50",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  },
+  {
+    "id": "conv-522478.0-msg-51",
+    "text": "Alexa app won't sync with Echo Dot 4th generation. Device firmware 3.8.1, smartphone OS iOS 17. Connection times out.",
+    "metadata": {
+      "conversation_id": "522478.0",
+      "message_number": "51",
+      "total_messages": "51",
+      "num_messages": "51",
+      "topic": "1"
+    }
+  }
+]

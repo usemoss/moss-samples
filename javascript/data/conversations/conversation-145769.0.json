@@ -1,0 +1,79 @@
+[
+  {
+    "id": "conv-145769.0-msg-1",
+    "text": "Need return authorization for monitor - doesn't fit properly. Original packaging intact, tags attached, unused condition. Bought 8 days ago.",
+    "metadata": {
+      "conversation_id": "145769.0",
+      "message_number": "1",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-145769.0-msg-2",
+    "text": "Return received at center 5 days ago. Inspection complete. Processing $29.99 refund now - expect in payment method within 3-5 business days.",
+    "metadata": {
+      "conversation_id": "145769.0",
+      "message_number": "2",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-145769.0-msg-3",
+    "text": "Item stopped working after 10 days. Manufacturing defect, not user damage. Past 30-day return window. Warranty coverage or exception possible?",
+    "metadata": {
+      "conversation_id": "145769.0",
+      "message_number": "3",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-145769.0-msg-4",
+    "text": "Item at 12 days is outside standard 30-day return policy but manufacturing defect may qualify for warranty. I'll make one-time exception - return authorized.",
+    "metadata": {
+      "conversation_id": "145769.0",
+      "message_number": "4",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-145769.0-msg-5",
+    "text": "Initiated return 10 days ago via UPS Store. Tracking shows delivered to return center 5 days ago. Still no refund $89.99 processed.",
+    "metadata": {
+      "conversation_id": "145769.0",
+      "message_number": "5",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-145769.0-msg-6",
+    "text": "Duplicate order return accepted. Unopened item in original packaging qualifies for full refund. No restocking fee. Return label emailed for $89.99 refund.",
+    "metadata": {
+      "conversation_id": "145769.0",
+      "message_number": "6",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-145769.0-msg-7",
+    "text": "Accidentally ordered duplicate laptop. One unopened in original packaging. Can I return just unopened one? Need return label and refund $14.99.",
+    "metadata": {
+      "conversation_id": "145769.0",
+      "message_number": "7",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  }
+]

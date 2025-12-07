@@ -1,0 +1,79 @@
+[
+  {
+    "id": "conv-987817.0-msg-1",
+    "text": "Wrong item delivered. Ordered desk chair in blue size Large, received adapter in red size Small. Need correct item shipped, return label for wrong one.",
+    "metadata": {
+      "conversation_id": "987817.0",
+      "message_number": "1",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-987817.0-msg-2",
+    "text": "I apologize for wrong item. Correct keyboard blue size Large shipping now via overnight. Prepaid return label emailed for incorrect adapter.",
+    "metadata": {
+      "conversation_id": "987817.0",
+      "message_number": "2",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-987817.0-msg-3",
+    "text": "Item arrived damaged - box crushed during shipping, laptop broken into pieces. Packaging inadequate. Need replacement or full refund $29.99.",
+    "metadata": {
+      "conversation_id": "987817.0",
+      "message_number": "3",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-987817.0-msg-4",
+    "text": "Item not as described qualifies for return. You're within 30-day return policy. Prepaid label sent to email. Full refund $29.99 after inspection.",
+    "metadata": {
+      "conversation_id": "987817.0",
+      "message_number": "4",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-987817.0-msg-5",
+    "text": "Received defective keyboard - screen cracked, won't power on. Need prepaid return label and full refund $29.99 to original payment method.",
+    "metadata": {
+      "conversation_id": "987817.0",
+      "message_number": "5",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-987817.0-msg-6",
+    "text": "Defective item qualifies for returnless refund. Full $29.99 refund processing to payment method ending 9454. Dispose of defective coffee maker.",
+    "metadata": {
+      "conversation_id": "987817.0",
+      "message_number": "6",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  },
+  {
+    "id": "conv-987817.0-msg-7",
+    "text": "laptop doesn't match description. Listed as stainless steel but received plastic. Poor quality, not resellable. Return within 30-day window?",
+    "metadata": {
+      "conversation_id": "987817.0",
+      "message_number": "7",
+      "total_messages": "7",
+      "num_messages": "7",
+      "topic": "3"
+    }
+  }
+]
