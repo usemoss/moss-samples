@@ -2,6 +2,14 @@
 
 Automatically group and organize conversation indexes into meaningful topic-based clusters.
 
+## Examples
+
+### [create-conversation-indexes.ts](./create-conversation-indexes.ts)
+Creates a separate Moss index for each conversation JSON file.
+
+### [clustering.ts](./clustering.ts)
+Generates topic-based clusters from existing indexes. Demonstrates three methods: manual job control with progress tracking, automatic polling, and one-step convenience method.
+
 ## Setup
 
 ### 1. Install Dependencies
