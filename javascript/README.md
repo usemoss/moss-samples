@@ -38,6 +38,12 @@ Run the simple example to load an existing index and perform queries:
 npx tsx load_and_query_sample.ts
 ```
 
+### Conversation Indexing & Clustering
+
+For examples on creating conversation indexes and generating topic-based clusters, see:
+
+**[README-CLUSTERING.md](./README-CLUSTERING.md)** - Complete guide for conversation indexing and clustering workflows
+
 ## Requirements
 
 - Node.js (version 16 or higher)
