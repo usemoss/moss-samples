@@ -38,6 +38,16 @@ This repo bundles thin, working examples that show how to talk to Moss from Pyth
 - [`javascript/load_and_query_sample.ts`](javascript/load_and_query_sample.ts): demonstrates indexing FAQs and issuing targeted prompts.
 - Install deps with `npm install` inside `javascript/`, then execute via `npm run start -- path/to/sample.ts`.
 
+## Real-time Voice Agent with LiveKit
+
+- [`livekit-moss-vercel/`](livekit-moss-vercel/): A complete full-stack project demonstrating a low-latency voice assistant powered by Moss and [LiveKit](https://livekit.io).
+  - **Backend**: A Python agent built on the LiveKit Agents framework that orchestrates:
+    - **Speech-to-Text**: Deepgram
+    - **Semantic Search**: Moss (for retrieving FAQ answers)
+    - **LLM**: OpenAI (GPT-4o)
+    - **Text-to-Speech**: Cartesia
+  - **Frontend**: A Next.js React application that handles the room connection, visualizes audio levels, and manages the user session.
+
 ## Learn More
 
 - API reference: [MOSS docs](https://docs.usemoss.dev/)
