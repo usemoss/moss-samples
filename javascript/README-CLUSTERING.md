@@ -15,6 +15,10 @@ Generates topic-based clusters from existing indexes. Demonstrates three methods
 
 Runs the clustering workflow against a specific subset of indexes. Configure the `MOSS_INDEX_SET` environment variable (comma-separated) to target the desired indexes before execution.
 
+### [document-cluster-example.ts](./document-cluster-example.ts)
+
+Clusters individual documents that live inside a single index and inspects the cached snapshot. Set `MOSS_DOCUMENT_INDEX` (and optionally `MOSS_DOCUMENT_CLUSTER_K`) to target the desired source index and cluster count.
+
 ## Setup
 
 ### 1. Install Dependencies
@@ -98,7 +102,7 @@ Output:
 ...
 ```
 
-### Optional: Focus Clustering on a Subset
+### Focus Clustering on a Subset
 
 Limit clustering to specific indexes listed in `MOSS_INDEX_SET`:
 
@@ -108,6 +112,18 @@ npx tsx subset-cluster-example.ts
 ```
 
 The script deletes any existing clustering run, starts a new job scoped to the provided indexes, and prints progress updates plus a concise cluster summary. Unset `MOSS_INDEX_SET` to fall back to the default demo subset.
+
+### Cluster Documents in a Single Index
+
+Generate clusters directly from documents stored in a specific index:
+
+```bash
+export MOSS_DOCUMENT_INDEX="conversation-964970.0"
+export MOSS_DOCUMENT_CLUSTER_K=4
+npx tsx document-cluster-example.ts
+```
+
+The example performs an on-demand clustering pass over the selected index, reports phase-by-phase progress, prints representative document labels, and shows cached snapshot metadata when available. Omit `MOSS_DOCUMENT_CLUSTER_K` to use the default of 4 clusters.
 
 ## Code Examples
 
