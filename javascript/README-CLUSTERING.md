@@ -8,7 +8,12 @@ Automatically group and organize conversation indexes into meaningful topic-base
 Creates a separate Moss index for each conversation JSON file.
 
 ### [clustering.ts](./clustering.ts)
+
 Generates topic-based clusters from existing indexes. Demonstrates three methods: manual job control with progress tracking, automatic polling, and one-step convenience method.
+
+### [subset-cluster-example.ts](./subset-cluster-example.ts)
+
+Runs the clustering workflow against a specific subset of indexes. Configure the `MOSS_INDEX_SET` environment variable (comma-separated) to target the desired indexes before execution.
 
 ## Setup
 
@@ -57,7 +62,8 @@ npx tsx create-conversation-indexes.ts
 ```
 
 Output:
-```
+
+```text
 Found 115 files
 
 [1/115] conversation-1004371.0.json...
@@ -75,7 +81,8 @@ npx tsx clustering.ts
 ```
 
 Output:
-```
+
+```text
 ✅ Job started: job_abc123
 
 ⏳ Polling for completion...
@@ -91,6 +98,17 @@ Output:
 ...
 ```
 
+### Optional: Focus Clustering on a Subset
+
+Limit clustering to specific indexes listed in `MOSS_INDEX_SET`:
+
+```bash
+export MOSS_INDEX_SET="support-tickets,billing-2024"
+npx tsx subset-cluster-example.ts
+```
+
+The script deletes any existing clustering run, starts a new job scoped to the provided indexes, and prints progress updates plus a concise cluster summary. Unset `MOSS_INDEX_SET` to fall back to the default demo subset.
+
 ## Code Examples
 
 ### Create Indexes
@@ -102,7 +120,8 @@ await client.createIndex(indexName, documents, 'moss-minilm');
 
 ### Generate Clusters
 
-**Option 1: Manual Control (with progress)**
+#### Option 1: Manual Control (with progress)
+
 ```typescript
 const job = await clustering.startClusterGeneration(5);
 
@@ -115,12 +134,14 @@ while (true) {
 const clusters = await clustering.getClusters();
 ```
 
-**Option 2: Automatic Polling**
+#### Option 2: Automatic Polling
+
 ```typescript
 const result = await clustering.waitForJobCompletion(jobId, 2000);
 ```
 
-**Option 3: One-Step (simplest)**
+#### Option 3: One-Step (simplest)
+
 ```typescript
 const result = await clustering.generateClusters(5);
 ```
