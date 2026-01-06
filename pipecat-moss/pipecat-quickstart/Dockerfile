@@ -13,6 +13,4 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-install-project --no-dev
 
 # Copy the application code
-COPY ./client.py client.py
-COPY ./retrieval.py retrieval.py
 COPY ./bot.py bot.py
