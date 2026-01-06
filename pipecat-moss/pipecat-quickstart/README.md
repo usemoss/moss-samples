@@ -31,8 +31,8 @@ Navigate to the quickstart directory and set up your environment.
 1. Clone this repository
 
    ```bash
-   git clone https://github.com/pipecat-ai/pipecat-quickstart.git
-   cd pipecat-quickstart
+   git clone https://github.com/usemoss/moss-samples.git
+   cd pipecat-moss/pipecat-quickstart/
    ```
 
 2. Configure your API keys:
@@ -59,7 +59,16 @@ Navigate to the quickstart directory and set up your environment.
 
    ```bash
    uv sync
+   source .venv/bin/activate # Activate the virtual environment
    ```
+
+### Upload your Moss index:
+
+Before running the bot, ensure your Moss index is uploaded. Use the provided script:
+
+```bash
+uv run create-index.py
+```
 
 ### Run your bot locally
 
@@ -86,23 +95,6 @@ If you are bringing your own environment, install it manually:
 ```bash
 pip install pipecat-moss
 ```
-
-### Moss prerequisites
-
-- Moss project ID and project key from the [Moss Portal](https://portal.usemoss.dev)
-- A Moss index name to load at runtime
-- Optional tuning via `MOSS_TOP_K` (defaults to `5`)
-
-### Create or refresh your Moss index
-
-Populate your Moss knowledge base before starting the bot. The provided helper uploads sample FAQ data:
-
-```bash
-uv run create-index.py
-```
-
-Customize `create-index.py` with your own documents and metadata before running in production.
-
 ### Load Moss in the Pipecat pipeline
 
 `bot.py` wires `MossRetrievalService` into the Pipecat pipeline so retrieved passages reach the LLM:
@@ -126,7 +118,7 @@ pipeline = Pipeline([
     transport.input(),
     stt,
     context_aggregator.user(),
-    moss_service.query(os.getenv("MOSS_INDEX_NAME"), top_k=5, alpha=0.8),
+    moss_service.query(os.getenv("MOSS_INDEX_NAME"), top_k=5),
     llm,
     tts,
     transport.output(),
@@ -137,18 +129,19 @@ pipeline = Pipeline([
 
 `MossRetrievalService` accepts:
 
-- `project_id` and `project_key`: Moss credentials (env vars recommended)
-- `system_prompt`: Prefix appended ahead of retrieved passages (defaults to a generic context header)
+- `project_id` and `project_key`: Moss credentials
+- `system_prompt`: Prefix appended ahead of retrieved passages
 - `load_index(index_name)`: Awaitable loader for the index your bot should query
-- `query(index_name, *, top_k=5, alpha=0.8)`: Returns a processor that blends semantic and keyword scores (`alpha` ∈ [0, 1])
+- `query(index_name, *, top_k=5, alpha=0.8)`: Returns a processor that retrieves result; top_k controls number of passages, alpha blends semantic and keyword scores
 
 ### Compatibility and support
 
 - Tested with Pipecat `v0.0.94` and newer
+- [Support for Pipecat-Moss](https://github.com/usemoss/pipecat-moss).
 - [Moss docs](https://docs.usemoss.dev)
 - [Moss Discord](https://discord.com/invite/eMXExuafBR)
 - [Pipecat docs](https://docs.pipecat.ai)
-- [Support for Pipecat-Moss](https://github.com/usemoss/pipecat-moss).
+
 
 ## Step 2: Deploy to Production (5 min)
 
