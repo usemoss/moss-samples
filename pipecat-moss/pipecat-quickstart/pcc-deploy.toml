@@ -1,5 +1,5 @@
 agent_name = "quickstart"
-image = "harshanalluru/quickstart:0.1"
+image = "<Your docker hub username>/quickstart:0.1"
 secret_set = "quickstart-secrets"
 agent_profile = "agent-1x"
 

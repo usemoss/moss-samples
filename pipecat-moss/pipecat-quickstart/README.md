@@ -15,13 +15,14 @@ Build and deploy your first voice AI bot in under 10 minutes. Develop locally, t
 
 #### AI Service API keys
 
-You'll need API keys from three services:
+You'll need API keys from four services:
 
+- [Moss](https://portal.usemoss.dev) for semantic retrieval
 - [Deepgram](https://console.deepgram.com/signup) for Speech-to-Text
 - [OpenAI](https://auth.openai.com/create-account) for LLM inference
 - [Cartesia](https://play.cartesia.ai/sign-up) for Text-to-Speech
 
-> 💡 **Tip**: Sign up for all three now. You'll need them for both local and cloud deployment.
+> 💡 **Tip**: Sign up for all four now. You'll need them for both local and cloud deployment.
 
 ### Setup
 
@@ -45,6 +46,10 @@ Navigate to the quickstart directory and set up your environment.
    Then, add your API keys:
 
    ```ini
+   MOSS_PROJECT_ID=your_moss_project_id
+   MOSS_PROJECT_KEY=your_moss_project_key
+   MOSS_INDEX_NAME=your_moss_index_name
+
    DEEPGRAM_API_KEY=your_deepgram_api_key
    OPENAI_API_KEY=your_openai_api_key
    CARTESIA_API_KEY=your_cartesia_api_key
@@ -69,6 +74,81 @@ uv run bot.py
 🎉 **Success!** Your bot is running locally. Now let's deploy it to production so others can use it.
 
 ---
+
+## Integrate Moss Semantic Retrieval
+
+Moss delivers sub-10ms semantic retrieval, so your Pipecat voice agent can respond with relevant knowledge without adding latency.
+
+### Install the integration
+
+If you are bringing your own environment, install it manually:
+
+```bash
+pip install pipecat-moss
+```
+
+### Moss prerequisites
+
+- Moss project ID and project key from the [Moss Portal](https://portal.usemoss.dev)
+- A Moss index name to load at runtime
+- Optional tuning via `MOSS_TOP_K` (defaults to `5`)
+
+### Create or refresh your Moss index
+
+Populate your Moss knowledge base before starting the bot. The provided helper uploads sample FAQ data:
+
+```bash
+uv run create-index.py
+```
+
+Customize `create-index.py` with your own documents and metadata before running in production.
+
+### Load Moss in the Pipecat pipeline
+
+`bot.py` wires `MossRetrievalService` into the Pipecat pipeline so retrieved passages reach the LLM:
+
+```python
+from pipecat_moss import MossRetrievalService
+
+moss_service = MossRetrievalService(
+    project_id=os.getenv("MOSS_PROJECT_ID"),
+    project_key=os.getenv("MOSS_PROJECT_KEY"),
+    system_prompt="Relevant passages from the Moss knowledge base:\n\n",
+)
+
+async def initialize_moss_index():
+    await moss_service.load_index(os.getenv("MOSS_INDEX_NAME"))
+
+# Call the initialization function
+await initialize_moss_index()
+
+pipeline = Pipeline([
+    transport.input(),
+    stt,
+    context_aggregator.user(),
+    moss_service.query(os.getenv("MOSS_INDEX_NAME"), top_k=5, alpha=0.8),
+    llm,
+    tts,
+    transport.output(),
+    context_aggregator.assistant(),
+])
+```
+### Configuration options
+
+`MossRetrievalService` accepts:
+
+- `project_id` and `project_key`: Moss credentials (env vars recommended)
+- `system_prompt`: Prefix appended ahead of retrieved passages (defaults to a generic context header)
+- `load_index(index_name)`: Awaitable loader for the index your bot should query
+- `query(index_name, *, top_k=5, alpha=0.8)`: Returns a processor that blends semantic and keyword scores (`alpha` ∈ [0, 1])
+
+### Compatibility and support
+
+- Tested with Pipecat `v0.0.94` and newer
+- [Moss docs](https://docs.usemoss.dev)
+- [Moss Discord](https://discord.com/invite/eMXExuafBR)
+- [Pipecat docs](https://docs.pipecat.ai)
+- [Support for Pipecat-Moss](https://github.com/usemoss/pipecat-moss).
 
 ## Step 2: Deploy to Production (5 min)
 
