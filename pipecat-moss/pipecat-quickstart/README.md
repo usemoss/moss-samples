@@ -140,7 +140,6 @@ pipeline = Pipeline([
 - [Support for Pipecat-Moss](https://github.com/usemoss/pipecat-moss).
 - [Moss docs](https://docs.usemoss.dev)
 - [Moss Discord](https://discord.com/invite/eMXExuafBR)
-- [Pipecat docs](https://docs.pipecat.ai)
 
 
 ## Step 2: Deploy to Production (5 min)
