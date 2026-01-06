@@ -10,12 +10,17 @@ A voice AI customer support assistant that:
 - Uses OpenAI for intelligent responses
 - Searches knowledge base using Moss semantic retrieval
 - Supports real-time voice conversations
+- Follows official Pipecat quickstart pattern
 
 Required AI services:
 - Moss (Semantic Retrieval)
 - Deepgram (Speech-to-Text)
 - OpenAI (LLM)
 - Cartesia (Text-to-Speech)
+
+Run the bot using::
+
+    uv run bot.py
 """
 
 import os
@@ -106,7 +111,7 @@ use it to give accurate and detailed responses."""
     context_aggregator = llm.create_context_aggregator(context)
     rtvi = RTVIProcessor(config=RTVIConfig(config=[]))
 
-    # Build the processing pipeline with Moss Information injection
+    # Build the processing pipeline with Moss information injection
     pipeline = Pipeline(
         [
             transport.input(),  # Transport user input
