@@ -38,6 +38,12 @@ This repo bundles thin, working examples that show how to talk to Moss from Pyth
 - [`javascript/load_and_query_sample.ts`](javascript/load_and_query_sample.ts): demonstrates indexing FAQs and issuing targeted prompts.
 - Install deps with `npm install` inside `javascript/`, then execute via `npm run start -- path/to/sample.ts`.
 
+## Pipecat Voice Agent Quickstart
+
+- [`pipecat-moss/pipecat-quickstart/`](pipecat-moss/pipecat-quickstart/):  Voice bot that plugs Moss retrieval into Pipecat’s real-time pipeline.
+- Shows how to ingest FAQs with `create-index.py`, wire `pipecat-moss` package into Pipecat, and deploy to Pipecat Cloud.
+- Use it to bootstrap a sub-10 ms semantic search customer support agent. For deeper context, see the project README and the [Pipecat-Moss repo](https://github.com/usemoss/pipecat-moss).
+
 ## Learn More
 
 - API reference: [MOSS docs](https://docs.usemoss.dev/)
