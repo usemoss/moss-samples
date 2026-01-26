@@ -1,7 +1,7 @@
 <!-- markdownlint-disable-next-line MD033 -->
+
 # <img src="https://github.com/user-attachments/assets/c4e39933-40c4-462d-a9a3-135458c6705f" alt="Moss logo" width="48" style="vertical-align: middle; margin-right: 8px;" /> Moss Samples
 
-[![CI](https://github.com/usemoss/moss-samples/actions/workflows/ci.yml/badge.svg)](https://github.com/usemoss/moss-samples/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Discord](https://img.shields.io/discord/1234567890?color=7289da&label=discord&logo=discord&logoColor=white)](https://discord.gg/eMXExuafBR)
 
@@ -27,7 +27,7 @@ This repo bundles thin, working examples that show how to talk to Moss from Pyth
 
 - Samples show how to authenticate, batch context, and stream replies without extra boilerplate.
 - Adapt the scripts by swapping the FAQ JSON files with your data, or plugging Moss calls into an existing app.
- 
+
 ## Python SDK Quick Tour
 
 - [`python/comprehensive_sample.py`](python/comprehensive_sample.py): end-to-end flow with session creation, context building, and streaming responses.
@@ -44,7 +44,7 @@ This repo bundles thin, working examples that show how to talk to Moss from Pyth
 
 ## Pipecat Voice Agent Quickstart
 
-- [`pipecat-moss/pipecat-quickstart/`](pipecat-moss/pipecat-quickstart/):  Voice bot that plugs Moss retrieval into Pipecat’s real-time pipeline.
+- [`pipecat-moss/pipecat-quickstart/`](pipecat-moss/pipecat-quickstart/): Voice bot that plugs Moss retrieval into Pipecat’s real-time pipeline.
 - Shows how to ingest FAQs with `create-index.py`, wire `pipecat-moss` package into Pipecat, and deploy to Pipecat Cloud.
 - Use it to bootstrap a sub-10 ms semantic search customer support agent. For deeper context, see the project README and the [Pipecat-Moss repo](https://github.com/usemoss/pipecat-moss).
 

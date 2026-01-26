@@ -23,7 +23,7 @@ from inferedge_moss import MossClient, DocumentInfo, AddDocumentsOptions, GetDoc
 load_dotenv()
 
 
-async def comprehensive_moss_example() -> None:
+async def comprehensive_moss_example():
     """
     Complete end-to-end example demonstrating ALL Moss SDK functionality.
     

@@ -8,7 +8,7 @@ Requires only OpenAI and Deepgram API keys.
 import json
 import logging
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -148,7 +148,7 @@ class Assistant(Agent):
                                     if model_name:
                                         break
 
-                            timestamp_ms = int(datetime.now(UTC).timestamp() * 1000)
+                            timestamp_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
                             payload = {
                                 "type": "llm_usage",
                                 "data": {
@@ -205,7 +205,7 @@ class Assistant(Agent):
                 history.add_message(
                     role="system",
                     content="FAQ search context for the current user request:\n" + summary,
-                    created_at=datetime.now(UTC).timestamp(),
+                    created_at=datetime.now(timezone.utc).timestamp(),
                 )
             return summary
 
@@ -237,7 +237,7 @@ class Assistant(Agent):
             history.add_message(
                 role="system",
                 content="FAQ search context for the current user request:\n" + summary,
-                created_at=datetime.now(UTC).timestamp(),
+                created_at=datetime.now(timezone.utc).timestamp(),
             )
 
         if self._room:
@@ -265,7 +265,7 @@ class Assistant(Agent):
                         "query": query,
                         "matches": matches,
                         "time_taken_ms": getattr(results, "time_taken_ms", None),
-                        "timestamp": datetime.now(UTC).timestamp(),
+                        "timestamp": datetime.now(timezone.utc).timestamp(),
                     },
                 }
                 encoded = json.dumps(payload, default=str).encode("utf-8")

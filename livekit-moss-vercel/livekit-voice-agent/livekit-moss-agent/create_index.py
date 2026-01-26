@@ -80,6 +80,7 @@ async def create_faq_index() -> None:
             "Missing required Moss environment variables: " + ", ".join(missing)
         )
 
+    # Assertions for mypy to confirm these are not None
     assert project_id is not None
     assert project_key is not None
     assert index_name is not None
