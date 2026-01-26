@@ -8,15 +8,15 @@ Requires only OpenAI and Deepgram API keys.
 import json
 import logging
 import os
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Optional
 
 from dotenv import load_dotenv
 from inferedge_moss import MossClient
 from livekit import agents, rtc
-from livekit.agents import Agent, AgentSession, RunContext, ChatMessage, ChatRole
-from livekit.agents.llm import function_tool, ChatChunk
-from livekit.plugins import deepgram, openai, silero, cartesia
+from livekit.agents import Agent, AgentSession, ChatMessage, ChatRole, RunContext
+from livekit.agents.llm import ChatChunk, function_tool
+from livekit.plugins import cartesia, deepgram, openai, silero  # type: ignore
 
 # Load environment variables
 load_dotenv(".env.local")
@@ -280,7 +280,7 @@ async def entrypoint(ctx: agents.JobContext):
 
     # Configure the voice pipeline with the essentials
     # You can adjust the STT, LLM and TTS settings as needed
-    session = AgentSession(
+    session: AgentSession = AgentSession(
         stt=deepgram.STT(model="nova-2"),
         llm=openai.LLM(
             model="gpt-5",

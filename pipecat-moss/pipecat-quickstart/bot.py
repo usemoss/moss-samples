@@ -42,7 +42,6 @@ from pipecat.services.deepgram.stt import DeepgramSTTService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.transports.daily.transport import DailyParams
-
 from pipecat_moss import MossRetrievalService
 
 # Load environment variables from .env file

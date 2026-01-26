@@ -21,7 +21,7 @@ load_dotenv()
 async def load_and_query_sample():
     """Simple sample showing how to load an existing index and perform queries."""
     print("=" * 40)
-    print(f"Moss SDK - Load Index & Query Sample")
+    print("Moss SDK - Load Index & Query Sample")
     print("=" * 40)
 
     # Load configuration from environment variables
@@ -36,12 +36,12 @@ async def load_and_query_sample():
 
     try:
         # Load the index for querying
-        print(f"\nLoading index...")
+        print("\nLoading index...")
         await client.load_index(index_name)
-        print(f"Index loaded successfully")
+        print("Index loaded successfully")
         print("=" * 40)
 
-        print(f"\nPerforming sample search...\n")
+        print("\nPerforming sample search...\n")
         query = "refund processing time and policy"
         results = await client.query(index_name, query, 6)
 
@@ -50,7 +50,7 @@ async def load_and_query_sample():
             print(f"[{result.id}] Score: {result.score:.3f}")
             print(f"     {result.text}\n")
 
-        print(f"\nSample completed successfully!")
+        print("\nSample completed successfully!")
 
     except Exception as error:
         print(f"Error: {error}")
