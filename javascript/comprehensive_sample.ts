@@ -306,12 +306,12 @@ async function comprehensiveMossExample(): Promise<void> {
     for (let i = 0; i < searchQueries.length; i++) {
       const { query, limit } = searchQueries[i];
       console.log(`\n   Search ${i + 1}: "${query}"`);
-      
+
       const searchResults = await client.query(indexName, query, limit);
-      
+
       console.log(`   ⏱️  Time taken: ${searchResults.timeTakenInMs} ms`);
       console.log(`   Found ${searchResults.docs.length} results:`);
-      
+
       searchResults.docs.forEach((result, j) => {
         const textPreview = result.text.length > 70 ? result.text.substring(0, 70) + '...' : result.text;
         console.log(`      ${j + 1}. [${result.id}] Score: ${result.score.toFixed(3)}`);
@@ -333,12 +333,12 @@ async function comprehensiveMossExample(): Promise<void> {
 
     console.log(`\nStep 11: Final search validation...`);
     const finalSearch = await client.query(indexName, 'technology innovation and automation', 5);
-    
+
     console.log(`Final search results:`);
     console.log(`   Query: "${finalSearch.query}"`);
     console.log(`   Time: ${finalSearch.timeTakenInMs} ms`);
     console.log(`   Results: ${finalSearch.docs.length}`);
-    
+
     finalSearch.docs.forEach((item, i) => {
       console.log(`   ${i + 1}. [${item.id}] Score: ${item.score.toFixed(3)}`);
     });
@@ -366,10 +366,10 @@ async function comprehensiveMossExample(): Promise<void> {
     if (error instanceof Error) {
       console.error(`   Error message: ${error.message}`);
       if ('status' in error) {
-        console.error(`   Status code: ${(error as any).status}`);
+        console.error(`   Status code: ${(error as { status: unknown }).status}`);
       }
     }
-    
+
     // Attempt cleanup even if there was an error
     try {
       console.log(`\nAttempting cleanup due to error...`);
