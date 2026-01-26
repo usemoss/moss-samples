@@ -375,7 +375,7 @@ async function comprehensiveMossExample(): Promise<void> {
       console.log(`\nAttempting cleanup due to error...`);
       await client.deleteIndex(indexName);
       console.log(`Cleanup completed`);
-    } catch (cleanupError) {
+    } catch {
       console.log(`Cleanup failed - manual cleanup may be required`);
     }
   }
