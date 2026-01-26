@@ -1,6 +1,10 @@
 <!-- markdownlint-disable-next-line MD033 -->
 # <img src="https://github.com/user-attachments/assets/c4e39933-40c4-462d-a9a3-135458c6705f" alt="Moss logo" width="48" style="vertical-align: middle; margin-right: 8px;" /> Moss Samples
 
+[![CI](https://github.com/usemoss/moss-samples/actions/workflows/ci.yml/badge.svg)](https://github.com/usemoss/moss-samples/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Discord](https://img.shields.io/discord/1234567890?color=7289da&label=discord&logo=discord&logoColor=white)](https://discord.gg/eMXExuafBR)
+
 Moss is a high-performance runtime for real-time semantic search. It delivers sub-10 ms lookups, instant index updates, and zero infra overhead. Moss runs where your agent lives - cloud, in-browser, or on-device - so search feels native and users never wait. You connect your data once; Moss handles indexing, packaging, distribution and updates.
 
 This repo bundles thin, working examples that show how to talk to Moss from Python and JavaScript. Each sample keeps the scaffolding light so you can copy the essentials straight into your own projects.
@@ -49,4 +53,16 @@ This repo bundles thin, working examples that show how to talk to Moss from Pyth
 - API reference: [MOSS docs](https://docs.usemoss.dev/)
 - Our [Launch YC Post!](https://www.ycombinator.com/launches/Oiq-moss-real-time-semantic-search-for-conversational-ai)
 
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for more information.
+
 If you spot gaps or want another language example, open an issue or PR. We track feedback closely.
+
+## Security
+
+If you discover a security vulnerability, please send an e-mail to security@usemoss.dev.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
