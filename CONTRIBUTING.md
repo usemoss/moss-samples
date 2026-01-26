@@ -6,7 +6,6 @@ We love your input! We want to make contributing to this project as easy and tra
 - Discussing the current state of the code
 - Submitting a fix
 - Proposing new features
-- Becoming a maintainer
 
 ## We Use [GitHub Flow](https://guides.github.com/introduction/flow/), So All Code Changes Happen Through Pull Requests
 

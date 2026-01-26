@@ -59,10 +59,6 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 If you spot gaps or want another language example, open an issue or PR. We track feedback closely.
 
-## Security
-
-If you discover a security vulnerability, please send an e-mail to security@usemoss.dev.
-
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
