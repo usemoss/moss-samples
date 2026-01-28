@@ -42,6 +42,12 @@ This repo bundles thin, working examples that show how to talk to Moss from Pyth
 - [`javascript/load_and_query_sample.ts`](javascript/load_and_query_sample.ts): demonstrates indexing FAQs and issuing targeted prompts.
 - Install deps with `npm install` inside `javascript/`, then execute via `npm run start -- path/to/sample.ts`.
 
+## Next.js SDK Quick Tour
+
+- [`next-js/`](next-js/): A modern, web-based semantic search interface using Next.js 15 and Server Actions.
+- Demonstrates how to securely call Moss from the server while providing a sleek, responsive UI to the user.
+- To run locally: `cd next-js && npm install && npm run dev`. Open `http://localhost:3000`.
+
 ## Pipecat Voice Agent Quickstart
 
 - [`pipecat-moss/pipecat-quickstart/`](pipecat-moss/pipecat-quickstart/): Voice bot that plugs Moss retrieval into Pipecat’s real-time pipeline.
