@@ -42,7 +42,6 @@ from pipecat.services.deepgram.stt import DeepgramSTTService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.transports.daily.transport import DailyParams
-
 from pipecat_moss import MossRetrievalService
 
 # Load environment variables from .env file
@@ -56,13 +55,21 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
 
     # Initialize stt, tts, llm services
     logger.debug("Starting customer support bot")
-    stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
+    dg_api_key = os.getenv("DEEPGRAM_API_KEY")
+    cartesia_api_key = os.getenv("CARTESIA_API_KEY")
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    
+    assert dg_api_key is not None
+    assert cartesia_api_key is not None
+    assert openai_api_key is not None
+
+    stt = DeepgramSTTService(api_key=dg_api_key)
     tts = CartesiaTTSService(
-        api_key=os.getenv("CARTESIA_API_KEY"),
+        api_key=cartesia_api_key,
         voice_id="71a7ad14-091c-4e8e-a314-022ece01c121",  # British Reading Lady
     )
     llm = OpenAILLMService(
-        api_key=os.getenv("OPENAI_API_KEY"),
+        api_key=openai_api_key,
         model=os.getenv("OPENAI_MODEL", "gpt-4"),
     )
 
@@ -70,6 +77,11 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
     project_id = os.getenv("MOSS_PROJECT_ID")
     project_key = os.getenv("MOSS_PROJECT_KEY")
     index_name = os.getenv("MOSS_INDEX_NAME")
+    
+    assert project_id is not None
+    assert project_key is not None
+    assert index_name is not None
+    
     top_k = int(os.getenv("MOSS_TOP_K", "5"))
 
     moss_service = MossRetrievalService(
@@ -107,7 +119,7 @@ use it to give accurate and detailed responses."""
         },
     ]
 
-    context = OpenAILLMContext(messages)
+    context = OpenAILLMContext(messages)  # type: ignore
     context_aggregator = llm.create_context_aggregator(context)
     rtvi = RTVIProcessor(config=RTVIConfig(config=[]))
 

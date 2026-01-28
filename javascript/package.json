@@ -33,7 +33,7 @@
     "faq": "tsx faqSample.ts",
     "dev": "tsx --watch sample.ts",
     "type-check": "tsc --noEmit",
-    "lint": "eslint . --ext .ts,.js",
+    "lint": "ESLINT_USE_FLAT_CONFIG=true eslint .",
     "format": "prettier --write .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -42,9 +42,15 @@
     "dotenv": "^17.2.3"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.57.1",
+    "globals": "^17.1.0",
     "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.54.0"
   },
   "files": [
     "*.ts",

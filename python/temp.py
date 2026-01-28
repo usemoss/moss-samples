@@ -49,7 +49,7 @@ async def load_and_query_sample():
 
     try:
         # Load the index for querying
-        print(f"\nLoading index...")
+        print("\nLoading index...")
         await client.load_index(index_name)
         print(f"{colors.GREEN}Index loaded successfully{colors.ENDC}")
         print(colors.BLUE + "=" * 40 + colors.ENDC)

@@ -1,5 +1,9 @@
 <!-- markdownlint-disable-next-line MD033 -->
+
 # <img src="https://github.com/user-attachments/assets/c4e39933-40c4-462d-a9a3-135458c6705f" alt="Moss logo" width="48" style="vertical-align: middle; margin-right: 8px;" /> Moss Samples
+
+[![License](https://img.shields.io/badge/License-BSD_2--Clause-orange.svg)](https://opensource.org/licenses/BSD-2-Clause)
+[![Discord](https://img.shields.io/discord/1234567890?color=7289da&label=discord&logo=discord&logoColor=white)](https://discord.gg/eMXExuafBR)
 
 Moss is a high-performance runtime for real-time semantic search. It delivers sub-10 ms lookups, instant index updates, and zero infra overhead. Moss runs where your agent lives - cloud, in-browser, or on-device - so search feels native and users never wait. You connect your data once; Moss handles indexing, packaging, distribution and updates.
 
@@ -23,7 +27,7 @@ This repo bundles thin, working examples that show how to talk to Moss from Pyth
 
 - Samples show how to authenticate, batch context, and stream replies without extra boilerplate.
 - Adapt the scripts by swapping the FAQ JSON files with your data, or plugging Moss calls into an existing app.
- 
+
 ## Python SDK Quick Tour
 
 - [`python/comprehensive_sample.py`](python/comprehensive_sample.py): end-to-end flow with session creation, context building, and streaming responses.
@@ -40,7 +44,7 @@ This repo bundles thin, working examples that show how to talk to Moss from Pyth
 
 ## Pipecat Voice Agent Quickstart
 
-- [`pipecat-moss/pipecat-quickstart/`](pipecat-moss/pipecat-quickstart/):  Voice bot that plugs Moss retrieval into Pipecat’s real-time pipeline.
+- [`pipecat-moss/pipecat-quickstart/`](pipecat-moss/pipecat-quickstart/): Voice bot that plugs Moss retrieval into Pipecat’s real-time pipeline.
 - Shows how to ingest FAQs with `create-index.py`, wire `pipecat-moss` package into Pipecat, and deploy to Pipecat Cloud.
 - Use it to bootstrap a sub-10 ms semantic search customer support agent. For deeper context, see the project README and the [Pipecat-Moss repo](https://github.com/usemoss/pipecat-moss).
 
@@ -49,4 +53,12 @@ This repo bundles thin, working examples that show how to talk to Moss from Pyth
 - API reference: [MOSS docs](https://docs.usemoss.dev/)
 - Our [Launch YC Post!](https://www.ycombinator.com/launches/Oiq-moss-real-time-semantic-search-for-conversational-ai)
 
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for more information.
+
 If you spot gaps or want another language example, open an issue or PR. We track feedback closely.
+
+## License
+
+This project is licensed under the [BSD 2-Clause License](LICENSE).

@@ -14,15 +14,13 @@ The sample uses a dynamic index name based on current timestamp to avoid conflic
 
 import asyncio
 import os
-from typing import List, Dict, Any
+from typing import List
 from dotenv import load_dotenv
 from datetime import datetime
-import json
+from inferedge_moss import MossClient, DocumentInfo, AddDocumentsOptions, GetDocumentsOptions
 
 # Load environment variables
 load_dotenv()
-
-from inferedge_moss import MossClient, DocumentInfo, AddDocumentsOptions, GetDocumentsOptions
 
 
 async def comprehensive_moss_example():
@@ -182,22 +180,22 @@ async def comprehensive_moss_example():
         created = await client.create_index(index_name, documents, "moss-minilm")
         print(f"Index created successfully: {created}")
 
-        print(f"\nStep 2: Retrieving index information...")
+        print("\nStep 2: Retrieving index information...")
         index_info = await client.get_index(index_name)
-        print(f"Index Details:")
+        print("Index Details:")
         print(f"   - Name: {index_info.name}")
         print(f"   - Document Count: {index_info.doc_count}")
         print(f"   - Model: {index_info.model.id}")
         print(f"   - Status: {index_info.status}")
         print(f"   - Created: {index_info.created_at if hasattr(index_info, 'created_at') else 'N/A'}")
 
-        print(f"\nStep 3: Listing all available indexes...")
+        print("\nStep 3: Listing all available indexes...")
         indexes = await client.list_indexes()
         print(f"Found {len(indexes)} total indexes:")
         for idx in indexes:
             print(f"   - {idx.name}: {idx.doc_count} docs, status: {idx.status}")
 
-        print(f"\nStep 4: Adding additional documents with upsert...")
+        print("\nStep 4: Adding additional documents with upsert...")
         additional_docs: List[DocumentInfo] = [
             DocumentInfo(
                 id="security-cyber-008",
@@ -252,12 +250,12 @@ async def comprehensive_moss_example():
         add_result = await client.add_docs(index_name, additional_docs, AddDocumentsOptions(upsert=True))
         print(f"Added {len(additional_docs)} additional documents: {add_result}")
 
-        print(f"\nStep 5: Retrieving all documents from index...")
+        print("\nStep 5: Retrieving all documents from index...")
         all_docs = await client.get_docs(index_name)
         print(f"Total documents in index: {len(all_docs)}")
         
         # Display sample of documents with metadata
-        print(f"Sample documents preview:")
+        print("Sample documents preview:")
         for i, doc in enumerate(all_docs[:3]):
             text_preview = doc.text[:80] + "..." if len(doc.text) > 80 else doc.text
             print(f"   {i+1}. [{doc.id}] {text_preview}")
@@ -266,7 +264,7 @@ async def comprehensive_moss_example():
                 difficulty = doc.metadata.get('difficulty', 'N/A')
                 print(f"      Category: {category} | Difficulty: {difficulty}")
 
-        print(f"\nStep 6: Retrieving specific documents by ID...")
+        print("\nStep 6: Retrieving specific documents by ID...")
         target_doc_ids = ["tech-ai-001", "business-data-006", "security-cyber-008"]
         specific_docs = await client.get_docs(
             index_name, 
@@ -281,11 +279,11 @@ async def comprehensive_moss_example():
                 tags = tags_str.split(',') if tags_str else []
                 print(f"     Tags: {', '.join(tags[:3])}{'...' if len(tags) > 3 else ''}")
 
-        print(f"\nStep 7: Loading index for semantic search operations...")
+        print("\nStep 7: Loading index for semantic search operations...")
         loaded_index = await client.load_index(index_name)
         print(f"Index loaded for querying: {loaded_index}")
 
-        print(f"\nStep 8: Performing comprehensive semantic search tests...")
+        print("\nStep 8: Performing comprehensive semantic search tests...")
         search_queries = [
             ("artificial intelligence and machine learning", 4),
             ("data analysis and business insights", 3),
@@ -311,23 +309,23 @@ async def comprehensive_moss_example():
                     topic = result.metadata.get('topic', 'N/A')
                     print(f"         {category} | {topic}")
 
-        print(f"\nStep 9: Demonstrating document deletion...")
+        print("\nStep 9: Demonstrating document deletion...")
         docs_to_delete = ["health-biotech-009", "env-sustainability-010"]
         delete_result = await client.delete_docs(index_name, docs_to_delete)
         print(f"Deleted documents: {delete_result}")
 
-        print(f"\nStep 10: Verifying document count after deletion...")
+        print("\nStep 10: Verifying document count after deletion...")
         remaining_docs = await client.get_docs(index_name)
         print(f"Remaining documents: {len(remaining_docs)}")
 
-        print(f"\nStep 11: Final search validation...")
+        print("\nStep 11: Final search validation...")
         final_search = await client.query(
             index_name,
             "technology innovation and automation",
             5
         )
         
-        print(f"Final search results:")
+        print("Final search results:")
         print(f"   Query: \"{final_search.query}\"")
         print(f"   Time: {final_search.time_taken_ms} ms")
         print(f"   Results: {len(final_search.docs)}")
@@ -335,11 +333,11 @@ async def comprehensive_moss_example():
         for i, item in enumerate(final_search.docs, 1):
             print(f"   {i}. [{item.id}] Score: {item.score:.3f}")
 
-        print(f"\nStep 12: Cleaning up - deleting the test index...")
+        print("\nStep 12: Cleaning up - deleting the test index...")
         deleted = await client.delete_index(index_name)
         print(f"Index deleted: {deleted}")
 
-        print(f"\nComprehensive Moss SDK Example Completed Successfully!")
+        print("\nComprehensive Moss SDK Example Completed Successfully!")
         print("=" * 60)
         print("Summary of operations performed:")
         print("   - Index creation with initial documents")
@@ -362,11 +360,11 @@ async def comprehensive_moss_example():
         
         # Attempt cleanup even if there was an error
         try:
-            print(f"\nAttempting cleanup due to error...")
+            print("\nAttempting cleanup due to error...")
             await client.delete_index(index_name)
-            print(f"Cleanup completed")
-        except:
-            print(f"Cleanup failed - manual cleanup may be required")
+            print("Cleanup completed")
+        except Exception:
+            print("Cleanup failed - manual cleanup may be required")
 
 
 # Export for use in tests or other modules
