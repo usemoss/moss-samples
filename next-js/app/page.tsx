@@ -151,7 +151,7 @@ export default function MossDemo() {
             {isPending && (
               <div className="empty-state">
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                  <div className="logo-badge" style={{ animation: 'pulse 1.5s infinite speed' }}>
+                  <div className="logo-badge" style={{ animation: 'pulse 1.5s infinite ease' }}>
                     Querying...
                   </div>
                   <style jsx>{`
