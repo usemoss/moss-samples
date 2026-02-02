@@ -294,6 +294,9 @@ async def entrypoint(ctx: agents.JobContext):
 
     # Start the session
     room = getattr(ctx, "room", None)
+    
+    if room is None:
+        raise ValueError("Room context is required but not found")
 
     await session.start(
         room=room,
