@@ -17,7 +17,7 @@ import os
 from typing import List
 from dotenv import load_dotenv
 from datetime import datetime
-from inferedge_moss import MossClient, DocumentInfo, AddDocumentsOptions, GetDocumentsOptions
+from inferedge_moss import MossClient, DocumentInfo, AddDocumentsOptions, GetDocumentsOptions, QueryOptions
 
 # Load environment variables
 load_dotenv()
@@ -295,7 +295,7 @@ async def comprehensive_moss_example():
 
         for i, (query, limit) in enumerate(search_queries, 1):
             print(f"\n   Search {i}: \"{query}\"")
-            search_results = await client.query(index_name, query, top_k=limit)
+            search_results = await client.query(index_name, query, QueryOptions(top_k=limit))
             
             print(f"   Time taken: {search_results.time_taken_ms} ms")
             print(f"   Found {len(search_results.docs)} results:")
@@ -322,7 +322,7 @@ async def comprehensive_moss_example():
         final_search = await client.query(
             index_name,
             "technology innovation and automation",
-            top_k=5
+            QueryOptions(top_k=5)
         )
         
         print("Final search results:")
