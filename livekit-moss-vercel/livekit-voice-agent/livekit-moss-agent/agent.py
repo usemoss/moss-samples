@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from dotenv import load_dotenv
-from inferedge_moss import MossClient
+from inferedge_moss import MossClient, QueryOptions
 from livekit import agents, rtc
 from livekit.agents import Agent, AgentSession, ChatMessage, ChatRole, RunContext
 from livekit.agents.llm import ChatChunk, function_tool
@@ -209,7 +209,7 @@ class Assistant(Agent):
                 )
             return summary
 
-        results = await self._moss_client.query(self._moss_index_name, query, top_k=3)
+        results = await self._moss_client.query(self._moss_index_name, query, QueryOptions(top_k=3))
         logger.info(
             "Moss query completed in %sms", getattr(results, "time_taken_ms", "?")
         )
