@@ -209,7 +209,7 @@ class Assistant(Agent):
                 )
             return summary
 
-        results = await self._moss_client.query(self._moss_index_name, query, 3)
+        results = await self._moss_client.query(self._moss_index_name, query, top_k=3)
         logger.info(
             "Moss query completed in %sms", getattr(results, "time_taken_ms", "?")
         )
