@@ -71,20 +71,20 @@ const INITIAL_DOCUMENTS = [
 // ---------- Sample Data to add later ----------
 const NEW_DOCUMENTS = [
 	{
-		id: `test-doc-${Date.now()}-1`,
+		id: `step-doc-1`,
 		text: "the Pine Grove gardening club meets every Saturday morning to plant herbs",
 	},
 	{
-		id: `test-doc-${Date.now()}-2`,
+		id: `step-doc-2`,
 		text: "club members water the raised beds and tidy the tool shed after the meeting",
 	},
 	{
-		id: `test-doc-${Date.now()}-3`,
+		id: `step-doc-3`,
 		text: "organizer Leo keeps a list of herbs to bring for next week",
 	},
 ];
 
-const TEST_QUERY = "when does the Pine Grove gardening club meet?";
+const WORKFLOW_QUERY = "when does the Pine Grove gardening club meet?";
 
 // ---------- Helper Functions ----------
 async function generateEmbedding(text: string): Promise<number[]> {
@@ -108,7 +108,7 @@ async function deleteIndex(indexName: string): Promise<void> {
 // ---------- Main Workflow ----------
 async function main(): Promise<void> {
 	console.log("=".repeat(80));
-	console.log("🧪 Testing Custom Embeddings Workflow");
+	console.log("🧪 Running Custom Embeddings Workflow Steps");
 	console.log("=".repeat(80));
 	console.log(`Index: ${MOSS_INDEX_NAME}`);
 	console.log(`Initial documents: ${INITIAL_DOCUMENTS.length}`);
@@ -154,10 +154,10 @@ async function main(): Promise<void> {
 		console.log();
 
 		console.log("🔍 Step 3: Querying via hotpath (cloud query without loading index)...");
-		const queryEmbedding = await generateEmbedding(TEST_QUERY);
+		const queryEmbedding = await generateEmbedding(WORKFLOW_QUERY);
 		console.log(`   Generated query embedding (dim: ${queryEmbedding.length})`);
 
-		const hotpathResults = await mossClient.query(MOSS_INDEX_NAME, TEST_QUERY, {
+		const hotpathResults = await mossClient.query(MOSS_INDEX_NAME, WORKFLOW_QUERY, {
 			embedding: queryEmbedding,
 			topK: 5,
 		});
@@ -187,7 +187,7 @@ async function main(): Promise<void> {
 		console.log();
 
 		console.log("🔎 Step 5: Querying locally (using loaded index)...");
-		const localResults = await mossClient.query(MOSS_INDEX_NAME, TEST_QUERY, {
+		const localResults = await mossClient.query(MOSS_INDEX_NAME, WORKFLOW_QUERY, {
 			embedding: queryEmbedding,
 			topK: 5,
 		});
@@ -215,7 +215,7 @@ async function main(): Promise<void> {
 	} catch (error) {
 		console.error();
 		console.error("=".repeat(80));
-		console.error("❌ TEST FAILED");
+		console.error("❌ STEPS FAILED");
 		console.error("=".repeat(80));
 		console.error("Error:", error instanceof Error ? error.message : String(error));
 		if (error instanceof Error && error.stack) {

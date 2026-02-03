@@ -31,8 +31,7 @@ if not all([MOSS_PROJECT_ID, MOSS_PROJECT_KEY, OPENAI_API_KEY]):
 		"MOSS_PROJECT_KEY, and OPENAI_API_KEY.",
 	)
 
-MOSS_INDEX_NAME = f"cust-Index-{int(time.time() * 1000)}"
-
+MOSS_INDEX_NAME = f"custom-embedding-index-{int(time.time() * 1000)}"
 moss_client = MossClient(MOSS_PROJECT_ID, MOSS_PROJECT_KEY)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -102,7 +101,7 @@ NEW_DOCUMENTS = [
 WORKFLOW_QUERY = "when does the Pine Grove gardening club meet?"
 
 
-#---------- Helper Functions ----------
+# ---------- Helper Functions ----------
 def generate_embedding(text: str) -> List[float]:
 	"""Generate an OpenAI embedding for the provided text."""
 
