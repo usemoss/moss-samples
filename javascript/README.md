@@ -38,6 +38,14 @@ Run the simple example to load an existing index and perform queries:
 npx tsx load_and_query_sample.ts
 ```
 
+### Custom Embedding Sample
+
+Provision a fresh index (using the name supplied via `MOSS_INDEX_NAME`), push documents with manually generated OpenAI embeddings, and issue sample queries:
+
+```bash
+npx tsx custom_embedding_sample.ts
+```
+
 ## Requirements
 
 - Node.js (version 16 or higher)

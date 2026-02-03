@@ -47,6 +47,14 @@ Run the simple example to load an existing index and perform queries:
 python load_and_query_sample.py
 ```
 
+### Custom Embedding Sample
+
+Create a brand-new index, add documents with manually generated OpenAI embeddings, and issue sample queries:
+
+```bash
+python custom_embedding_sample.py
+```
+
 ## Requirements
 
 - Python 3.7+
