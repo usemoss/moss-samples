@@ -295,19 +295,19 @@ async function comprehensiveMossExample(): Promise<void> {
 
     console.log(`\n🔎 Step 8: Performing comprehensive semantic search tests...`);
     const searchQueries = [
-      { query: 'artificial intelligence and machine learning', limit: 4 },
-      { query: 'data analysis and business insights', limit: 3 },
-      { query: 'visual recognition and image processing', limit: 3 },
-      { query: 'cybersecurity and data protection', limit: 2 },
-      { query: 'healthcare innovation and biotechnology', limit: 2 },
-      { query: 'sustainable technology and environment', limit: 2 }
+      { query: 'artificial intelligence and machine learning', topK: 4 },
+      { query: 'data analysis and business insights', topK: 3 },
+      { query: 'visual recognition and image processing', topK: 3 },
+      { query: 'cybersecurity and data protection', topK: 2 },
+      { query: 'healthcare innovation and biotechnology', topK: 2 },
+      { query: 'sustainable technology and environment', topK: 2 }
     ];
 
     for (let i = 0; i < searchQueries.length; i++) {
-      const { query, limit } = searchQueries[i];
+      const { query, topK } = searchQueries[i];
       console.log(`\n   Search ${i + 1}: "${query}"`);
 
-      const searchResults = await client.query(indexName, query, limit);
+      const searchResults = await client.query(indexName, query, { topK });
 
       console.log(`   ⏱️  Time taken: ${searchResults.timeTakenInMs} ms`);
       console.log(`   Found ${searchResults.docs.length} results:`);
@@ -332,7 +332,11 @@ async function comprehensiveMossExample(): Promise<void> {
     console.log(`Remaining documents: ${remainingDocs.length}`);
 
     console.log(`\nStep 11: Final search validation...`);
-    const finalSearch = await client.query(indexName, 'technology innovation and automation', 5);
+    const finalSearch = await client.query(
+      indexName,
+      'technology innovation and automation',
+      { topK: 5 }
+    );
 
     console.log(`Final search results:`);
     console.log(`   Query: "${finalSearch.query}"`);
