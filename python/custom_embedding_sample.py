@@ -3,14 +3,11 @@
 # ---------- Imports ----------
 import asyncio
 import os
-import sys
 import time
 from typing import List
 
 from dotenv import load_dotenv
 from openai import OpenAI
-
-sys.path.insert(0, "python/user-facing-sdk/src")
 
 from inferedge_moss import (
 	AddDocumentsOptions,
