@@ -1,2 +1,4 @@
 .mypy_cache
 .ruff_cache
+.DS_Store
+__pycache__
