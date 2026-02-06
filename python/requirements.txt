@@ -1,2 +1,3 @@
 inferedge-moss
 python-dotenv
+openai

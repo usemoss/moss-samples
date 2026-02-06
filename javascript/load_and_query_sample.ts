@@ -58,7 +58,7 @@ async function loadAndQuerySample(): Promise<void> {
       const query = queries[i];
       console.log(`\nQuery ${i + 1}: '${query}'`);
       try {
-        const results = await client.query(indexName, query, 3);
+  const results = await client.query(indexName, query, { topK: 3 });
         console.log(`Found ${results.docs.length} results in ${results.timeTakenInMs}ms`);
         
         results.docs.forEach((result, j) => {
