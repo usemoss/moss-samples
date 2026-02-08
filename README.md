@@ -32,6 +32,7 @@ This repo bundles thin, working examples that show how to talk to Moss from Pyth
 
 - [`python/comprehensive_sample.py`](python/comprehensive_sample.py): end-to-end flow with session creation, context building, and streaming responses.
 - [`python/load_and_query_sample.py`](python/load_and_query_sample.py): how to ingest domain knowledge before querying Moss.
+- [`python/custom_embedding_sample.py`](python/custom_embedding_sample.py): create a fresh index, add custom OpenAI embeddings, and run sample queries.
 - Install deps with `pip install -r python/requirements.txt`, then run any script via `python path/to/sample.py`.
 
 > ![Moss Python walkthrough](https://github.com/user-attachments/assets/d826023d-92d6-49ac-8e5e-81cf04d409c5)
@@ -40,6 +41,7 @@ This repo bundles thin, working examples that show how to talk to Moss from Pyth
 
 - [`javascript/comprehensive_sample.ts`](javascript/comprehensive_sample.ts): TypeScript version of the full workflow, ready for Node.
 - [`javascript/load_and_query_sample.ts`](javascript/load_and_query_sample.ts): demonstrates indexing FAQs and issuing targeted prompts.
+- [`javascript/custom_embedding_sample.ts`](javascript/custom_embedding_sample.ts): provision a new index, push OpenAI embeddings, and run sample queries.
 - Install deps with `npm install` inside `javascript/`, then execute via `npm run start -- path/to/sample.ts`.
 
 ## Next.js SDK Quick Tour
