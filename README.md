@@ -3,7 +3,7 @@
 # <img src="https://github.com/user-attachments/assets/c4e39933-40c4-462d-a9a3-135458c6705f" alt="Moss logo" width="48" style="vertical-align: middle; margin-right: 8px;" /> Moss Samples
 
 [![License](https://img.shields.io/badge/License-BSD_2--Clause-orange.svg)](https://opensource.org/licenses/BSD-2-Clause)
-[![Discord](https://img.shields.io/discord/1234567890?color=7289da&label=discord&logo=discord&logoColor=white)](https://discord.gg/eMXExuafBR)
+[![Discord](https://img.shields.io/discord/1433962929526542346?color=7289da&label=discord&logo=discord&logoColor=white)](https://discord.gg/eMXExuafBR)
 
 Moss is a high-performance runtime for real-time semantic search. It delivers sub-10 ms lookups, instant index updates, and zero infra overhead. Moss runs where your agent lives - cloud, in-browser, or on-device - so search feels native and users never wait. You connect your data once; Moss handles indexing, packaging, distribution and updates.
 
@@ -43,6 +43,12 @@ This repo bundles thin, working examples that show how to talk to Moss from Pyth
 - [`javascript/load_and_query_sample.ts`](javascript/load_and_query_sample.ts): demonstrates indexing FAQs and issuing targeted prompts.
 - [`javascript/custom_embedding_sample.ts`](javascript/custom_embedding_sample.ts): provision a new index, push OpenAI embeddings, and run sample queries.
 - Install deps with `npm install` inside `javascript/`, then execute via `npm run start -- path/to/sample.ts`.
+
+## Next.js SDK Quick Tour
+
+- [`next-js/`](next-js/): A modern, web-based semantic search interface using Next.js 15 and Server Actions.
+- Demonstrates how to securely call Moss from the server while providing a sleek, responsive UI to the user.
+- To run locally: `cd next-js && npm install && npm run dev`. Open `http://localhost:3000`.
 
 ## Pipecat Voice Agent Quickstart
 

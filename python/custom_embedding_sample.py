@@ -28,9 +28,14 @@ if not all([MOSS_PROJECT_ID, MOSS_PROJECT_KEY, OPENAI_API_KEY]):
 		"MOSS_PROJECT_KEY, and OPENAI_API_KEY.",
 	)
 
+# Cast to str for mypy
+PROJECT_ID = str(MOSS_PROJECT_ID)
+PROJECT_KEY = str(MOSS_PROJECT_KEY)
+API_KEY = str(OPENAI_API_KEY)
+
 MOSS_INDEX_NAME = f"custom-embedding-index-{int(time.time() * 1000)}"
-moss_client = MossClient(MOSS_PROJECT_ID, MOSS_PROJECT_KEY)
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
+moss_client = MossClient(PROJECT_ID, PROJECT_KEY)
+openai_client = OpenAI(api_key=API_KEY)
 
 
 # ---------- Sample Data to create Index ----------
@@ -200,16 +205,16 @@ async def main() -> None:
 		print(f"   Time taken: {hotpath_results.time_taken_ms}ms")
 		print()
 		print("   Top 3 results:")
-		for i, doc in enumerate(hotpath_results.docs[:3]):
-			print(f"   {i + 1}. {doc.id}")
-			print(f"      Score: {doc.score:.4f}")
-			print(f"      Text: {doc.text[:60]}...")
+		for i, result in enumerate(hotpath_results.docs[:3]):
+			print(f"   {i + 1}. {result.id}")
+			print(f"      Score: {result.score:.4f}")
+			print(f"      Text: {result.text[:60]}...")
 
 		new_doc_ids = [d["id"] for d in NEW_DOCUMENTS]
 		found_new_docs = [
-			doc
-			for doc in hotpath_results.docs
-			if any(doc.id.startswith("-".join(id.split("-")[:3])) for id in new_doc_ids)
+			res
+			for res in hotpath_results.docs
+			if any(res.id.startswith("-".join(id.split("-")[:3])) for id in new_doc_ids)
 		]
 		print(
 			f"   📊 Found {len(found_new_docs)} of {len(NEW_DOCUMENTS)} newly added docs in results"
@@ -232,15 +237,15 @@ async def main() -> None:
 		print(f"   Time taken: {local_results.time_taken_ms}ms")
 		print()
 		print("   Top 3 results:")
-		for i, doc in enumerate(local_results.docs[:3]):
-			print(f"   {i + 1}. {doc.id}")
-			print(f"      Score: {doc.score:.4f}")
-			print(f"      Text: {doc.text[:60]}...")
+		for i, result_local in enumerate(local_results.docs[:3]):
+			print(f"   {i + 1}. {result_local.id}")
+			print(f"      Score: {result_local.score:.4f}")
+			print(f"      Text: {result_local.text[:60]}...")
 
 		found_new_docs_local = [
-			doc
-			for doc in local_results.docs
-			if any(doc.id.startswith("-".join(id.split("-")[:3])) for id in new_doc_ids)
+			res_local
+			for res_local in local_results.docs
+			if any(res_local.id.startswith("-".join(id.split("-")[:3])) for id in new_doc_ids)
 		]
 		print(
 			"   📊 Found "

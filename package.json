@@ -1,0 +1,9 @@
+{
+  "name": "moss-samples-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "type-check": "npm run type-check --prefix javascript && npm run type-check --prefix next-js",
+    "lint": "npm run lint --prefix javascript && npm run lint --prefix next-js"
+  }
+}
