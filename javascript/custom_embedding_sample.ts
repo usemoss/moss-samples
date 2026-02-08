@@ -20,9 +20,14 @@ if (!MOSS_PROJECT_ID || !MOSS_PROJECT_KEY || !OPENAI_API_KEY || !MOSS_INDEX_NAME
 	);
 }
 
+// Fixed: Ensure these are non-null strings for the SDK
+const PROJECT_ID = MOSS_PROJECT_ID!;
+const PROJECT_KEY = MOSS_PROJECT_KEY!;
+const API_KEY = OPENAI_API_KEY!;
+const INDEX_NAME = MOSS_INDEX_NAME!;
 
-const mossClient = new MossClient(MOSS_PROJECT_ID, MOSS_PROJECT_KEY);
-const openaiClient = new OpenAI({ apiKey: OPENAI_API_KEY });
+const mossClient = new MossClient(PROJECT_ID, PROJECT_KEY);
+const openaiClient = new OpenAI({ apiKey: API_KEY });
 
 // ---------- Sample Data to create Index ----------
 const INITIAL_DOCUMENTS = [
@@ -110,7 +115,7 @@ async function main(): Promise<void> {
 	console.log("=".repeat(80));
 	console.log("🧪 Running Custom Embeddings Workflow Steps");
 	console.log("=".repeat(80));
-	console.log(`Index: ${MOSS_INDEX_NAME}`);
+	console.log(`Index: ${INDEX_NAME}`);
 	console.log(`Initial documents: ${INITIAL_DOCUMENTS.length}`);
 	console.log(`Documents to add later: ${NEW_DOCUMENTS.length}`);
 	console.log();
@@ -127,8 +132,8 @@ async function main(): Promise<void> {
 		console.log(`   ✓ Generated ${initialDocsWithEmbeddings.length} embeddings`);
 
 		console.log("   Creating index with custom embeddings...");
-		await mossClient.createIndex(MOSS_INDEX_NAME, initialDocsWithEmbeddings);
-		console.log(`   ✅ Index "${MOSS_INDEX_NAME}" created successfully with custom embeddings`);
+		await mossClient.createIndex(INDEX_NAME, initialDocsWithEmbeddings);
+		console.log(`   ✅ Index "${INDEX_NAME}" created successfully with custom embeddings`);
 		console.log("   ⏳ Waiting 3 seconds for index to initialize...");
 		await new Promise((resolve) => setTimeout(resolve, 3000));
 		console.log();
@@ -145,7 +150,7 @@ async function main(): Promise<void> {
 		console.log();
 
 		console.log("📤 Step 2: Adding documents with custom embeddings to index...");
-		const addResult = await mossClient.addDocs(MOSS_INDEX_NAME, docsWithEmbeddings, {
+		const addResult = await mossClient.addDocs(INDEX_NAME, docsWithEmbeddings, {
 			upsert: true,
 		});
 		console.log(`   ✅ Added: ${addResult.added}, Updated: ${addResult.updated}`);
@@ -157,7 +162,7 @@ async function main(): Promise<void> {
 		const queryEmbedding = await generateEmbedding(WORKFLOW_QUERY);
 		console.log(`   Generated query embedding (dim: ${queryEmbedding.length})`);
 
-		const hotpathResults = await mossClient.query(MOSS_INDEX_NAME, WORKFLOW_QUERY, {
+		const hotpathResults = await mossClient.query(INDEX_NAME, WORKFLOW_QUERY, {
 			embedding: queryEmbedding,
 			topK: 5,
 		});
@@ -182,12 +187,12 @@ async function main(): Promise<void> {
 		console.log();
 
 		console.log("💾 Step 4: Loading index locally...");
-		const loadedIndexName = await mossClient.loadIndex(MOSS_INDEX_NAME);
+		const loadedIndexName = await mossClient.loadIndex(INDEX_NAME);
 		console.log(`   ✅ Index "${loadedIndexName}" loaded successfully`);
 		console.log();
 
 		console.log("🔎 Step 5: Querying locally (using loaded index)...");
-		const localResults = await mossClient.query(MOSS_INDEX_NAME, WORKFLOW_QUERY, {
+		const localResults = await mossClient.query(INDEX_NAME, WORKFLOW_QUERY, {
 			embedding: queryEmbedding,
 			topK: 5,
 		});
@@ -227,7 +232,7 @@ async function main(): Promise<void> {
 		throw error;
 	} finally {
 		console.log();
-		await deleteIndex(MOSS_INDEX_NAME);
+		await deleteIndex(INDEX_NAME);
 	}
 }
 
