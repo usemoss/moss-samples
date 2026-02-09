@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [
-    { name = "InferEdge Inc.", email = "support@inferedge.com" }
+    { name = "InferEdge Inc.", email = "contact@moss.dev" }
 ]
 dependencies = [
     "langchain-core",
