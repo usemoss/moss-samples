@@ -1,0 +1,112 @@
+name: Publish langchain-moss (auto-patch)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: langchain-moss-release
+  cancel-in-progress: false
+
+jobs:
+  determine-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.compute.outputs.version }}
+      major_minor: ${{ steps.compute.outputs.major_minor }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Get version from pyproject.toml
+        id: compute
+        shell: python
+        run: |
+          import tomllib, pathlib, sys
+          p = pathlib.Path("cookbook/langchain/pyproject.toml")
+          if not p.exists():
+              print(f"Error: {p} not found", file=sys.stderr)
+              sys.exit(1)
+          data = tomllib.loads(p.read_text(encoding="utf-8"))
+          version = data["project"]["version"]
+
+          # Extract major.minor for output
+          import re
+          if "b" in version:
+            base_version = re.sub(r'b\d+$', '', version)
+          else:
+            base_version = version
+
+          m = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", base_version)
+          if not m:
+            print(f"Invalid version in pyproject: {version}", file=sys.stderr)
+            sys.exit(1)
+          major, minor, patch = m.groups()
+          mm = f"{major}.{minor}"
+
+          # Set outputs
+          print(f"::set-output name=version::{version}")
+          print(f"::set-output name=major_minor::{mm}")
+          print("Publishing version:", version)
+
+  build-and-publish:
+    needs: determine-version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # for tagging
+
+    env:
+      PKG_DIR: cookbook/langchain
+      VERSION: ${{ needs.determine-version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tooling
+        run: |
+          python -m pip install -U pip
+          pip install build twine
+
+      - name: Build wheels
+        working-directory: ${{ env.PKG_DIR }}
+        run: python -m build --wheel --sdist --outdir dist
+
+      - name: Smoke test import
+        working-directory: ${{ env.PKG_DIR }}
+        shell: python
+        run: |
+          import glob, subprocess, sys
+          wheels = glob.glob("dist/*.whl")
+          if not wheels:
+              raise SystemExit("No wheel found in dist/")
+          whl = wheels[0]
+          print("Installing:", whl)
+          subprocess.check_call([sys.executable, "-m", "pip", "install", "--force-reinstall", whl])
+
+          # Test basic imports
+          from moss_langchain import MossRetriever, get_moss_tool
+          print("✅ All imports successful")
+
+      - name: Upload to PyPI
+        working-directory: ${{ env.PKG_DIR }}
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          python -m twine upload --skip-existing dist/*
+
+      # Create a tag to mark the release
+      - name: Tag release
+        env:
+          VERSION: ${{ env.VERSION }}
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git tag "langchain-moss-v${VERSION}"
+          git push origin "langchain-moss-v${VERSION}"
