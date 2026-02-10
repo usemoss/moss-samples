@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "langchain-moss"
+version = "0.1.0"
+description = "LangChain integration for Moss semantic search"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "InferEdge Inc.", email = "contact@moss.dev" }
+]
+dependencies = [
+    "langchain-core",
+    "inferedge-moss",
+    "pydantic",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["moss_langchain.py"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "README.md",
+    "moss_langchain.py",
+]
