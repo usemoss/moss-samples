@@ -2,16 +2,16 @@
 # Code owners are automatically requested for review when someone opens a pull request.
 
 # Default owner for everything
-* @HarshaNalluru @yatharthk2 @r4ghu
+* @HarshaNalluru @yatharthk2 @r4ghu @CoderOMaster
 
 # JavaScript/TypeScript SDKs and samples
-/javascript/ @HarshaNalluru @yatharthk2 @r4ghu
-/next-js/ @HarshaNalluru @yatharthk2 @r4ghu
-/moss/ @HarshaNalluru @yatharthk2 @r4ghu
+/javascript/ @HarshaNalluru @yatharthk2 @r4ghu @CoderOMaster
+/next-js/ @HarshaNalluru @yatharthk2 @r4ghu @CoderOMaster
+/moss/ @HarshaNalluru @yatharthk2 @r4ghu @CoderOMaster
 
 # Python SDK and samples
-/python/ @HarshaNalluru @yatharthk2 @r4ghu
-/cookbook/ @HarshaNalluru @yatharthk2 @r4ghu
+/python/ @HarshaNalluru @yatharthk2 @r4ghu @CoderOMaster
+/cookbook/ @HarshaNalluru @yatharthk2 @r4ghu @CoderOMaster
 
 # CI/CD Workflows
-/.github/ @HarshaNalluru @yatharthk2 @r4ghu
+/.github/ @HarshaNalluru @yatharthk2 @r4ghu @CoderOMaster
