@@ -1,0 +1,17 @@
+# This file defines who owns which parts of the repository.
+# Code owners are automatically requested for review when someone opens a pull request.
+
+# Default owner for everything
+* @HarshaNalluru @yatharthk2 @r4ghu
+
+# JavaScript/TypeScript SDKs and samples
+/javascript/ @HarshaNalluru @yatharthk2 @r4ghu
+/next-js/ @HarshaNalluru @yatharthk2 @r4ghu
+/moss/ @HarshaNalluru @yatharthk2 @r4ghu
+
+# Python SDK and samples
+/python/ @HarshaNalluru @yatharthk2 @r4ghu
+/cookbook/ @HarshaNalluru @yatharthk2 @r4ghu
+
+# CI/CD Workflows
+/.github/ @HarshaNalluru @yatharthk2 @r4ghu
