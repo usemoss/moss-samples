@@ -2,3 +2,13 @@
 .ruff_cache
 .DS_Store
 __pycache__
+node_modules/
+.env
+.env.local
+dist/
+.next/
+coverage/
+.venv/
+env/
+venv/
+*.log
