@@ -18,10 +18,10 @@ from typing import List
 from dotenv import load_dotenv
 from datetime import datetime
 from inferedge_moss import (
-    AddDocumentsOptions,
     DocumentInfo,
     GetDocumentsOptions,
     MossClient,
+    MutationOptions,
     QueryOptions,
 )
 
@@ -184,7 +184,7 @@ async def comprehensive_moss_example():
     try:
         print(f"\nStep 1: Creating index '{index_name}' with {len(documents)} documents...")
         created = await client.create_index(index_name, documents, "moss-minilm")
-        print(f"Index created successfully: {created}")
+        print(f"Index created successfully (job: {created.job_id}, index: {created.index_name}, docs: {created.doc_count})")
 
         print("\nStep 2: Retrieving index information...")
         index_info = await client.get_index(index_name)
@@ -253,8 +253,8 @@ async def comprehensive_moss_example():
             )
         ]
         
-        add_result = await client.add_docs(index_name, additional_docs, AddDocumentsOptions(upsert=True))
-        print(f"Added {len(additional_docs)} additional documents: {add_result}")
+        add_result = await client.add_docs(index_name, additional_docs, MutationOptions(upsert=True))
+        print(f"Added {len(additional_docs)} additional documents (job: {add_result.job_id}, docs: {add_result.doc_count})")
 
         print("\nStep 5: Retrieving all documents from index...")
         all_docs = await client.get_docs(index_name)
@@ -319,7 +319,7 @@ async def comprehensive_moss_example():
         print("\nStep 9: Demonstrating document deletion...")
         docs_to_delete = ["health-biotech-009", "env-sustainability-010"]
         delete_result = await client.delete_docs(index_name, docs_to_delete)
-        print(f"Deleted documents: {delete_result}")
+        print(f"Deleted documents (job: {delete_result.job_id}, remaining docs: {delete_result.doc_count})")
 
         print("\nStep 10: Verifying document count after deletion...")
         remaining_docs = await client.get_docs(index_name)

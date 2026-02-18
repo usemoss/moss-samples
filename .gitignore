@@ -4,6 +4,7 @@
 __pycache__
 node_modules/
 .env
+.env.*
 .env.local
 dist/
 .next/
@@ -12,3 +13,7 @@ coverage/
 env/
 venv/
 *.log
+
+# Claude
+*.claude/
+*CLAUDE.md

@@ -10,7 +10,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@inferedge/moss": "^1.0.0-beta.3",
+    "@inferedge/moss": "^1.0.0-beta.7",
     "lucide-react": "^0.563.0",
     "next": "16.1.5",
     "react": "19.2.3",
