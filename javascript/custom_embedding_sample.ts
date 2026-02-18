@@ -153,7 +153,7 @@ async function main(): Promise<void> {
 		const addResult = await mossClient.addDocs(INDEX_NAME, docsWithEmbeddings, {
 			upsert: true,
 		});
-		console.log(`   ✅ Added: ${addResult.added}, Updated: ${addResult.updated}`);
+		console.log(`   ✅ Job: ${addResult.jobId}, Doc count: ${addResult.docCount}`);
 		console.log("   ⏳ Waiting 2 seconds for index to update...");
 		await new Promise((resolve) => setTimeout(resolve, 2000));
 		console.log();

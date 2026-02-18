@@ -3,7 +3,7 @@ name = "livekit-voice-agent"
 version = "0.1.0"
 description = "Voice AI agent built with LiveKit Agents framework"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "livekit-agents[mcp]>=1.2.0",
     "livekit-plugins-openai>=1.0.0",
@@ -12,7 +12,7 @@ dependencies = [
     "livekit-plugins-turn-detector>=1.0.0",
     "livekit-agents[cartesia]~=1.2",
     "python-dotenv>=1.0.0",
-    "inferedge-moss",
+    "inferedge-moss>=1.0.0b15",
     "flask>=3.0.0",
     "flask-cors>=4.0.0",
     "gunicorn>=21.0.0",
@@ -62,7 +62,7 @@ all = [
 
 [tool.black]
 line-length = 100
-target-version = ["py39", "py310", "py311"]
+target-version = ["py310", "py311"]
 
 [tool.ruff]
 line-length = 100
@@ -75,7 +75,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true

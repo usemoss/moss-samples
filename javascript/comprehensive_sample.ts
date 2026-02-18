@@ -21,12 +21,12 @@
  * npx tsx comprehensive_sample.ts
  * ```
  * 
- * @requires @inferedge/moss ^1.0.0-beta.1
+ * @requires @inferedge/moss ^1.0.0-beta.7
  * @requires dotenv ^17.2.3
  * @requires node >=16.0.0
  */
 
-import { MossClient, DocumentInfo, AddDocumentsOptions, GetDocumentsOptions } from "@inferedge/moss";
+import { MossClient, DocumentInfo } from "@inferedge/moss";
 import { config } from 'dotenv';
 
 // Load environment variables
@@ -187,8 +187,8 @@ async function comprehensiveMossExample(): Promise<void> {
 
   try {
     console.log(`\n📝 Step 1: Creating index '${indexName}' with ${documents.length} documents...`);
-    const created = await client.createIndex(indexName, documents, 'moss-minilm');
-    console.log(`Index created successfully: ${created}`);
+    const created = await client.createIndex(indexName, documents, { modelId: 'moss-minilm' });
+    console.log(`Index created successfully (job: ${created.jobId}, index: ${created.indexName}, docs: ${created.docCount})`);
 
     console.log(`\nStep 2: Retrieving index information...`);
     const indexInfo = await client.getIndex(indexName);
@@ -257,8 +257,8 @@ async function comprehensiveMossExample(): Promise<void> {
       }
     ];
 
-    const addResult = await client.addDocs(indexName, additionalDocs, { upsert: true } as AddDocumentsOptions);
-    console.log(`Added ${additionalDocs.length} additional documents: ${addResult}`);
+    const addResult = await client.addDocs(indexName, additionalDocs, { upsert: true });
+    console.log(`Added ${additionalDocs.length} additional documents (job: ${addResult.jobId}, docs: ${addResult.docCount})`);
 
     console.log(`\nStep 5: Retrieving all documents from index...`);
     const allDocs = await client.getDocs(indexName);
@@ -278,7 +278,7 @@ async function comprehensiveMossExample(): Promise<void> {
     const targetDocIds = ['tech-ai-001', 'business-data-006', 'security-cyber-008'];
     const specificDocs = await client.getDocs(indexName, {
       docIds: targetDocIds
-    } as GetDocumentsOptions);
+    });
     console.log(`Retrieved ${specificDocs.length} specific documents:`);
     specificDocs.forEach(doc => {
       const textPreview = doc.text.length > 60 ? doc.text.substring(0, 60) + '...' : doc.text;
@@ -325,7 +325,7 @@ async function comprehensiveMossExample(): Promise<void> {
     console.log(`\n🗑️  Step 9: Demonstrating document deletion...`);
     const docsToDelete = ['health-biotech-009', 'env-sustainability-010'];
     const deleteResult = await client.deleteDocs(indexName, docsToDelete);
-    console.log(`Delete operation result: ${JSON.stringify(deleteResult)}`);
+    console.log(`Delete operation result (job: ${deleteResult.jobId}, remaining docs: ${deleteResult.docCount})`);
 
     console.log(`\nStep 10: Verifying document count after deletion...`);
     const remainingDocs = await client.getDocs(indexName);

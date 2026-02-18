@@ -91,7 +91,7 @@ async def create_faq_index() -> None:
 
     print(f"Creating Moss index '{index_name}' with {len(documents)} FAQ entries using {model_id}...")
     created = await client.create_index(index_name, documents, model_id)
-    print("Index creation response:", created)
+    print(f"Index creation complete (job: {created.job_id}, index: {created.index_name}, docs: {created.doc_count})")
     print("FAQ index ready for use!")
 
 
