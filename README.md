@@ -3,70 +3,81 @@
 # <img src="https://github.com/user-attachments/assets/c4e39933-40c4-462d-a9a3-135458c6705f" alt="Moss logo" width="48" style="vertical-align: middle; margin-right: 8px;" /> Moss Samples
 
 [![License](https://img.shields.io/badge/License-BSD_2--Clause-orange.svg)](https://opensource.org/licenses/BSD-2-Clause)
-[![Discord](https://img.shields.io/discord/1433962929526542346?color=7289da&label=discord&logo=discord&logoColor=white)](https://discord.gg/eMXExuafBR)
+[![Discord](https://img.shields.io/discord/1433962929526542346?logo=discord&logoColor=7289da&label=Discord)](https://discord.gg/eMXExuafBR)
 
-Moss is a high-performance runtime for real-time semantic search. It delivers sub-10 ms lookups, instant index updates, and zero infra overhead. Moss runs where your agent lives - cloud, in-browser, or on-device - so search feels native and users never wait. You connect your data once; Moss handles indexing, packaging, distribution and updates.
+Working examples for [Moss](https://moss.dev) — the real-time search runtime for AI agents.
 
-This repo bundles thin, working examples that show how to talk to Moss from Python and JavaScript. Each sample keeps the scaffolding light so you can copy the essentials straight into your own projects.
+Each sample is kept thin on purpose. Copy what you need straight into your own project, swap in your data, and go. Python, TypeScript, Next.js, and Pipecat voice agents are all covered.
 
-**Join our [discord server](https://discord.gg/eMXExuafBR) to get onboarded!**
+**Questions? Join our [Discord](https://discord.gg/eMXExuafBR).**
 
-## Using Moss Portal
+---
 
-- Visit [usemoss.dev](https://usemoss.dev/) - click on signup/login on the top right
-  - confirm your email, and sign in.
-- Inside the default project you will see two plans:
-  - Free Tier ($0) offers 1 project, 3 indexes, and 1,000 items per index with community support;
-  - Developer Workspace ($2000/month + usage) adds unlimited projects/indexes plus 100 GB storage, 100 GB ingestion, 1 TB egress, and priority support.
-- Enter valid card details to start the free trial, then select **Create Index** to provision a new index.
-- From the dashboard, open **View secrets** and save the values as `MOSS_PROJECT_ID` and `MOSS_PROJECT_KEY` in your `.env` for the samples.
+## Setup
+
+1. Sign up at [moss.dev](https://moss.dev/) and create an index from the dashboard.
+2. Open **View secrets** and save the values to your `.env`:
+
+```bash
+MOSS_PROJECT_ID=your_project_id
+MOSS_PROJECT_KEY=your_project_key
+```
 
 > ![Moss Portal walkthrough](https://github.com/user-attachments/assets/c3db9d2d-0df5-4cec-99fd-7d49d0a30844)
 
-## Building with Moss
+For full setup details and pricing, see the [docs](https://docs.moss.dev).
 
-- Samples show how to authenticate, batch context, and stream replies without extra boilerplate.
-- Adapt the scripts by swapping the FAQ JSON files with your data, or plugging Moss calls into an existing app.
+---
 
-## Python SDK Quick Tour
+## Python
 
-- [`python/comprehensive_sample.py`](python/comprehensive_sample.py): end-to-end flow with session creation, context building, and streaming responses.
-- [`python/load_and_query_sample.py`](python/load_and_query_sample.py): how to ingest domain knowledge before querying Moss.
-- [`python/custom_embedding_sample.py`](python/custom_embedding_sample.py): create a fresh index, add custom OpenAI embeddings, and run sample queries.
-- Install deps with `pip install -r python/requirements.txt`, then run any script via `python path/to/sample.py`.
+Install deps: `pip install -r python/requirements.txt`, then run any script with `python path/to/sample.py`.
+
+- [`comprehensive_sample.py`](python/comprehensive_sample.py) — end-to-end flow: session creation, context building, streaming responses
+- [`load_and_query_sample.py`](python/load_and_query_sample.py) — ingest domain knowledge, then query
+- [`custom_embedding_sample.py`](python/custom_embedding_sample.py) — create an index with custom OpenAI embeddings and run queries
 
 > ![Moss Python walkthrough](https://github.com/user-attachments/assets/d826023d-92d6-49ac-8e5e-81cf04d409c5)
 
-## JavaScript SDK Quick Tour
+## TypeScript
 
-- [`javascript/comprehensive_sample.ts`](javascript/comprehensive_sample.ts): TypeScript version of the full workflow, ready for Node.
-- [`javascript/load_and_query_sample.ts`](javascript/load_and_query_sample.ts): demonstrates indexing FAQs and issuing targeted prompts.
-- [`javascript/custom_embedding_sample.ts`](javascript/custom_embedding_sample.ts): provision a new index, push OpenAI embeddings, and run sample queries.
-- Install deps with `npm install` inside `javascript/`, then execute via `npm run start -- path/to/sample.ts`.
+Install deps: `npm install` inside `javascript/`, then run with `npm run start -- path/to/sample.ts`.
 
-## Next.js SDK Quick Tour
+- [`comprehensive_sample.ts`](javascript/comprehensive_sample.ts) — full workflow in TypeScript, ready for Node
+- [`load_and_query_sample.ts`](javascript/load_and_query_sample.ts) — index FAQs and issue targeted queries
+- [`custom_embedding_sample.ts`](javascript/custom_embedding_sample.ts) — provision an index, push OpenAI embeddings, query
 
-- [`next-js/`](next-js/): A modern, web-based semantic search interface using Next.js 15 and Server Actions.
-- Demonstrates how to securely call Moss from the server while providing a sleek, responsive UI to the user.
-- To run locally: `cd next-js && npm install && npm run dev`. Open `http://localhost:3000`.
+## Next.js
 
-## Pipecat Voice Agent Quickstart
+A web-based semantic search interface using Next.js 15 and Server Actions. Shows how to call Moss securely from the server while serving a responsive UI.
 
-- [`pipecat-moss/pipecat-quickstart/`](pipecat-moss/pipecat-quickstart/): Voice bot that plugs Moss retrieval into Pipecat’s real-time pipeline.
-- Shows how to ingest FAQs with `create-index.py`, wire `pipecat-moss` package into Pipecat, and deploy to Pipecat Cloud.
-- Use it to bootstrap a sub-10 ms semantic search customer support agent. For deeper context, see the project README and the [Pipecat-Moss repo](https://github.com/usemoss/pipecat-moss).
+```bash
+cd next-js && npm install && npm run dev
+```
 
-## Learn More
+Open `http://localhost:3000`. See the [`next-js/`](next-js/) directory for details.
 
-- API reference: [MOSS docs](https://docs.usemoss.dev/)
-- Our [Launch YC Post!](https://www.ycombinator.com/launches/Oiq-moss-real-time-semantic-search-for-conversational-ai)
+## Pipecat Voice Agent
+
+A voice bot that plugs Moss retrieval into [Pipecat's](https://github.com/pipecat-ai/pipecat) real-time pipeline — sub-10ms semantic search for a customer support agent.
+
+- [`pipecat-moss/pipecat-quickstart/`](pipecat-moss/pipecat-quickstart/) — ingest FAQs with `create-index.py`, wire into Pipecat, deploy to Pipecat Cloud
+- For deeper context, see the [Pipecat-Moss repo](https://github.com/usemoss/pipecat-moss)
+
+---
+
+## Learn more
+
+- [Documentation](https://docs.moss.dev) — API reference, guides, architecture
+- [Website](https://moss.dev) — product overview and pricing
+- [Launch YC post](https://www.ycombinator.com/launches/Oiq-moss-real-time-semantic-search-for-conversational-ai)
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for more information.
-
 If you spot gaps or want another language example, open an issue or PR. We track feedback closely.
+
+See our [Contributing Guide](CONTRIBUTING.md) for details.
 
 ## License
 
-This project is licensed under the [BSD 2-Clause License](LICENSE).
+[BSD 2-Clause License](LICENSE)

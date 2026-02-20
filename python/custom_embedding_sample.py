@@ -10,9 +10,9 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from inferedge_moss import (
-	AddDocumentsOptions,
 	DocumentInfo,
 	MossClient,
+	MutationOptions,
 	QueryOptions,
 )
 
@@ -184,9 +184,9 @@ async def main() -> None:
 		add_result = await moss_client.add_docs(
 			MOSS_INDEX_NAME,
 			docs_with_embeddings,
-			AddDocumentsOptions(upsert=True),
+			MutationOptions(upsert=True),
 		)
-		print(f"   ✅ Added: {add_result['added']}, Updated: {add_result['updated']}")
+		print(f"   ✅ Job: {add_result.job_id}, Doc count: {add_result.doc_count}")
 		print("   ⏳ Waiting 2 seconds for index to update...")
 		await asyncio.sleep(2)
 		print()
