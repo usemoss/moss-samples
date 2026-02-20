@@ -1,0 +1,53 @@
+{
+  "name": "vitepress-plugin-moss",
+  "version": "1.0.0",
+  "description": "Moss semantic search plugin for VitePress",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "peerDependencies": {
+    "vite": ">=5.0.0",
+    "vitepress": ">=1.0.0"
+  },
+  "dependencies": {
+    "@moss-tools/md-indexer": "^1.0.0-beta.2",
+    "obug": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.4.0",
+    "vite-plugin-dts": "^3.9.1",
+    "vitepress": "^1.5.0",
+    "vue": "^3.5.0"
+  },
+  "keywords": [
+    "vitepress",
+    "plugin",
+    "moss",
+    "search",
+    "semantic-search"
+  ],
+  "license": "MIT"
+}
