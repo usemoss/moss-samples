@@ -22,11 +22,11 @@ Metric sources:
 
 - VectorDBBench [`metric.py`](https://github.com/zilliztech/VectorDBBench/blob/1760db1/vectordb_bench/metric.py) (recall, nDCG, QPS ladder)
 - qdrant [`engine/base_client/search.py`](https://github.com/qdrant/vector-db-benchmark/blob/871a0b2/engine/base_client/search.py) (precision, percentiles)
-- ann-benchmarks [`plotting/metrics.py`](https://github.com/erikbern/ann-benchmarks/blob/2e081ad/ann_benchmarks/plotting/metrics.py) (recall, Pareto frontier)
+- ann-benchmarks [`plotting/metrics.py`](https://github.com/erikbern/ann-benchmarks/blob/2e081ad/ann_benchmarks/plotting/metrics.py) (recall, QPS, percentiles)
 
 ## Engines
 
-All engines index the same L2-normalized vectors with inner product. HNSW engines are built once with M=16, ef_construction=200, then swept over ef = 16, 32, 64, 128, 256, 512.
+All engines index the same L2-normalized vectors with inner product (cosine for sqlite-vec; same ranking on unit vectors). HNSW engines are built once with M=16, ef_construction=200, then swept over ef = 16, 32, 64, 128, 256, 512.
 
 | Engine | Version | Index | Sweep | Filter mechanism |
 |---|---|---|---|---|
@@ -45,7 +45,7 @@ Versions come from `uv.lock`. Known behaviors:
 - **Chroma:** a modified `ef_search` is stored but only applied after the client reopens, so the sweep reopens the persistent client.
 - **DuckDB HNSW** applies `WHERE` after the index scan (post-filtering), so selective filters lose recall (cohere-100k smoke: 0.01 at `label_1p`).
 - **FAISS HNSW** with 1%-selectivity filters has low recall (cohere-100k smoke: 0.27 at `label_1p`).
-- **qdrant-local** keeps everything in memory: 10.6 GB peak RSS at 100k x 768, so it is expected to DNF at 1M+.
+- **qdrant-local** keeps everything in memory: about 10.3 GB peak RSS at 100k x 768, so it is expected to DNF at 1M+.
 - **DuckDB** downloads the `vss` extension into `~/.duckdb/extensions` on first use.
 
 ## Datasets
@@ -66,16 +66,18 @@ mkdir -p results/logs
 ./watchdog.sh results/logs/prepare-<name>.log .venv/bin/python bench_data.py prepare <name>
 ```
 
-Measured on a cohere-100k smoke run (Apple M5 Max): fetch 5 s (298 MB, sha256-checked against `checksums.json`), prepare 1 s at 2.1 GB peak RSS, 621 MB on disk under `data/cohere-100k`. 1M prepare costs will be added once measured. Prepare for the 1M sets is heavy (GB of RAM, large ground-truth matmuls): raise `WATCHDOG_MAX_S` (default 1200 s) as needed.
+Measured on a cohere-100k smoke run (Apple M5 Max): fetch 5 s (sha256-checked against `checksums.json`), prepare 1 s at 2078 MiB peak RSS. 1M prepare costs will be added once measured. Prepare for the 1M sets is heavy (GB of RAM, large ground-truth matmuls): raise `WATCHDOG_MAX_S` (default 1200 s) as needed.
 
 ## Quick start
+
+`MOSS_ENV_FILE` points at a dotenv file defining `MOSS_PROJECT_ID` and `MOSS_PROJECT_KEY` (or export those two instead).
 
 Needs macOS (the watchdog uses `sysctl`), [uv](https://docs.astral.sh/uv/), and Moss credentials for the `moss` engine.
 
 ```bash
 cd benchmarks
 uv sync
-export MOSS_ENV_FILE=/path/to/.env      # defines MOSS_PROJECT_ID and MOSS_PROJECT_KEY (or export those two)
+export MOSS_ENV_FILE=/path/to/.env
 
 mkdir -p results/logs
 ./watchdog.sh results/logs/fetch-cohere-100k.log .venv/bin/python bench_data.py fetch cohere-100k
@@ -88,19 +90,19 @@ open results/report.html
 - Log names are prefixed (`fetch-`, `prepare-`) because `report.py` flags any `results/logs/<dataset>-*.log` without a result file as DNF.
 - `run_suite.sh` first upgrades `moss` to the latest release, then runs one watchdogged process per (dataset, engine), then rebuilds the report. A failed or killed run prints `DNF <dataset> <engine>` and appears under DNF in the report.
 - Use `.venv/bin/python` under the watchdog, never `uv run`, so the RSS cap measures the benchmark.
-- Runaway job: `pkill -9 -f '\.venv/bin/python (run|bench_data|report)\.py'`
+- Runaway job, in this order: `pkill -9 -f run_suite.sh` (stops the loop), then `pkill -9 -f '\.venv/bin/python (run|bench_data|report)\.py'` (kills the running job).
 
 Results: `results/<dataset>/<engine>-<timestamp>.json`, `results/summary.md`, `results/report.html` (works offline).
 
 ## Subsets
 
-`run_suite.sh "<datasets>" "<engines>|all" [run.py options]`. Datasets and engines are space-separated lists. Run a single pair with `.venv/bin/python run.py <dataset> <engine> [options]`.
+`run_suite.sh "<datasets>" "<engines>|all" [run.py options]`. Datasets and engines are space-separated lists. Run a single pair with `./watchdog.sh results/logs/<dataset>-<engine>.log .venv/bin/python run.py <dataset> <engine> [options]`, then `.venv/bin/python report.py`.
 
 | Flag | Example | Effect |
 |---|---|---|
 | `--queries N` | `--queries 200` | first N queries |
 | `--docs N` | `--docs 20000` | index first N docs, ground truth recomputed (vector datasets; not with the filter stage) |
-| `--stages` | `--stages serial` | any of `serial,concurrent,filter` (`load` always runs) |
+| `--stages` | `--stages serial` | `load` and `serial` always run (serial picks the operating point); this selects `filter` / `concurrent` |
 | `--k` | `--k 10` | k values (vector datasets; text always 100) |
 | `--levels` | `--levels 1,4,16` | concurrency ladder (default `1,5,10,20,30,40,60,80`) |
 | `--duration` | `--duration 3` | seconds per level (default 30) |
@@ -110,7 +112,7 @@ Results: `results/<dataset>/<engine>-<timestamp>.json`, `results/summary.md`, `r
 Examples:
 
 ```bash
-./run_suite.sh "cohere-100k cohere-1m" "moss faiss-hnsw zvec" --stages serial --k 10
+./run_suite.sh cohere-100k "moss faiss-hnsw zvec" --stages serial --k 10
 ./run_suite.sh cohere-100k "faiss-flat sqlite-vec" --docs 20000 --stages serial,concurrent --duration 5
 ```
 

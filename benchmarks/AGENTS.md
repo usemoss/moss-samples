@@ -5,7 +5,7 @@ Standard vector-search benchmark (Moss vs local engines). Methodology, commands 
 - **Confirm before heavy jobs.** Every 1M-scale prepare or run, and the full suite, needs explicit user confirmation each time (earlier approval does not carry over).
 - **Smoke-test on `cohere-100k` first.**
 - **Never `uv run` a benchmark.** Use `./run_suite.sh ...` or `./watchdog.sh <log> .venv/bin/python ...` so the watchdog sees python's RSS.
-- **Escape hatch:** `pkill -9 -f '\.venv/bin/python (run|bench_data|report)\.py'`
+- **Escape hatch, in order:** `pkill -9 -f run_suite.sh` (stops the loop), then `pkill -9 -f '\.venv/bin/python (run|bench_data|report)\.py'`
 - **Never read `.env` files.** Pass credentials with `MOSS_ENV_FILE=/path/to/.env` (or `MOSS_PROJECT_ID` / `MOSS_PROJECT_KEY`).
 - **Moss runs consume metered session minutes**, and every run rebuilds the index. Never push Moss sessions.
 - **Report numbers only from `results/`** (`results/summary.md`, `results/*/*.json`).
