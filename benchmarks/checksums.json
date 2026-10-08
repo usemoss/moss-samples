@@ -1,1 +1,10 @@
-{}
+{
+ "cohere-100k/neighbors.parquet": "ee07cdb43a7919bc1ad0525b3bf646036b43be5b7a0aee3ddcef06c21a42594a",
+ "cohere-100k/neighbors_head_1p.parquet": "8112bd17b035637229041185ec92cc7edfec3f03eec50c0bbeb818b37f0d8e0d",
+ "cohere-100k/neighbors_labels_label_1p.parquet": "936adb24257610c154f26f9ebf8c61ac9fe40a29548557a78fffbb53af595f8a",
+ "cohere-100k/neighbors_labels_label_50p.parquet": "16e5e7f7939b39b93fd34271f7a5401f5ee4f08ee84117166e4fdd743b1e1ba1",
+ "cohere-100k/neighbors_tail_1p.parquet": "29bb3daeea1e25d2d97ec0cb0459335858c8cd20b2df8638fab336cf7b4e3c9a",
+ "cohere-100k/scalar_labels.parquet": "737b19e395ab035a5b6baf46405bccad12404504eb819cc39a19f988b2f09152",
+ "cohere-100k/shuffle_train.parquet": "9590e29f947e21cea6caae8a40e5a8f656937cbecd47859492bfae3fd9806540",
+ "cohere-100k/test.parquet": "252a25003060713a268cd2bf5c5f8fab6159f13772924859487907bef64f1391"
+}
