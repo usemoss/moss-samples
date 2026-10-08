@@ -1,0 +1,470 @@
+"""Fetch and prepare the standard benchmark datasets into data/<name>/ (see README.md, "Datasets").
+
+usage: uv run python datasets.py fetch <name>     # resumable download, sha256 checked against checksums.json
+       uv run python datasets.py prepare <name>   # unit-norm arrays + ground truth (HEAVY for the 1M sets)
+names: cohere-100k (smoke), cohere-1m, dbpedia-openai-1m, arxiv-titles-2m, hotpotqa-1m
+
+Prepared layout:
+  vector datasets  base.npy (float32, unit rows), ids.npy (int64), queries.npy, gt.npy (int64 top-100 ids),
+                   optional labels.npy + gt_<filter>.npy, meta.json ("filters": neutral filter specs)
+  text dataset     corpus.jsonl ({"id": int position, "doc_id", "text"}), queries.jsonl, qrels.json
+                   (keys are int positions as strings), base_minilm.npy (fastembed vectors for non-Moss engines)
+"""
+
+import hashlib
+import json
+import subprocess
+import sys
+import urllib.request
+from collections.abc import Callable, Iterable
+from pathlib import Path
+
+import numpy as np
+
+HERE = Path(__file__).parent
+DATA = HERE / "data"
+CHECKSUMS = HERE / "checksums.json"
+VDBB = "https://assets.zilliz.com/benchmark"
+VDBB_FILTER_FILES = {
+    "int_1p": "neighbors_head_1p",
+    "int_99p": "neighbors_tail_1p",
+    "label_1p": "neighbors_labels_label_1p",
+    "label_50p": "neighbors_labels_label_50p",
+}
+HF_DBPEDIA = "KShivendu/dbpedia-entities-openai-1M"
+HF_DBPEDIA_REV = "af9b8869cc2d8debbd254d77737865bb09a2067f"
+MINILM = "sentence-transformers/all-MiniLM-L6-v2"  # same weights as Moss's built-in moss-minilm
+# moss-minilm embeds up to 512 tokens; fastembed 0.9.0 truncates at 256 by default. At 512, fastembed vectors
+# reproduce Moss's built-in retrieval exactly (SciFact nDCG@10 0.6541 for both; 0.6451 at 256).
+MINILM_MAX_TOKENS = 512
+
+
+def vdbb_files(case: str) -> dict[str, str]:
+    """Download URLs of one VectorDBBench case: base, queries, ground truth, labels and filter ground truth."""
+    names = [
+        "shuffle_train.parquet",
+        "test.parquet",
+        "neighbors.parquet",
+        "scalar_labels.parquet",
+    ]
+    return {
+        f: f"{VDBB}/{case}/{f}"
+        for f in names + [f"{g}.parquet" for g in VDBB_FILTER_FILES.values()]
+    }
+
+
+def dbpedia_files() -> dict[str, str]:
+    """Download URLs of the 26 parquet shards of the pinned HF revision (listed through the HF tree API)."""
+    url = f"https://huggingface.co/api/datasets/{HF_DBPEDIA}/tree/{HF_DBPEDIA_REV}/data"
+    tree = json.load(urllib.request.urlopen(url))
+    base = f"https://huggingface.co/datasets/{HF_DBPEDIA}/resolve/{HF_DBPEDIA_REV}"
+    return {Path(f["path"]).name: f"{base}/{f['path']}" for f in tree}
+
+
+def arxiv_files() -> dict[str, str]:
+    """Download URL of Qdrant's arxiv-titles-384-angular (no-filters) tarball."""
+    return {
+        "arxiv_no_filters.tar.gz": "https://storage.googleapis.com/ann-filtered-benchmark/datasets/arxiv_no_filters.tar.gz"
+    }
+
+
+def hotpotqa_files() -> dict[str, str]:
+    """Download URL of the BEIR HotpotQA zip."""
+    return {
+        "hotpotqa.zip": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/hotpotqa.zip"
+    }
+
+
+SOURCES: dict[str, Callable[[], dict[str, str]]] = {
+    "cohere-100k": lambda: vdbb_files("cohere_small_100k"),
+    "cohere-1m": lambda: vdbb_files("cohere_medium_1m"),
+    "dbpedia-openai-1m": dbpedia_files,
+    "arxiv-titles-2m": arxiv_files,
+    "hotpotqa-1m": hotpotqa_files,
+}
+
+
+def sha256(path: Path) -> str:
+    """Hex sha256 of a file, read in 16 MB blocks."""
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for block in iter(lambda: f.read(1 << 24), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def fetch(name: str) -> None:
+    """Download every raw file (resuming partial ones); record sha256 on first fetch, verify on later fetches."""
+    raw = DATA / name / "raw"
+    raw.mkdir(parents=True, exist_ok=True)
+    sums = json.loads(CHECKSUMS.read_text())
+    for fn, url in SOURCES[name]().items():
+        dst, key = raw / fn, f"{name}/{fn}"
+        if not (
+            dst.exists() and key in sums
+        ):  # a recorded file is complete; anything else is (re)downloaded
+            subprocess.run(
+                ["curl", "-fL", "--retry", "3", "-C", "-", "-o", str(dst), url],
+                check=True,
+            )
+        digest = sha256(dst)
+        if sums.get(key, digest) != digest:
+            raise SystemExit(f"checksum mismatch for {key}: {digest} != {sums[key]}")
+        sums[key] = digest
+        CHECKSUMS.write_text(json.dumps(sums, indent=1, sort_keys=True) + "\n")
+        print(f"ok {key} {digest[:12]}")
+
+
+def unit(x: np.ndarray) -> np.ndarray:
+    """Rows scaled to unit L2 norm, as float32 (inner product on unit vectors = cosine)."""
+    x = np.asarray(x, dtype=np.float32)
+    return x / np.linalg.norm(x, axis=1, keepdims=True)
+
+
+def exact_topk(
+    base: np.ndarray, queries: np.ndarray, k: int = 100, chunk: int = 256
+) -> np.ndarray:
+    """Brute-force top-k row indices by inner product, best first, computed in query chunks."""
+    out = np.empty((len(queries), k), dtype=np.int64)
+    for i in range(0, len(queries), chunk):
+        s = queries[i : i + chunk] @ base.T
+        top = np.argpartition(-s, k - 1, axis=1)[:, :k]
+        order = np.argsort(-np.take_along_axis(s, top, axis=1), axis=1, kind="stable")
+        out[i : i + chunk] = np.take_along_axis(top, order, axis=1)
+    return out
+
+
+def select_subset(corpus_ids: Iterable[str], required: set[str], size: int) -> set[str]:
+    """VectorDBBench _build_selected_doc_ids: keep every qrel doc, then fill in corpus order up to size."""
+    if len(required) > size:
+        raise ValueError(f"size={size} is too small for {len(required)} qrel documents")
+    selected, found = set(required), set()
+    for d in corpus_ids:
+        if d in required:
+            found.add(d)
+        if d not in selected and len(selected) < size:
+            selected.add(d)
+        if len(selected) >= size and found == required:
+            break
+    if required - found:
+        raise ValueError(f"{len(required - found)} qrel docs missing from corpus")
+    return selected
+
+
+def save(name: str, meta: dict, **arrays: np.ndarray) -> None:
+    """Write arrays as data/<name>/<key>.npy and meta.json."""
+    out = DATA / name
+    for key, arr in arrays.items():
+        np.save(out / f"{key}.npy", arr)
+    (out / "meta.json").write_text(json.dumps(meta, indent=1) + "\n")
+
+
+def load(name: str) -> dict:
+    """Load a prepared dataset; base vectors are memory-mapped so builds never copy them whole."""
+    out = DATA / name
+    meta = json.loads((out / "meta.json").read_text())
+    if meta["kind"] == "text":
+        corpus = [json.loads(line) for line in (out / "corpus.jsonl").open()]
+        queries = [json.loads(line) for line in (out / "queries.jsonl").open()]
+        vecs = (
+            np.load(out / "base_minilm.npy", mmap_mode="r")
+            if (out / "base_minilm.npy").exists()
+            else None
+        )
+        return {
+            "meta": meta,
+            "corpus": corpus,
+            "queries_text": queries,
+            "base": vecs,
+            "ids": np.arange(len(corpus), dtype=np.int64),
+            "qrels": json.loads((out / "qrels.json").read_text()),
+        }
+    d = {
+        "meta": meta,
+        "base": np.load(out / "base.npy", mmap_mode="r"),
+        "ids": np.load(out / "ids.npy"),
+        "queries": np.load(out / "queries.npy"),
+        "gt": np.load(out / "gt.npy"),
+    }
+    if (out / "labels.npy").exists():
+        d["labels"] = np.load(out / "labels.npy")
+        d["gt_filters"] = {t: np.load(out / f"gt_{t}.npy") for t in meta["filters"]}
+    return d
+
+
+def _parquet_matrix(path: Path, col: str) -> tuple[np.ndarray, np.ndarray]:
+    """(ids, matrix) from a parquet file with an `id` column and a list column, sorted by id."""
+    import pyarrow.parquet as pq
+
+    t = pq.read_table(path).sort_by("id")
+    flat = np.asarray(t.column(col).combine_chunks().flatten())
+    return t.column("id").to_numpy(), flat.reshape(t.num_rows, -1)
+
+
+def _gt_matrix(path: Path, k: int = 100) -> np.ndarray:
+    """Top-k neighbor ids per query (sorted by query id) from a VDBB neighbors file; rows can be ragged
+    (filtered cases may list fewer neighbors), so short rows are padded with -1, which never matches a doc."""
+    import pyarrow.parquet as pq
+
+    rows = pq.read_table(path).sort_by("id").column("neighbors_id").to_pylist()
+    out = np.full((len(rows), k), -1, dtype=np.int64)
+    for i, r in enumerate(rows):
+        out[i, : min(k, len(r))] = r[:k]
+    return out
+
+
+def prepare_vdbb(name: str) -> None:
+    """VectorDBBench Cohere case: unit vectors, top-100 GT, labels, and the four standard filter cases.
+
+    Filter semantics follow VDBB backend/filter.py: IntFilter keeps id >= int(size * rate) (head_1p = rate 0.01,
+    tail_1p = rate 0.99); LabelFilter keeps labels == "label_<p>p".
+    """
+    import pyarrow.parquet as pq
+
+    raw = DATA / name / "raw"
+    ids, base = _parquet_matrix(raw / "shuffle_train.parquet", "emb")
+    _, queries = _parquet_matrix(raw / "test.parquet", "emb")
+    gt = {"gt": _gt_matrix(raw / "neighbors.parquet")}
+    for tag, fn in VDBB_FILTER_FILES.items():
+        gt[f"gt_{tag}"] = _gt_matrix(raw / f"{fn}.parquet")
+    lab = pq.read_table(raw / "scalar_labels.parquet").to_pydict()
+    by_id = dict(zip(lab["id"], lab["labels"]))
+    n = len(ids)
+    filters = {
+        "int_1p": {"field": "id", "op": "gte", "value": int(n * 0.01)},
+        "int_99p": {"field": "id", "op": "gte", "value": int(n * 0.99)},
+        "label_1p": {"field": "labels", "op": "eq", "value": "label_1p"},
+        "label_50p": {"field": "labels", "op": "eq", "value": "label_50p"},
+    }
+    meta = {
+        "name": name,
+        "kind": "vector",
+        "metric": "cosine",
+        "dim": base.shape[1],
+        "n_base": n,
+        "n_queries": len(queries),
+        "gt_k": 100,
+        "filters": filters,
+        "source": SOURCES[name](),
+    }
+    save(
+        name,
+        meta,
+        base=unit(base),
+        ids=ids.astype(np.int64),
+        queries=unit(queries),
+        labels=np.array([by_id[i] for i in ids.tolist()]),
+        **gt,
+    )
+    print(f"{name}: base {base.shape}, queries {queries.shape}, labels {len(by_id)}")
+
+
+def prepare_dbpedia(name: str) -> None:
+    """DBpedia-OpenAI-1M with the ann-benchmarks split and exact top-100 GT (ids = HF row index).
+
+    ann-benchmarks dbpedia_entities_openai_1M calls train_test_split(embeddings, test_size=10_000,
+    random_state=42) on the HF rows in shard order; sklearn's shuffle depends only on (n, random_state),
+    so splitting np.arange(n) yields the same partition.
+    """
+    import pyarrow.parquet as pq
+    from sklearn.model_selection import train_test_split
+
+    shards = sorted((DATA / name / "raw").glob("train-*.parquet"))
+    assert len(shards) == 26, shards
+    x = np.concatenate(
+        [
+            np.asarray(
+                pq.read_table(s, columns=["openai"])
+                .column("openai")
+                .combine_chunks()
+                .flatten(),
+                dtype=np.float32,
+            ).reshape(-1, 1536)
+            for s in shards
+        ]
+    )
+    assert x.shape == (1_000_000, 1536), x.shape
+    train, test = train_test_split(np.arange(len(x)), test_size=10_000, random_state=42)
+    base, queries = unit(x[train]), unit(x[test])
+    del x
+    gt = train[exact_topk(base, queries, 100)]
+    meta = {
+        "name": name,
+        "kind": "vector",
+        "metric": "angular",
+        "dim": 1536,
+        "n_base": len(base),
+        "n_queries": len(queries),
+        "gt_k": 100,
+        "filters": {},
+        "source": {"hf": HF_DBPEDIA, "revision": HF_DBPEDIA_REV},
+    }
+    save(name, meta, base=base, ids=train.astype(np.int64), queries=queries, gt=gt)
+    print(f"{name}: base {base.shape}, queries {queries.shape}")
+
+
+def prepare_arxiv(name: str) -> None:
+    """Qdrant arxiv-titles (all-MiniLM-L6-v2): exact top-100 GT, cross-checked against Qdrant's top-10."""
+    import tarfile
+
+    raw = DATA / name / "raw"
+    ext = raw / "extracted"
+    if not ext.exists():
+        with tarfile.open(raw / "arxiv_no_filters.tar.gz") as tf:
+            tf.extractall(ext, filter="data")
+    base = unit(np.load(next(ext.rglob("vectors.npy"))))
+    tests = [json.loads(line) for line in next(ext.rglob("tests.jsonl")).open()]
+    queries = unit(np.array([t["query"] for t in tests], dtype=np.float32))
+    gt = exact_topk(base, queries, 100)
+    agree = float(
+        np.mean(
+            [
+                len(set(g[:10].tolist()) & set(t["closest_ids"])) / 10
+                for g, t in zip(gt, tests)
+            ]
+        )
+    )
+    print(f"top-10 agreement with Qdrant closest_ids: {agree:.4f}")
+    if agree < 0.99:
+        raise SystemExit(
+            "ground truth disagrees with Qdrant's; the id mapping or metric is wrong"
+        )
+    meta = {
+        "name": name,
+        "kind": "vector",
+        "metric": "cosine",
+        "dim": 384,
+        "n_base": len(base),
+        "n_queries": len(queries),
+        "gt_k": 100,
+        "filters": {},
+        "qdrant_top10_agreement": agree,
+        "source": arxiv_files(),
+    }
+    save(
+        name,
+        meta,
+        base=base,
+        ids=np.arange(len(base), dtype=np.int64),
+        queries=queries,
+        gt=gt,
+    )
+    print(f"{name}: base {base.shape}, queries {queries.shape}")
+
+
+def prepare_beir(name: str, beir_set: str = "hotpotqa", size: int = 1_000_000) -> None:
+    """BEIR `beir_set` (default HotpotQA) capped at `size` docs with VectorDBBench's qrel-preserving rule, then
+    MiniLM corpus vectors for non-Moss engines. Reads data/<name>/raw/<beir_set>.zip (test split qrels).
+
+    Doc text follows VDBB HotpotQATranslator: f"{title} {text}" with tabs/newlines replaced by spaces.
+    Docs get integer ids = position in corpus.jsonl; qrels are re-keyed to those positions.
+    """
+    import csv
+    import io
+    import zipfile
+
+    out = DATA / name
+    with zipfile.ZipFile(out / "raw" / f"{beir_set}.zip") as z:
+        qrels_raw: dict[str, dict[str, int]] = {}
+        with z.open(f"{beir_set}/qrels/test.tsv") as f:
+            for row in csv.DictReader(io.TextIOWrapper(f), delimiter="\t"):
+                if int(row["score"]) > 0:
+                    qrels_raw.setdefault(row["query-id"], {})[row["corpus-id"]] = int(
+                        row["score"]
+                    )
+        required = {d for rels in qrels_raw.values() for d in rels}
+        with z.open(f"{beir_set}/corpus.jsonl") as f:
+            keep = select_subset(
+                (json.loads(line)["_id"] for line in f), required, size
+            )
+        pos: dict[str, int] = {}
+        with (
+            z.open(f"{beir_set}/corpus.jsonl") as f,
+            (out / "corpus.jsonl").open("w") as w,
+        ):
+            for line in f:
+                d = json.loads(line)
+                if d["_id"] in keep:
+                    text = (
+                        f"{d.get('title') or ''} {d.get('text') or ''}".replace(
+                            "\t", " "
+                        )
+                        .replace("\n", " ")
+                        .strip()
+                    )
+                    pos[d["_id"]] = len(pos)
+                    w.write(
+                        json.dumps(
+                            {"id": pos[d["_id"]], "doc_id": d["_id"], "text": text}
+                        )
+                        + "\n"
+                    )
+        with (
+            z.open(f"{beir_set}/queries.jsonl") as f,
+            (out / "queries.jsonl").open("w") as w,
+        ):
+            for line in f:
+                q = json.loads(line)
+                if q["_id"] in qrels_raw:
+                    w.write(json.dumps({"id": q["_id"], "text": q["text"]}) + "\n")
+    qrels = {
+        q: {str(pos[d]): r for d, r in rels.items()} for q, rels in qrels_raw.items()
+    }
+    (out / "qrels.json").write_text(json.dumps(qrels))
+    meta = {
+        "name": name,
+        "kind": "text",
+        "n_base": len(pos),
+        "n_queries": len(qrels),
+        "required_qrel_docs": len(required),
+        "embedder_for_other_engines": MINILM,
+        "source": f"BEIR {beir_set} (test split)",
+    }
+    (out / "meta.json").write_text(json.dumps(meta, indent=1) + "\n")
+    print(f"{name}: corpus {len(pos)}, queries {len(qrels)}, qrel docs {len(required)}")
+    embed_corpus(name)
+
+
+def embed_corpus(name: str, batch: int = 256) -> None:
+    """Embed corpus.jsonl with fastembed MiniLM into base_minilm.npy (non-Moss engines index these vectors)."""
+    import time
+
+    from fastembed import TextEmbedding
+
+    texts = [json.loads(line)["text"] for line in (DATA / name / "corpus.jsonl").open()]
+    model = TextEmbedding(MINILM, cache_dir=str(DATA / ".fastembed"))
+    model.model.tokenizer.enable_truncation(max_length=MINILM_MAX_TOKENS)
+    out = np.lib.format.open_memmap(
+        DATA / name / "base_minilm.npy",
+        mode="w+",
+        dtype=np.float32,
+        shape=(len(texts), 384),
+    )
+    t0 = time.perf_counter()
+    for i, v in enumerate(model.embed(texts, batch_size=batch)):
+        out[i] = v / np.linalg.norm(v)
+    out.flush()
+    meta_path = DATA / name / "meta.json"
+    meta = json.loads(meta_path.read_text()) | {
+        "corpus_embed_s": time.perf_counter() - t0
+    }
+    meta_path.write_text(json.dumps(meta, indent=1) + "\n")
+    print(f"{name}: embedded {len(texts)} docs in {meta['corpus_embed_s']:.0f}s")
+
+
+PREPARE: dict[str, Callable[[str], None]] = {
+    "cohere-100k": prepare_vdbb,
+    "cohere-1m": prepare_vdbb,
+    "dbpedia-openai-1m": prepare_dbpedia,
+    "arxiv-titles-2m": prepare_arxiv,
+    "hotpotqa-1m": prepare_beir,  # defaults: BEIR hotpotqa, 1M docs
+}
+
+if __name__ == "__main__":
+    cmd, name = sys.argv[1], sys.argv[2]
+    if name not in SOURCES:
+        raise SystemExit(f"unknown dataset {name}; choose from {', '.join(SOURCES)}")
+    if cmd == "fetch":
+        fetch(name)
+    else:
+        PREPARE[name](name)
