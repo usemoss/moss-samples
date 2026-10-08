@@ -1,0 +1,25 @@
+# Standard vector-search benchmark: Moss vs local vector engines. See README.md.
+# moss is intentionally unpinned: run_suite.sh upgrades it before every Moss run (always the latest release).
+[project]
+name = "moss-benchmarks"
+version = "0.1.0"
+requires-python = "==3.12.*"
+dependencies = [
+    "chromadb",
+    "duckdb",
+    "faiss-cpu",
+    "fastembed",
+    "lancedb",
+    "moss",
+    "numpy",
+    "plotly",
+    "pyarrow",
+    "python-dotenv",
+    "qdrant-client",
+    "scikit-learn",
+    "sqlite-vec",
+    "zvec",
+]
+
+[tool.uv]
+package = false

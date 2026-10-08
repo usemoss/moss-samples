@@ -1,3 +1,6 @@
-.env
+.venv/
+data/
+results/
 __pycache__/
-embedding_server/__pycache__/
+.pytest_cache/
+.ruff_cache/
