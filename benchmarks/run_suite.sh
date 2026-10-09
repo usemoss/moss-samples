@@ -4,7 +4,7 @@
 #   e.g. ./run_suite.sh cohere-100k all --queries 200 --levels 1,4 --duration 3
 # Logs: results/logs/<dataset>-<engine>.log; a killed or failed run appears as DNF in results/summary.md.
 # Moss runs need MOSS_ENV_FILE (or MOSS_PROJECT_ID/KEY). Long runs: raise WATCHDOG_MAX_S (seconds, default 1200).
-# Escape hatch: pkill -9 -f 'benchmarks/.venv/bin/python'
+# Stop (the loop first, or it logs a DNF and starts the next pair): pkill -9 -f run_suite.sh; pkill -9 -f 'benchmarks/\.venv/bin/python'
 set -u
 cd ${0:A:h}
 datasets=(${=1})
@@ -19,8 +19,9 @@ fi
 mkdir -p results/logs
 for d in $datasets; do
   for e in $engines; do
-    # The watchdog must wrap the python process itself (not `uv run`) so its RSS cap measures the benchmark.
-    ./watchdog.sh results/logs/$d-$e.log .venv/bin/python run.py $d $e "$@" || echo "DNF $d $e (results/logs/$d-$e.log)"
+    # The watchdog wraps the python process itself (not `uv run`) so its RSS cap measures the benchmark; the absolute
+    # interpreter path lets the stop pattern 'benchmarks/\.venv/bin/python' match.
+    ./watchdog.sh results/logs/$d-$e.log $PWD/.venv/bin/python run.py $d $e "$@" || echo "DNF $d $e (results/logs/$d-$e.log)"
   done
 done
-.venv/bin/python report.py
+$PWD/.venv/bin/python report.py
