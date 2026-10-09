@@ -5,14 +5,15 @@ usage: ./watchdog.sh results/logs/<dataset>-<engine>.log $PWD/.venv/bin/python r
 
 Stages (VectorDBBench / qdrant / ann-benchmarks methodology, see README.md):
   load        build the index: build seconds, docs/s, RSS before/after build, index size on disk
-  serial      one client, every sweep setting x every --k: recall@k, nDCG@k, p50/p95/p99/p99.9/mean latency, QPS
-              (text datasets: nDCG@10 and Recall@100 against qrels, k = 100)
+  serial      one client, every sweep setting x every --k: recall@k and nDCG@k vs exact top-k (vector), nDCG@10,
+              recall@100 and R-precision vs human labels (text), p50/p95/p99/p99.9/mean latency, QPS
   concurrent  ladder of N in-flight clients sharing one index, --duration s per level: QPS + latency per level
   filter      VectorDBBench filter cases (k = 100), scored against each case's own ground truth; per case a cold
               pass (first use of that filter) then a warm pass, both measured
 The concurrent and filter stages run at the operating point: the fastest (lowest p50) sweep setting whose
-recall@max(k) >= --target-recall, else the most accurate setting (qdrant's "best speed at a precision threshold").
-After the operating point is applied, 100 unmeasured warm-up queries run. Memory: physical footprint (macOS
+recall@max(k) >= --target-recall, else the most accurate setting (qdrant's "best speed at a precision threshold"; qdrant's precision is this recall).
+After the operating point is applied, 100 unmeasured warm-up queries run. Text datasets keep the top 5 of the first 10
+warm-up queries as example results. Memory: physical footprint (macOS
 proc_pid_rusage) after the dataset loads and after build, plus the peak of every stage, in the result's "memory" block.
 """
 
@@ -36,7 +37,14 @@ import numpy as np
 
 from bench_data import DATA, exact_topk, load
 from engines import ENGINES, MossTextEngine, make_engine
-from metrics import latency_summary, ndcg_gt, ndcg_qrels, recall, recall_qrels
+from metrics import (
+    latency_summary,
+    ndcg_gt,
+    ndcg_qrels,
+    r_precision,
+    recall,
+    recall_qrels,
+)
 
 HERE = Path(__file__).parent
 RESULTS = HERE / "results"
@@ -208,7 +216,9 @@ def footprint_mb() -> tuple[float, float]:
     """(current, peak since reset_peak()) physical footprint of this process in MB: Activity Monitor's "Memory",
     which excludes clean file-backed pages such as the memory-mapped base vectors."""
     r = RusageInfoV4()
-    if LIBSYSTEM.proc_pid_rusage(os.getpid(), 4, ctypes.byref(r)) != 0:  # 4 = RUSAGE_INFO_V4
+    if (
+        LIBSYSTEM.proc_pid_rusage(os.getpid(), 4, ctypes.byref(r)) != 0
+    ):  # 4 = RUSAGE_INFO_V4
         raise OSError("proc_pid_rusage failed")
     return r.ri_phys_footprint / 2**20, r.ri_interval_max_phys_footprint / 2**20
 
@@ -224,7 +234,11 @@ def disk_mb(eng: object) -> float:
     """Allocated size in MB of the engine's index directory (chroma, lancedb, zvec, sqlite-vec keep their index in a
     temp dir; text mode wraps the engine as .engine), counted like du; 0 for in-memory engines."""
     d = getattr(getattr(eng, "engine", eng), "dir", None)
-    return sum(f.stat().st_blocks * 512 for f in Path(d).rglob("*") if f.is_file()) / 2**20 if d else 0.0
+    return (
+        sum(f.stat().st_blocks * 512 for f in Path(d).rglob("*") if f.is_file()) / 2**20
+        if d
+        else 0.0
+    )
 
 
 async def main(a: argparse.Namespace) -> dict:
@@ -311,29 +325,51 @@ async def main(a: argparse.Namespace) -> dict:
                 row |= {
                     "ndcg@10": ndcg_qrels(by_q, qrels, 10),
                     "recall@100": recall_qrels(by_q, qrels, 100),
+                    "r_precision": r_precision(by_q, qrels),
                 }
             else:
                 row |= {
                     f"recall@{k}": recall(got, d["gt"], k),
                     f"ndcg@{k}": ndcg_gt(got, d["gt"], k),
                 }
-            row["precision"] = row["ndcg@10"] if text else row[f"recall@{k}"]  # the headline precision value
+            row["headline"] = (
+                row["ndcg@10"] if text else row[f"recall@{k}"]
+            )  # nDCG@10 (text) or recall@k vs exact top-k
             out["serial"].append(row)
             print(json.dumps(row), flush=True)
 
     peaks["serial"] = footprint_mb()[1]
     rows = [r for r in out["serial"] if r["k"] == max(ks)]
     out["operating_point"] = operating_point(
-        rows, "precision", None if text else a.target_recall
+        rows, "headline", None if text else a.target_recall
     )
     if out["operating_point"]:
         eng.set_search(out["operating_point"])
-    await timed(eng, qs[:100], max(ks))  # unmeasured warm-up at the operating point (Chroma reopens its client)
+    warm, _ = await timed(
+        eng, qs[:100], max(ks)
+    )  # unmeasured warm-up at the operating point (Chroma reopens its client)
+    if text:  # top 5 of the first 10 queries for the report's example results; corpus position = id
+        out["examples"] = [
+            {
+                "query": q["text"],
+                "results": [
+                    {
+                        "text": d["corpus"][i]["text"][:240],
+                        "relevant": str(i) in d["qrels"][q["id"]],
+                    }
+                    for i in g[:5]
+                ],
+            }
+            for q, g in zip(d["queries_text"][:10], warm)
+        ]
     if "filter" in stages and d.get("gt_filters"):
         reset_peak()
         for tag in a.filters.split(","):
             row: dict = {"filter": tag, "k": 100}
-            for p in ("cold", "warm"):  # cold: first use of this filter in the process; warm: the same pass again
+            for p in (
+                "cold",
+                "warm",
+            ):  # cold: first use of this filter in the process; warm: the same pass again
                 got, lat = await timed(eng, qs, 100, d["meta"]["filters"][tag])
                 row[p] = {
                     "recall@100": recall(got, d["gt_filters"][tag], 100),
@@ -387,7 +423,9 @@ if __name__ == "__main__":
     p.add_argument("--filters", default="int_1p,int_99p,label_1p,label_50p")
     p.add_argument("--target-recall", type=float, default=0.95)
     args = p.parse_args()
-    print("args: " + json.dumps(vars(args)), flush=True)  # first log line: report.py reads the run key (--docs) from it
+    print(
+        "args: " + json.dumps(vars(args)), flush=True
+    )  # first log line: report.py reads the run key (--docs) from it
     if args.engine == "moss":
         ensure_latest_moss()
     res = asyncio.run(main(args))

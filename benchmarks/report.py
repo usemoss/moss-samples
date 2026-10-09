@@ -3,7 +3,7 @@
 usage: $PWD/.venv/bin/python report.py        then open results/report.html in a browser (works offline; plotly.js is inlined)
 
 Per dataset, using each engine's newest full run (``-docs`` subset runs get their own section):
-  charts  precision vs speed (Pareto frontier per engine; dropdowns: speed metric = QPS / p50 / p95 / p99 / p99.9 /
+  charts  recall (vector) or nDCG@10 (text) vs speed (Pareto frontier per engine; dropdowns: speed metric = QPS / p50 / p95 / p99 / p99.9 /
           mean, and k), concurrency ladder (QPS, and latency with a metric dropdown), latency at the operating point,
           build cost (dropdown: build time / docs per s), memory (index, build and search peaks, RSS increase, disk),
           filtered search (dropdown: warm recall, cold / warm latency and QPS, cold first-query latency); the
@@ -13,7 +13,8 @@ Per dataset, using each engine's newest full run (``-docs`` subset runs get thei
 Refuses to write anything (exit 1, "STALE <log>: <last line>") when an engine's newest attempt failed but an older
 result for the same run would be shown.
 Every chart: hover shows exact values and parameters; click a legend entry to hide an engine, double-click to isolate it.
-Text datasets use nDCG@10 where vector datasets use recall@k.
+Labels: recall@k is measured against the exact top-k; nDCG@10 and R-precision against human relevance labels.
+Text datasets add R-precision columns and example results (top 5 of 10 queries per engine, ✓ = labelled relevant).
 """
 
 import html
@@ -78,7 +79,15 @@ def attempts() -> list[tuple[str, str, bool, str, str]]:
         docs = json.loads(args.group(1)).get("docs") if args else None
         last = (text.strip().splitlines() or ["(empty log)"])[-1][:160]
         ok = re.search(r"^wrote ", text, re.M) is not None
-        out.append((log.stem[: -len(eng) - 1], eng + (f"-docs{docs}" if docs else ""), ok, last, log.name))
+        out.append(
+            (
+                log.stem[: -len(eng) - 1],
+                eng + (f"-docs{docs}" if docs else ""),
+                ok,
+                last,
+                log.name,
+            )
+        )
     return out
 
 
@@ -86,7 +95,11 @@ def stale(
     runs: dict[str, dict[str, dict]], att: list[tuple[str, str, bool, str, str]]
 ) -> list[str]:
     """`STALE <log>: <last line>` for every failed newest attempt whose run key still has an older result."""
-    return [f"STALE {log}: {last}" for ds, key, ok, last, log in att if not ok and key in runs.get(ds, {})]
+    return [
+        f"STALE {log}: {last}"
+        for ds, key, ok, last, log in att
+        if not ok and key in runs.get(ds, {})
+    ]
 
 
 def mem_gb(r: dict) -> dict[str, float]:
@@ -99,14 +112,21 @@ def mem_gb(r: dict) -> dict[str, float]:
         "index": (m["footprint_after_build_mb"] - base) / 1024,
         "build peak": (peaks["build"] - base) / 1024,
         "search peak": (search - base) / 1024,
-        "RSS increase over build": (m["rss_after_build_mb"] - r["load"]["rss_before_build_mb"]) / 1024,
+        "RSS increase over build": (
+            m["rss_after_build_mb"] - r["load"]["rss_before_build_mb"]
+        )
+        / 1024,
         "on disk": m["disk_mb"] / 1024,
     }
 
 
 def metric_of(r: dict) -> str:
-    """Name of the headline precision: nDCG@10 for text datasets, recall@k for vector datasets."""
-    return "nDCG@10" if r["dataset"]["kind"] == "text" else "recall@k"
+    """Label of the headline measure: nDCG@10 for text datasets, recall@k against the exact top-k for vector datasets."""
+    return (
+        "nDCG@10 (human labels)"
+        if r["dataset"]["kind"] == "text"
+        else "recall@k (vs exact top-k)"
+    )
 
 
 def at_op(r: dict) -> list[dict]:
@@ -140,8 +160,15 @@ def trace_style(engine: str) -> dict:
 def layout(fig: go.Figure, title: str, x: str, y: str, ylog: bool = False) -> go.Figure:
     """Shared layout: recessive grid, legend on the right (click to hide, double-click to isolate)."""
     fig.update_layout(
-        template="plotly_white", paper_bgcolor="#fcfcfb", plot_bgcolor="#fcfcfb",
-        title={"text": title, "x": 0, "y": 0.975, "yanchor": "top"},  # above the dropdown row
+        template="plotly_white",
+        paper_bgcolor="#fcfcfb",
+        plot_bgcolor="#fcfcfb",
+        title={
+            "text": title,
+            "x": 0,
+            "y": 0.975,
+            "yanchor": "top",
+        },  # above the dropdown row
         height=540,
         hovermode="closest",
         legend={"title": {"text": "click / double-click"}},
@@ -173,40 +200,63 @@ def menu(buttons: list[dict], x: float) -> dict:
 
 
 def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
-    """Precision vs speed, one Pareto line per (engine, k); dropdowns pick the speed metric and k."""
+    """Recall (vector) or nDCG@10 (text) vs speed, one Pareto line per (engine, k); an exact engine is a dotted line ending at its point. Dropdowns pick the speed metric and k."""
     speeds = {"serial QPS": ("qps", True)} | {
         f"{lbl} latency, ms": (key, False) for lbl, key in LATENCY.items()
     }
     ks = sorted({row["k"] for r in runs.values() for row in r["serial"]})
+    lo = {
+        k: min(
+            row["headline"]
+            for r in runs.values()
+            for row in r["serial"]
+            if row["k"] == k
+        )
+        for k in ks
+    }  # an exact engine's line starts at the lowest value any engine reached at that k
     fig, data = go.Figure(), {s: [] for s in speeds}
+    label = metric_of(next(iter(runs.values()))).split(" ")[0]  # recall@k or nDCG@10
     for eng, r in runs.items():
         for k in ks:
             rows = [row for row in r["serial"] if row["k"] == k]
-            for s, (key, higher) in speeds.items():
-                pts = [
-                    (
-                        row["precision"],
-                        row["qps"] if key == "qps" else row["latency_ms"][key],
-                        json.dumps(row["params"]) if row["params"] else "exact",
-                    )
-                    for row in rows
-                ]
-                data[s].append(frontier(pts, higher) if pts else [])
+            pts_by = {
+                s: frontier(
+                    [
+                        (
+                            row["headline"],
+                            row["qps"] if key == "qps" else row["latency_ms"][key],
+                            json.dumps(row["params"]) if row["params"] else "exact",
+                            row["headline"],
+                        )
+                        for row in rows
+                    ],
+                    higher,
+                )
+                for s, (key, higher) in speeds.items()
+            }
+            line = (
+                len(rows) == 1 and lo[k] < rows[0]["headline"]
+            )  # exact engine: one point per k
+            for s, pts in pts_by.items():
+                data[s].append([(lo[k], *pts[0][1:]), pts[0]] if line else pts)
             first = data["serial QPS"][-1]
+            style = trace_style(eng)
+            if line:
+                style["line"]["dash"], style["marker"]["size"] = "dot", [0, 9]
             fig.add_trace(
                 go.Scatter(
                     x=[p[0] for p in first],
                     y=[p[1] for p in first],
-                    customdata=[[p[2]] for p in first],
-                    name=eng,
+                    customdata=[[p[2], p[3]] for p in first],
+                    name=f"{eng} (exact)" if line else eng,
                     legendgroup=eng,
                     showlegend=k == ks[-1],
                     visible=k == ks[-1],
                     mode="lines+markers",
                     meta=k,
-                    hovertemplate=f"<b>{eng}</b> k={k}<br>%{{customdata[0]}}<br>precision %{{x:.4f}}"
+                    hovertemplate=f"<b>{eng}</b> k={k}<br>%{{customdata[0]}}<br>{label} %{{customdata[1]:.4f}}"
                     "<br>%{y:.3f}<extra></extra>",
-                    **trace_style(eng),
+                    **style,
                 )
             )
     speed_buttons = [
@@ -217,7 +267,7 @@ def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
                 {
                     "x": [[p[0] for p in t] for t in data[s]],
                     "y": [[p[1] for p in t] for t in data[s]],
-                    "customdata": [[[p[2]] for p in t] for t in data[s]],
+                    "customdata": [[[p[2], p[3]] for p in t] for t in data[s]],
                 },
                 {"yaxis.title.text": f"{s} ({'higher' if hi else 'lower'} is better)"},
             ],
@@ -424,9 +474,14 @@ def filter_bars(name: str, runs: dict[str, dict]) -> go.Figure | None:
     engines = list(runs)
     tags = list(dict.fromkeys(f["filter"] for r in runs.values() for f in r["filter"]))
     by = {e: {f["filter"]: f for f in r["filter"]} for e, r in runs.items()}
-    views: dict[str, tuple[str, str, str | None]] = {"warm recall@100": ("warm", "recall@100", None)}
+    views: dict[str, tuple[str, str, str | None]] = {
+        "warm recall@100": ("warm", "recall@100", None)
+    }
     for p in ("warm", "cold"):
-        views |= {f"{p} {lbl} latency, ms": (p, "latency_ms", key) for lbl, key in LATENCY.items()}
+        views |= {
+            f"{p} {lbl} latency, ms": (p, "latency_ms", key)
+            for lbl, key in LATENCY.items()
+        }
         views[f"{p} QPS"] = (p, "qps", None)
     views["cold first-query latency, ms"] = ("cold", "first_ms", None)
 
@@ -438,7 +493,12 @@ def filter_bars(name: str, runs: dict[str, dict]) -> go.Figure | None:
         return x[view[2]] if view[2] else x
 
     fig = go.Figure()
-    grouped_bars(fig, engines, {t: [val(e, t, views["warm recall@100"]) for e in engines] for t in tags}, ".4f")
+    grouped_bars(
+        fig,
+        engines,
+        {t: [val(e, t, views["warm recall@100"]) for e in engines] for t in tags},
+        ".4f",
+    )
     fig.update_layout(
         updatemenus=[
             menu(
@@ -460,7 +520,12 @@ def filter_bars(name: str, runs: dict[str, dict]) -> go.Figure | None:
             )
         ]
     )
-    fig = layout(fig, f"{name}: filtered search (VectorDBBench int / label cases)", "engine", "warm recall@100")
+    fig = layout(
+        fig,
+        f"{name}: filtered search (VectorDBBench int / label cases)",
+        "engine",
+        "warm recall@100",
+    )
     fig.update_layout(legend={"title": {"text": "filter case (texture)"}})
     return fig
 
@@ -473,14 +538,19 @@ def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> go.Figur
         "p50 latency, ms": (lambda r, row: row["latency_ms"]["p50"], "log"),
         "p99 latency, ms": (lambda r, row: row["latency_ms"]["p99"], "log"),
         "serial QPS": (lambda r, row: row["qps"], "log"),
-        metric_of(r0): (lambda r, row: row["precision"], "linear"),
+        metric_of(r0): (lambda r, row: row["headline"], "linear"),
         "index memory, GB": (lambda r, row: mem_gb(r)["index"], "linear"),
         "build peak memory, GB": (lambda r, row: mem_gb(r)["build peak"], "linear"),
         "build time, s": (lambda r, row: r["load"]["build_s"], "log"),
     }
     by: dict[str, list[tuple[dict, dict]]] = {}
-    for r in [*subs.values(), *(r for e, r in full.items() if e in {s["engine"] for s in subs.values()})]:
-        by.setdefault(r["engine"], []).append((r, max(at_op(r), key=lambda row: row["k"])))
+    for r in [
+        *subs.values(),
+        *(r for e, r in full.items() if e in {s["engine"] for s in subs.values()}),
+    ]:
+        by.setdefault(r["engine"], []).append(
+            (r, max(at_op(r), key=lambda row: row["k"]))
+        )
     fig = go.Figure()
     for eng, pts in by.items():
         pts.sort(key=lambda p: p[0]["load"]["docs"])
@@ -510,7 +580,11 @@ def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> go.Figur
                         "label": v,
                         "method": "update",
                         "args": [
-                            {"y": [[f(r, row) for r, row in pts] for pts in by.values()]},
+                            {
+                                "y": [
+                                    [f(r, row) for r, row in pts] for pts in by.values()
+                                ]
+                            },
                             {"yaxis.title.text": v, "yaxis.type": scale},
                         ],
                     }
@@ -520,7 +594,12 @@ def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> go.Figur
             )
         ]
     )
-    fig = layout(fig, f"{name}: scaling with corpus size (operating point, largest k)", "docs", "p50 latency, ms")
+    fig = layout(
+        fig,
+        f"{name}: scaling with corpus size (operating point, largest k)",
+        "docs",
+        "p50 latency, ms",
+    )
     fig.update_layout(xaxis_type="log", yaxis_type="log")
     return fig
 
@@ -541,6 +620,30 @@ def table(head: list[str], rows: list[list[str]]) -> tuple[list[str], str]:
     )
 
 
+def examples(runs: dict[str, dict]) -> str:
+    """HTML: each engine's top 5 for the first 10 queries at its operating point (text datasets); ✓ = labelled
+    relevant in the dataset. One collapsed block per query. Empty string when no run has examples."""
+    runs = {e: r for e, r in runs.items() if r.get("examples")}
+    if not runs:
+        return ""
+    out = [
+        "<h3>Example results (top 5 at the operating point; ✓ = labelled relevant in the dataset)</h3>"
+    ]
+    for i, ex in enumerate(next(iter(runs.values()))["examples"]):
+        rows = "".join(
+            f"<tr><td>{html.escape(e)}</td><td>{n}</td><td>{'✓' if x['relevant'] else ''}</td>"
+            f"<td class='snip'>{html.escape(x['text'])}</td></tr>"
+            for e, r in runs.items()
+            for n, x in enumerate(r["examples"][i]["results"], 1)
+        )
+        out.append(
+            f"<details><summary>{html.escape(ex['query'])}</summary><div class='tw'><table><thead><tr><th>engine</th>"
+            f"<th>rank</th><th>relevant</th><th>result (first 240 characters)</th></tr></thead><tbody>{rows}</tbody>"
+            "</table></div></details>"
+        )
+    return "".join(out)
+
+
 def section(
     title: str, runs: dict[str, dict], figs: list[go.Figure], missing: list[str]
 ) -> tuple[list[str], list]:
@@ -552,11 +655,12 @@ def section(
             f"<h2>{html.escape(title)}</h2><p>No run finished.</p><h3>Did not finish</h3>{h}"
         ]
     r0 = next(iter(runs.values()))
+    text = r0["dataset"]["kind"] == "text"
     intro = (
         "Runs on the first N docs (--docs, ground truth recomputed); the scaling chart adds the full run when it exists."
         if title.endswith("-subsets")
         else f"{r0['dataset']['n_base']:,} docs, {r0['dataset'].get('n_queries')} queries. Operating point = fastest "
-        "sweep setting with precision >= target recall (text datasets: most accurate setting)."
+        "sweep setting with recall@k >= --target-recall (text datasets: highest nDCG@10)."
     )
     md, parts = (
         [f"## {title}", "", intro, ""],
@@ -580,7 +684,8 @@ def section(
                     e,
                     json.dumps(row["params"]) if row["params"] else "exact",
                     str(row["k"]),
-                    f"{row['precision']:.4f}",
+                    f"{row['headline']:.4f}",
+                    *([f"{row['r_precision']:.4f}"] if text else []),
                     f"{lat['p50']:.3f}",
                     f"{lat['p95']:.3f}",
                     f"{lat['p99']:.3f}",
@@ -595,19 +700,45 @@ def section(
             )
     add(
         "Operating point",
-        ["engine", "params", "k", metric_of(r0), "p50 ms", "p95 ms", "p99 ms", "mean ms", "serial QPS",
-         "max QPS @ clients", "build s", "index GB", "build peak GB", "disk GB"],
+        [
+            "engine",
+            "params",
+            "k",
+            metric_of(r0),
+            *(["R-precision"] if text else []),
+            "p50 ms",
+            "p95 ms",
+            "p99 ms",
+            "mean ms",
+            "serial QPS",
+            "max QPS @ clients",
+            "build s",
+            "index GB",
+            "build peak GB",
+            "disk GB",
+        ],
         op,
     )
     add(
         "Full serial sweep",
-        ["engine", "params", "k", metric_of(r0), "p50 ms", "p99 ms", "mean ms", "QPS"],
+        [
+            "engine",
+            "params",
+            "k",
+            metric_of(r0),
+            *(["R-precision"] if text else []),
+            "p50 ms",
+            "p99 ms",
+            "mean ms",
+            "QPS",
+        ],
         [
             [
                 e,
                 json.dumps(row["params"]) if row["params"] else "exact",
                 str(row["k"]),
-                f"{row['precision']:.4f}",
+                f"{row['headline']:.4f}",
+                *([f"{row['r_precision']:.4f}"] if text else []),
                 f"{row['latency_ms']['p50']:.3f}",
                 f"{row['latency_ms']['p99']:.3f}",
                 f"{row['latency_ms']['mean']:.3f}",
@@ -635,7 +766,11 @@ def section(
             f"{f['cold']['recall@100']:.4f}",
             f"{f['warm']['recall@100']:.4f}",
             f"{f['cold']['first_ms']:.3f}",
-            *(f"{f[p]['latency_ms'][x]:.3f}" for p in ("cold", "warm") for x in ("p50", "p99", "mean")),
+            *(
+                f"{f[p]['latency_ms'][x]:.3f}"
+                for p in ("cold", "warm")
+                for x in ("p50", "p99", "mean")
+            ),
             f"{f['cold']['qps']:.0f}",
             f"{f['warm']['qps']:.0f}",
         ]
@@ -645,8 +780,21 @@ def section(
     if filt:
         add(
             "Filtered search (k=100; cold = first use of the filter, warm = second pass)",
-            ["engine", "filter", "recall@100 cold", "recall@100 warm", "cold first query ms", "cold p50 ms",
-             "cold p99 ms", "cold mean ms", "warm p50 ms", "warm p99 ms", "warm mean ms", "cold QPS", "warm QPS"],
+            [
+                "engine",
+                "filter",
+                "recall@100 cold",
+                "recall@100 warm",
+                "cold first query ms",
+                "cold p50 ms",
+                "cold p99 ms",
+                "cold mean ms",
+                "warm p50 ms",
+                "warm p99 ms",
+                "warm mean ms",
+                "cold QPS",
+                "warm QPS",
+            ],
             filt,
         )
     mem_rows = []
@@ -658,7 +806,10 @@ def section(
                 e,
                 f"{base / 1024:.2f}",
                 f"{g['index']:.2f}",
-                *(f"{(peaks[s] - base) / 1024:.2f}" if s in peaks else "-" for s in STAGES),
+                *(
+                    f"{(peaks[s] - base) / 1024:.2f}" if s in peaks else "-"
+                    for s in STAGES
+                ),
                 f"{g['RSS increase over build']:.2f}",
                 f"{g['on disk']:.2f}",
                 f"{r['load']['peak_rss_mb'] / 1024:.2f}",
@@ -666,10 +817,21 @@ def section(
         )
     add(
         "Memory (GB; footprint values are over the post-load baseline)",
-        ["engine", "baseline footprint", "index", "build peak", "serial peak", "filter peak", "concurrent peak",
-         "RSS increase over build", "on disk", "process peak RSS (whole run)"],
+        [
+            "engine",
+            "baseline footprint",
+            "index",
+            "build peak",
+            "serial peak",
+            "filter peak",
+            "concurrent peak",
+            "RSS increase over build",
+            "on disk",
+            "process peak RSS (whole run)",
+        ],
         mem_rows,
     )
+    parts.append(examples(runs))
     if missing:
         add("Did not finish", ["engine and reason"], [[m] for m in missing])
     return md + [""], parts
@@ -684,6 +846,7 @@ padding:16px}h2{margin-top:48px;border-top:1px solid var(--rule);padding-top:16p
 .tw{overflow-x:auto}table{border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13px}
 th,td{border-bottom:1px solid var(--rule);padding:4px 10px;text-align:right;white-space:nowrap}
 th:first-child,td:first-child{text-align:left}
+td.snip{white-space:normal;text-align:left;min-width:320px}summary{cursor:pointer;margin:6px 0}
 </style></head><body><h1>Moss vector benchmark</h1><p>__ENV__</p>
 <p>Hover any point or bar for exact values. Click a legend entry to hide an engine; double-click to isolate it.
 Dropdowns above each chart switch the metric.</p>__BODY__
@@ -758,7 +921,12 @@ def main() -> None:
             md += m
             parts += p
         if subs or dnf_subs:
-            m, p = section(f"{name}-subsets", subs, [scaling(name, full, subs)] if subs else [], dnf_subs)
+            m, p = section(
+                f"{name}-subsets",
+                subs,
+                [scaling(name, full, subs)] if subs else [],
+                dnf_subs,
+            )
             md += m
             parts += p
     body, first = [], True
@@ -775,7 +943,9 @@ def main() -> None:
             first = False
         else:
             body.append(p)
-    dark = json.dumps({light: dark for light, dark, _, _ in STYLE.values()} | {"#fcfcfb": "#1a1a19"})
+    dark = json.dumps(
+        {light: dark for light, dark, _, _ in STYLE.values()} | {"#fcfcfb": "#1a1a19"}
+    )
     page = (
         PAGE.replace("__ENV__", html.escape(env_line))
         .replace("__BODY__", "\n".join(body))

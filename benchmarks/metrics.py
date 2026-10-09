@@ -55,6 +55,17 @@ def recall_qrels(
     )
 
 
+def r_precision(got: dict[str, list[str]], qrels: dict[str, dict[str, int]]) -> float:
+    """trec_eval Rprec: relevant docs (grade > 0) in the top R over R, R = the query's relevant-doc count."""
+    scores = []
+    for q, rels in qrels.items():
+        rel = {d for d, g in rels.items() if g > 0}
+        scores.append(
+            len(set(got.get(q, [])[: len(rel)]) & rel) / len(rel) if rel else 0.0
+        )
+    return float(np.mean(scores))
+
+
 def latency_summary(seconds: Sequence[float]) -> dict[str, float]:
     """Count, mean and p50/p95/p99/p99.9 in milliseconds (numpy linear-interpolated percentiles)."""
     ms = np.asarray(seconds) * 1000

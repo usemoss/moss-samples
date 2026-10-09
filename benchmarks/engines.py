@@ -23,7 +23,9 @@ from pathlib import Path
 import numpy as np
 
 HNSW_M, HNSW_EF_CONSTRUCTION = 16, 200
-EF_SWEEP = [{"ef": e} for e in (16, 32, 64, 128, 256, 512)]
+EF_SWEEP = [
+    {"ef": e} for e in (16, 32, 64, 100, 128, 160, 200, 256, 320, 400, 512, 768, 1024)
+]
 BATCH = 1000
 
 
@@ -111,7 +113,9 @@ class ChromaEngine:
         from chromadb.config import Settings
 
         self.dir = Path(tempfile.mkdtemp(prefix="bench-chroma-"))
-        client = chromadb.PersistentClient(str(self.dir), Settings(anonymized_telemetry=False))
+        client = chromadb.PersistentClient(
+            str(self.dir), Settings(anonymized_telemetry=False)
+        )
         self.col = client.create_collection(
             "bench",
             configuration={
@@ -138,7 +142,9 @@ class ChromaEngine:
         settings = Settings(anonymized_telemetry=False)
         self.col.modify(configuration={"hnsw": {"ef_search": params["ef"]}})
         chromadb.PersistentClient(str(self.dir), settings).clear_system_cache()
-        self.col = chromadb.PersistentClient(str(self.dir), settings).get_collection("bench")
+        self.col = chromadb.PersistentClient(str(self.dir), settings).get_collection(
+            "bench"
+        )
 
     def search(self, q: np.ndarray, k: int, flt: dict | None = None) -> list[int]:
         """Query by embedding; neutral filters map to Chroma's where clause ($gte / $eq)."""
@@ -191,7 +197,7 @@ class LanceEngine:
                 num_partitions=1,
                 m=HNSW_M,
                 ef_construction=HNSW_EF_CONSTRUCTION,
-            )
+            ),
         )
         self.ef = 64
 
@@ -599,7 +605,9 @@ class MossTextEngine:
         """Create the engine; the session opens in build()."""
         self.session, self.alpha = None, 1.0
 
-    async def build(self, ids: np.ndarray, texts: list[str], metadata: list[dict] | None = None) -> None:
+    async def build(
+        self, ids: np.ndarray, texts: list[str], metadata: list[dict] | None = None
+    ) -> None:
         """Open a moss-minilm session and add text docs, 100 per call (built-in ingest memory grows per call)."""
         import os
 
@@ -608,10 +616,19 @@ class MossTextEngine:
 
         if "MOSS_ENV_FILE" in os.environ:
             load_dotenv(os.environ["MOSS_ENV_FILE"], override=True)
-        client = MossClient(os.environ["MOSS_PROJECT_ID"], os.environ["MOSS_PROJECT_KEY"])
-        self.session = await client.session(f"bench-{uuid.uuid4().hex[:8]}", model_id="moss-minilm")
+        client = MossClient(
+            os.environ["MOSS_PROJECT_ID"], os.environ["MOSS_PROJECT_KEY"]
+        )
+        self.session = await client.session(
+            f"bench-{uuid.uuid4().hex[:8]}", model_id="moss-minilm"
+        )
         for i in range(0, len(ids), 100):
-            await self.session.add_docs([DocumentInfo(id=str(ids[n]), text=texts[n]) for n in range(i, min(i + 100, len(ids)))])
+            await self.session.add_docs(
+                [
+                    DocumentInfo(id=str(ids[n]), text=texts[n])
+                    for n in range(i, min(i + 100, len(ids)))
+                ]
+            )
 
     def set_search(self, params: dict) -> None:
         """Set alpha for subsequent queries."""
@@ -641,9 +658,13 @@ class QueryEmbedder:
         from bench_data import MINILM, MINILM_MAX_TOKENS
 
         self.model = TextEmbedding(MINILM, cache_dir=cache_dir)
-        self.model.model.tokenizer.enable_truncation(max_length=MINILM_MAX_TOKENS)  # match moss-minilm
+        self.model.model.tokenizer.enable_truncation(
+            max_length=MINILM_MAX_TOKENS
+        )  # match moss-minilm
 
-    def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None = None) -> None:
+    def build(
+        self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None = None
+    ) -> None:
         """Index the precomputed corpus vectors."""
         self.engine.build(ids, vectors, metadata)
 
@@ -688,4 +709,8 @@ def make_engine(name: str, text: bool, cache_dir: str) -> object:
     """Engine for a dataset kind: on text datasets Moss uses its built-in model, the others wrap QueryEmbedder."""
     if not text:
         return ENGINES[name]()
-    return MossTextEngine() if name == "moss" else QueryEmbedder(ENGINES[name](), cache_dir)
+    return (
+        MossTextEngine()
+        if name == "moss"
+        else QueryEmbedder(ENGINES[name](), cache_dir)
+    )
