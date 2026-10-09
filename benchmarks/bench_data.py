@@ -461,6 +461,8 @@ PREPARE: dict[str, Callable[[str], None]] = {
 }
 
 if __name__ == "__main__":
+    if len(sys.argv) != 3 or sys.argv[1] not in ("fetch", "prepare"):
+        raise SystemExit(__doc__)  # a typo must not start the heavy prepare
     cmd, name = sys.argv[1], sys.argv[2]
     if name not in SOURCES:
         raise SystemExit(f"unknown dataset {name}; choose from {', '.join(SOURCES)}")

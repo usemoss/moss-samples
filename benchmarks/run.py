@@ -135,6 +135,7 @@ def subset(d: dict, docs: int | None, queries: int | None, stages: list[str]) ->
     if queries:
         d["queries"], d["gt"] = d["queries"][:queries], d["gt"][:queries]
         d["gt_filters"] = {t: g[:queries] for t, g in d.get("gt_filters", {}).items()}
+        d["meta"]["n_queries"] = len(d["queries"])
     if docs:
         if "filter" in stages:
             raise SystemExit(
@@ -256,8 +257,19 @@ async def main(a: argparse.Namespace) -> dict:
             [100],
             d["queries_text"][: a.queries] if a.queries else d["queries_text"],
         )
+        d["meta"] = dict(d["meta"], n_queries=len(d["queries_text"]))
     else:
         d = subset(d, a.docs, a.queries, stages)
+        if max(ks) > d["gt"].shape[1]:  # recall@k needs k ground-truth neighbours
+            raise SystemExit(f"--k up to {d['gt'].shape[1]} (ground truth width)")
+    if bad := set(stages) - {"load", "serial", "concurrent", "filter"}:
+        raise SystemExit(f"unknown --stages {sorted(bad)}")
+    if (  # datasets without filter ground truth skip the filter stage (see below)
+        "filter" in stages
+        and d.get("gt_filters")
+        and (bad := set(a.filters.split(",")) - set(d["gt_filters"]))
+    ):
+        raise SystemExit(f"unknown --filters {sorted(bad)} for {a.dataset}")
     eng = make_engine(a.engine, text, str(DATA / ".fastembed"))
     out: dict = {
         "dataset": d["meta"],
@@ -307,10 +319,11 @@ async def main(a: argparse.Namespace) -> dict:
     for params in eng.sweep or [{}]:
         if params:
             eng.set_search(params)
-        await timed(eng, qs[:100], min(ks))  # warm-up for this setting, unmeasured
-        for k in ks:
-            if params.get("ef", k) < k:  # HNSW needs ef >= k to return k results
-                continue
+        todo = [k for k in ks if params.get("ef", k) >= k]  # HNSW needs ef >= k
+        if not todo:
+            continue
+        await timed(eng, qs[:100], min(todo))  # warm-up for this setting, unmeasured
+        for k in todo:
             got, lat = await timed(eng, qs, k)
             row = {
                 "params": params,
@@ -401,12 +414,16 @@ async def main(a: argparse.Namespace) -> dict:
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        allow_abbrev=False,  # run_suite.sh names the log from the exact --docs flag
     )
     p.add_argument("dataset")
     p.add_argument("engine", choices=list(ENGINES))
     p.add_argument(
-        "--stages", default="serial,concurrent,filter", help="load always runs"
+        "--stages",
+        default="serial,concurrent,filter",
+        help="load and serial always run; this selects filter / concurrent",
     )
     p.add_argument(
         "--k", default="10,100", help="vector datasets; text datasets always use k=100"
@@ -431,7 +448,7 @@ if __name__ == "__main__":
     args = p.parse_args()
     print(
         "args: " + json.dumps(vars(args)), flush=True
-    )  # first log line: report.py reads the run key (--docs) from it
+    )  # first log line: the exact arguments of this attempt
     if args.engine == "moss":
         ensure_latest_moss()
     res = asyncio.run(main(args))

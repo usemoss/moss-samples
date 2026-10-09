@@ -714,10 +714,12 @@ def section(
         ]
     r0 = next(iter(runs.values()))
     text = r0["dataset"]["kind"] == "text"
+    n = sorted({row["latency_ms"]["n"] for r in runs.values() for row in r["serial"]})
+    queries = f"{n[0]:,}" if len(n) == 1 else f"{n[0]:,} to {n[-1]:,} (differs by engine)"
     intro = (
         "Runs on the first N docs (--docs, ground truth recomputed); the scaling chart adds the full run when it exists."
         if title.endswith("-subsets")
-        else f"{r0['dataset']['n_base']:,} docs, {r0['dataset'].get('n_queries')} queries. Operating point = fastest "
+        else f"{r0['dataset']['n_base']:,} docs, {queries} queries. Operating point = fastest "
         "sweep setting with recall@k >= --target-recall (text datasets: highest nDCG@10)."
     )
     md, parts = (
@@ -808,13 +810,17 @@ def section(
     )
     conc = {e: r["concurrent"] for e, r in runs.items() if r["concurrent"]}
     if conc:
-        levels = [c["level"] for c in next(iter(conc.values()))]
+        levels = sorted({c["level"] for cs in conc.values() for c in cs})
         add(
             "Concurrency ladder (QPS / p99 ms)",
             ["engine"] + [f"{lv} clients" for lv in levels],
             [
-                [e] + [f"{c['qps']:.0f} / {c['latency_ms']['p99']:.2f}" for c in cs]
-                for e, cs in conc.items()
+                [e]
+                + [
+                    f"{c['qps']:.0f} / {c['latency_ms']['p99']:.2f}" if (c := by.get(lv)) else "-"
+                    for lv in levels
+                ]
+                for e, by in ((e, {c["level"]: c for c in cs}) for e, cs in conc.items())
             ],
         )
     filt = [
@@ -941,10 +947,14 @@ def main() -> None:
                 ]
             )
         )
-    env = next(iter(next(iter(runs.values())).values()))["env"]
+    envs = [r["env"] for ds in runs.values() for r in ds.values()]
+    env, versions = envs[0], {}
+    for e in envs:  # every version used across runs (run_suite.sh upgrades moss between runs)
+        for pkg, v in e["versions"].items():
+            versions.setdefault(pkg, set()).add(v)
     env_line = (
         f"Hardware: {env['cpu']}, {env['cores']} cores, {env['ram_gb']} GB, {env['os']}. "
-        f"Versions: {', '.join(f'{p} {v}' for p, v in env['versions'].items())}."
+        "Versions: " + ", ".join(p + " " + " / ".join(sorted(v)) for p, v in versions.items()) + "."
     )
     md, parts = (
         [

@@ -43,7 +43,7 @@ All engines index the same L2-normalized vectors with inner product (cosine for 
 
 Versions come from `uv.lock`. Known behaviors:
 
-- **Chroma:** a modified `ef_search` is stored but only applied after the client reopens, so the sweep reopens the persistent client.
+- **Chroma:** a modified `ef_search` is stored but only applied after the client reopens, so the sweep reopens the persistent client. Those reopens inflate its serial-stage memory peak, which the memory chart's "search peak" includes (cohere-100k smoke: 4.7 GB serial peak against a 0.73 GB index; the filter and concurrent peaks, after the sweep, are 2.1 and 1.8 GB).
 - **DuckDB HNSW** applies `WHERE` after the index scan (post-filtering), so selective filters lose recall (cohere-100k smoke: 0.01 at `label_1p`).
 - **FAISS HNSW** with 1%-selectivity filters has low recall (cohere-100k smoke: 0.27 at `label_1p`).
 - **qdrant-local** keeps everything in memory: about 10.3 GB peak RSS at 100k x 768, so it is expected to DNF at 1M+.
@@ -115,7 +115,7 @@ Examples:
 ```bash
 ./run_suite.sh cohere-100k "moss faiss-hnsw zvec" --stages serial --k 10
 ./run_suite.sh cohere-100k "faiss-flat sqlite-vec" --docs 20000 --stages serial,concurrent --duration 5
-for n in 100000 250000 500000; do ./run_suite.sh cohere-1m all --docs $n --stages serial --queries 1000; done
+for n in 100000 250000 500000; do ./run_suite.sh cohere-1m all --docs $n --stages serial --queries 1000 || break; done
 ```
 
 `--docs` runs get their own `<dataset>-subsets` section, which opens with the scaling chart.
