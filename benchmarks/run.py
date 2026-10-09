@@ -1,19 +1,20 @@
-"""Benchmark one engine on one prepared dataset; writes results/<dataset>/<engine>[-docs<N>]-<stamp>.json.
+"""Benchmark one engine on one prepared dataset; writes results/<dataset>/<engine>[-ip][-docs<N>]-<stamp>.json.
 
 usage: ./run_suite.sh <dataset> <engine> [options]   (one watchdogged run.py per pair; its log is
-       results/logs/<dataset>-<engine>[-docs<N>]-<stamp>.log with the same --stamp as the result; engines: see
+       results/logs/<dataset>-<engine>[-ip][-docs<N>]-<stamp>.log with the same --stamp as the result; engines: see
        engines.ENGINES; the first output line is "args: {...}")
+
+Every engine runs off the shelf: library-default index and search settings (see engines.py). --metric picks the
+library's default distance or inner product (cosine where an engine has none).
 
 Stages (VectorDBBench / qdrant / ann-benchmarks methodology, see README.md):
   load        build the index: build seconds, docs/s, RSS before/after build, index size on disk
   serial      one client, every sweep setting x every --k: recall@k and nDCG@k vs exact top-k (vector), nDCG@10,
-              recall@100 and R-precision vs human labels (text), p50/p95/p99/p99.9/mean latency, QPS
-  concurrent  ladder of N in-flight clients sharing one index, --duration s per level: QPS + latency per level
+              recall@k and R-precision vs human labels (text, k >= 10), p50/p95/p99/p99.9/mean latency
   filter      VectorDBBench filter cases (k = 100), scored against each case's own ground truth; per case a cold
               pass (first use of that filter) then a warm pass, both measured
-The concurrent and filter stages run at the operating point: the fastest (lowest p50) sweep setting whose
-recall@max(k) >= --target-recall, else the most accurate setting (qdrant's "best speed at a precision threshold"; qdrant's precision is this recall).
-After the operating point is applied, 100 unmeasured warm-up queries run. Text datasets keep the top 5 of the first 10
+The operating point is the library-default search setting ({}, the first point of every sweep); the filter stage
+runs there, after 100 unmeasured warm-up queries. Text datasets keep the top 5 of the first 10
 warm-up queries as example results. Memory: physical footprint (macOS
 proc_pid_rusage) after the dataset loads and after build, plus the peak of every stage, in the result's "memory" block.
 """
@@ -25,12 +26,10 @@ import inspect
 import json
 import os
 import platform
-import random
 import resource
 import subprocess
 import time
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor
 from importlib.metadata import version
 from pathlib import Path
 
@@ -77,14 +76,10 @@ def ensure_latest_moss() -> None:
         )
 
 
-async def search(
-    eng: object, q: object, k: int, flt: dict | None = None, threaded: bool = False
-) -> list[int]:
-    """Call eng.search natively: coroutines are awaited; sync engines run inline, or in a worker thread if threaded."""
+async def search(eng: object, q: object, k: int, flt: dict | None = None) -> list[int]:
+    """Call eng.search natively: coroutines are awaited, sync engines run inline."""
     if inspect.iscoroutinefunction(eng.search):
         return await eng.search(q, k, flt)
-    if threaded:
-        return await asyncio.to_thread(eng.search, q, k, flt)
     return eng.search(q, k, flt)
 
 
@@ -98,35 +93,6 @@ async def timed(
         got.append(await search(eng, q, k, flt))
         lat.append(time.perf_counter() - t0)
     return got, lat
-
-
-async def ladder_level(
-    eng: object, qs: list, k: int, level: int, duration: float
-) -> dict:
-    """One VectorDBBench-style level: `level` concurrent clients, random start offsets, cycling queries for
-    `duration` seconds. The loop's default executor (used by asyncio.to_thread, including Moss's own query path)
-    holds min(32, cpu+4) threads, so each level installs an executor with exactly `level` threads."""
-    loop = asyncio.get_running_loop()
-    ex = ThreadPoolExecutor(max_workers=level)
-    loop.set_default_executor(ex)
-    lat: list[float] = []
-    stop = time.perf_counter() + duration
-
-    async def client(i: int) -> None:
-        """Issue queries back to back until the level's deadline."""
-        while (t0 := time.perf_counter()) < stop:
-            await search(eng, qs[i % len(qs)], k, None, threaded=True)
-            lat.append(time.perf_counter() - t0)
-            i += 1
-
-    t0 = time.perf_counter()
-    await asyncio.gather(*(client(random.randrange(len(qs))) for _ in range(level)))
-    wall = time.perf_counter() - t0
-    loop.set_default_executor(
-        ThreadPoolExecutor()
-    )  # later to_thread calls (e.g. Moss close) need a live pool
-    ex.shutdown()
-    return {"level": level, "qps": len(lat) / wall, "latency_ms": latency_summary(lat)}
 
 
 def subset(d: dict, docs: int | None, queries: int | None, stages: list[str]) -> dict:
@@ -147,17 +113,6 @@ def subset(d: dict, docs: int | None, queries: int | None, stages: list[str]) ->
             d["labels"] = d["labels"][:docs]
         d["meta"]["n_base"] = docs
     return d
-
-
-def operating_point(rows: list[dict], metric: str, target: float | None) -> dict:
-    """Sweep setting for the concurrent/filter stages: fastest row meeting target, else the most accurate row."""
-    ok = [r for r in rows if target is not None and r[metric] >= target]
-    best = (
-        min(ok, key=lambda r: r["latency_ms"]["p50"])
-        if ok
-        else max(rows, key=lambda r: r[metric])
-    )
-    return best["params"]
 
 
 def env() -> dict:
@@ -253,16 +208,17 @@ async def main(a: argparse.Namespace) -> dict:
             "--docs is not supported for text datasets (it would drop qrel documents)"
         )
     if text:
-        ks, d["queries_text"] = (
-            [100],
-            d["queries_text"][: a.queries] if a.queries else d["queries_text"],
-        )
+        ks = [k for k in ks if k >= 10]  # nDCG@10 needs 10 results
+        if not ks:
+            raise SystemExit("text datasets need a --k of at least 10")
+        if a.queries:
+            d["queries_text"] = d["queries_text"][: a.queries]
         d["meta"] = dict(d["meta"], n_queries=len(d["queries_text"]))
     else:
         d = subset(d, a.docs, a.queries, stages)
         if max(ks) > d["gt"].shape[1]:  # recall@k needs k ground-truth neighbours
             raise SystemExit(f"--k up to {d['gt'].shape[1]} (ground truth width)")
-    if bad := set(stages) - {"load", "serial", "concurrent", "filter"}:
+    if bad := set(stages) - {"load", "serial", "filter"}:
         raise SystemExit(f"unknown --stages {sorted(bad)}")
     if (  # datasets without filter ground truth skip the filter stage (see below)
         "filter" in stages
@@ -270,14 +226,19 @@ async def main(a: argparse.Namespace) -> dict:
         and (bad := set(a.filters.split(",")) - set(d["gt_filters"]))
     ):
         raise SystemExit(f"unknown --filters {sorted(bad)} for {a.dataset}")
-    eng = make_engine(a.engine, text, str(DATA / ".fastembed"))
+    try:
+        eng = make_engine(a.engine, text, str(DATA / ".fastembed"), a.metric)
+    except KeyError:
+        raise SystemExit(
+            f"{a.engine} already ranks by inner product by default; its default run serves --metric ip too"
+        ) from None
     out: dict = {
         "dataset": d["meta"],
         "engine": a.engine,
+        "metric": eng.metric,
         "env": env(),
         "args": vars(a),
         "serial": [],
-        "concurrent": [],
         "filter": [],
     }
 
@@ -316,9 +277,8 @@ async def main(a: argparse.Namespace) -> dict:
 
     qs = [q["text"] for q in d["queries_text"]] if text else list(d["queries"])
     reset_peak()
-    for params in eng.sweep or [{}]:
-        if params:
-            eng.set_search(params)
+    for params in eng.sweep:
+        eng.set_search(params)
         todo = [k for k in ks if params.get("ef", k) >= k]  # HNSW needs ef >= k
         if not todo:
             continue
@@ -328,7 +288,6 @@ async def main(a: argparse.Namespace) -> dict:
             row = {
                 "params": params,
                 "k": k,
-                "qps": len(lat) / sum(lat),
                 "latency_ms": latency_summary(lat),
             }
             if text:
@@ -338,7 +297,7 @@ async def main(a: argparse.Namespace) -> dict:
                 qrels = {q["id"]: d["qrels"][q["id"]] for q in d["queries_text"]}
                 row |= {
                     "ndcg@10": ndcg_qrels(by_q, qrels, 10),
-                    "recall@100": recall_qrels(by_q, qrels, 100),
+                    f"recall@{k}": recall_qrels(by_q, qrels, k),
                     "r_precision": r_precision(by_q, qrels),
                 }
             else:
@@ -353,12 +312,8 @@ async def main(a: argparse.Namespace) -> dict:
             print(json.dumps(row), flush=True)
 
     peaks["serial"] = footprint_mb()[1]
-    rows = [r for r in out["serial"] if r["k"] == max(ks)]
-    out["operating_point"] = operating_point(
-        rows, "headline", None if text else a.target_recall
-    )
-    if out["operating_point"]:
-        eng.set_search(out["operating_point"])
+    out["operating_point"] = {}  # the library default
+    eng.set_search({})
     warm, _ = await timed(
         eng, qs[:100], max(ks)
     )  # unmeasured warm-up at the operating point (Chroma reopens its client)
@@ -387,21 +342,12 @@ async def main(a: argparse.Namespace) -> dict:
                 got, lat = await timed(eng, qs, 100, d["meta"]["filters"][tag])
                 row[p] = {
                     "recall@100": recall(got, d["gt_filters"][tag], 100),
-                    "qps": len(lat) / sum(lat),
                     "latency_ms": latency_summary(lat),
                     "first_ms": lat[0] * 1000,
                 }
             out["filter"].append(row)
             print(json.dumps(row), flush=True)
         peaks["filter"] = footprint_mb()[1]
-    if "concurrent" in stages:
-        reset_peak()
-        for level in [int(x) for x in a.levels.split(",")]:
-            out["concurrent"].append(
-                await ladder_level(eng, qs, max(ks), level, a.duration)
-            )
-            print(json.dumps(out["concurrent"][-1]), flush=True)
-        peaks["concurrent"] = footprint_mb()[1]
     r = eng.close()
     if inspect.isawaitable(r):
         await r
@@ -422,11 +368,11 @@ if __name__ == "__main__":
     p.add_argument("engine", choices=list(ENGINES))
     p.add_argument(
         "--stages",
-        default="serial,concurrent,filter",
-        help="load and serial always run; this selects filter / concurrent",
+        default="serial,filter",
+        help="load and serial always run; this selects filter",
     )
     p.add_argument(
-        "--k", default="10,100", help="vector datasets; text datasets always use k=100"
+        "--k", default="1,10,50,100", help="text datasets use the values >= 10"
     )
     p.add_argument("--queries", type=int, help="use only the first N queries")
     p.add_argument(
@@ -434,12 +380,13 @@ if __name__ == "__main__":
         type=int,
         help="vector datasets: index only the first N docs (GT recomputed)",
     )
-    p.add_argument("--levels", default="1,5,10,20,30,40,60,80")
-    p.add_argument(
-        "--duration", type=float, default=30.0, help="seconds per concurrency level"
-    )
     p.add_argument("--filters", default="int_1p,int_99p,label_1p,label_50p")
-    p.add_argument("--target-recall", type=float, default=0.95)
+    p.add_argument(
+        "--metric",
+        choices=["default", "ip"],
+        default="default",
+        help="the library's default distance, or inner product (cosine where an engine has none)",
+    )
     p.add_argument(
         "--stamp",
         default=time.strftime("%Y%m%dT%H%M%S"),
@@ -454,7 +401,9 @@ if __name__ == "__main__":
     res = asyncio.run(main(args))
     out_dir = RESULTS / args.dataset
     out_dir.mkdir(parents=True, exist_ok=True)
-    tag = f"-docs{args.docs}" if args.docs else ""
+    tag = ("-ip" if args.metric == "ip" else "") + (
+        f"-docs{args.docs}" if args.docs else ""
+    )
     path = out_dir / f"{args.engine}{tag}-{args.stamp}.json"
     path.write_text(json.dumps(res, indent=1) + "\n")
     print(f"wrote {path}")
