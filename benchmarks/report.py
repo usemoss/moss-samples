@@ -135,8 +135,8 @@ def at_op(r: dict) -> list[dict]:
 
 
 def frontier(
-    points: list[tuple[float, float, str]], higher_is_better: bool
-) -> list[tuple[float, float, str]]:
+    points: list[tuple[float, float, str, float]], higher_is_better: bool
+) -> list[tuple[float, float, str, float]]:
     """Pareto frontier (ann-benchmarks create_pointset): keep points that no other point beats on both axes."""
     out, best = [], None
     for p in sorted(points, key=lambda p: -p[0]):
@@ -235,7 +235,7 @@ def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
                 for s, (key, higher) in speeds.items()
             }
             line = (
-                len(rows) == 1 and lo[k] < rows[0]["headline"]
+                len(rows) == 1 and not rows[0]["params"] and lo[k] < rows[0]["headline"]
             )  # exact engine: one point per k
             for s, pts in pts_by.items():
                 data[s].append([(lo[k], *pts[0][1:]), pts[0]] if line else pts)

@@ -1,4 +1,4 @@
-"""Precision and latency metrics, matching VectorDBBench, BEIR and ann-benchmarks conventions (see README.md)."""
+"""Recall, nDCG, R-precision and latency metrics, matching VectorDBBench, BEIR and ann-benchmarks conventions (see README.md)."""
 
 import math
 from collections.abc import Sequence
