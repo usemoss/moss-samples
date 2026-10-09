@@ -8,25 +8,26 @@ Four stages per (dataset, engine), run by `run.py`:
 
 | Stage | What | Metrics |
 |---|---|---|
-| `load` | build the index | build seconds, docs/s, RSS before/after, peak RSS |
-| `serial` | one client, every sweep setting x every k | recall@k, nDCG@k, p50/p95/p99/p99.9/mean latency (ms), QPS |
+| `load` | build the index | build seconds, docs/s, RSS before/after, memory footprint (baseline, after build, build peak), index size on disk |
+| `serial` | one client, every sweep setting x every k | vector: recall@k and nDCG@k vs the exact top-k; text: nDCG@10, Recall@100, R-precision vs human labels; p50/p95/p99/p99.9/mean latency (ms), QPS |
 | `concurrent` | ladder of N in-flight clients on one index, `--duration` s per level, random start offsets | QPS and latency per level |
-| `filter` | VectorDBBench filter cases at k=100, each scored against its own ground truth | recall@100, latency, QPS |
+| `filter` | VectorDBBench filter cases at k=100, each scored against its own ground truth: a cold pass (first use of the filter) then a warm pass | recall@100, latency, QPS and first-query latency, per pass |
 
-- **Recall@k** = `|got[:k] ∩ gt[:k]| / k` against exact brute-force ground truth. **nDCG@k** weights each hit by its ground-truth rank. Text datasets use nDCG@10 and Recall@100 against BEIR qrels.
+- **Recall@k** = `|got[:k] ∩ gt[:k]| / k` against the exact brute-force top-k. Both lists have k items, so it also equals precision@k, and an exact engine scores 1.0 by definition: it measures how closely an index matches exact search, not whether a person would find the results relevant. **nDCG@k** weights each hit by its ground-truth rank. Text datasets are scored against BEIR's human relevance labels: nDCG@10, Recall@100 and **R-precision** (relevant docs in the top R over R, R = that query's relevant-doc count; on hotpotqa every query has 2, so it is precision@2).
 - **Latency** is per query in milliseconds. Percentiles are `numpy.percentile` (linear interpolation). Serial QPS = queries / summed latency.
-- **Operating point** (qdrant-style "best speed at a precision threshold"): the lowest-p50 sweep setting with recall@max(k) >= `--target-recall` (default 0.95); if none qualifies, the most accurate setting. The concurrent and filter stages run there. Text datasets use the most accurate setting.
+- **Memory** is the physical footprint (Activity Monitor's "Memory"; it excludes clean file-backed pages such as the memory-mapped dataset), read with macOS `proc_pid_rusage`. Each stage's peak comes from `proc_reset_footprint_interval` (a private macOS API; no sampling thread, so latencies are untouched). The report shows values over the footprint after the dataset loads: index (after build), build peak, search peak. Disk-backed engines (chroma, lancedb, zvec, sqlite-vec) keep part of their index in files that the OS caches outside the process, so their index size on disk is shown too, plus the RSS increase over the build.
+- **Operating point** (qdrant-style "best speed at a precision threshold"; qdrant's precision is the recall above): the lowest-p50 sweep setting with recall@max(k) >= `--target-recall` (default 0.95); if none qualifies, the most accurate setting. The concurrent and filter stages run there. Text datasets use the most accurate setting. After it is applied, 100 unmeasured warm-up queries run.
 - **Hardware and library versions** are recorded in every result file.
 
 Metric sources:
 
 - VectorDBBench [`metric.py`](https://github.com/zilliztech/VectorDBBench/blob/1760db1/vectordb_bench/metric.py) (recall, nDCG, QPS ladder)
-- qdrant [`engine/base_client/search.py`](https://github.com/qdrant/vector-db-benchmark/blob/871a0b2/engine/base_client/search.py) (precision, percentiles)
+- qdrant [`engine/base_client/search.py`](https://github.com/qdrant/vector-db-benchmark/blob/871a0b2/engine/base_client/search.py) (recall, percentiles)
 - ann-benchmarks [`plotting/metrics.py`](https://github.com/erikbern/ann-benchmarks/blob/2e081ad/ann_benchmarks/plotting/metrics.py) (recall, QPS, percentiles)
 
 ## Engines
 
-All engines index the same L2-normalized vectors with inner product (cosine for sqlite-vec; same ranking on unit vectors). HNSW engines are built once with M=16, ef_construction=200, then swept over ef = 16, 32, 64, 128, 256, 512.
+All engines index the same L2-normalized vectors with inner product (cosine for sqlite-vec; same ranking on unit vectors). HNSW engines are built once with M=16, ef_construction=200, then swept over ef = 16, 32, 64, 100, 128, 160, 200, 256, 320, 400, 512, 768, 1024 (settings with ef < k are skipped at that k).
 
 | Engine | Version | Index | Sweep | Filter mechanism |
 |---|---|---|---|---|
@@ -56,14 +57,14 @@ Versions come from `uv.lock`. Known behaviors:
 | `cohere-1m` | VectorDBBench Cohere | 1M / 1,000 | 768 / cosine | same | 3.13 GB |
 | `dbpedia-openai-1m` | HF `KShivendu/dbpedia-entities-openai-1M`, ann-benchmarks split | 990K / 10,000 | 1536 / angular | MIT | 9.52 GB |
 | `arxiv-titles-2m` | Qdrant `arxiv_no_filters.tar.gz` (all-MiniLM-L6-v2) | 2,138,591 / ~15K | 384 / cosine | arXiv metadata CC0; tarball none stated | 3.10 GB |
-| `hotpotqa-1m` | BEIR HotpotQA, VectorDBBench subset rule (qrel docs + corpus-order fill to 1M) | 1M / 7,405 | text (nDCG@10, Recall@100) | CC BY-SA 4.0 | 654 MB + about 1.5 GB of vectors |
+| `hotpotqa-1m` | BEIR HotpotQA, VectorDBBench subset rule (qrel docs + corpus-order fill to 1M) | 1M / 7,405 | text (nDCG@10, Recall@100, R-precision) | CC BY-SA 4.0 | 654 MB + about 1.5 GB of vectors |
 
 Ground truth is exact brute force (cohere sets ship VectorDBBench's; ours agrees 100% on cohere-100k). MS MARCO is excluded (non-commercial terms). Moss indexes `hotpotqa-1m` text with its built-in embedder; other engines use fastembed MiniLM at 512 tokens.
 
 ```bash
 mkdir -p results/logs
-./watchdog.sh results/logs/fetch-<name>.log .venv/bin/python bench_data.py fetch <name>
-./watchdog.sh results/logs/prepare-<name>.log .venv/bin/python bench_data.py prepare <name>
+./watchdog.sh results/logs/fetch-<name>.log $PWD/.venv/bin/python bench_data.py fetch <name>
+./watchdog.sh results/logs/prepare-<name>.log $PWD/.venv/bin/python bench_data.py prepare <name>
 ```
 
 Measured on a cohere-100k smoke run (Apple M5 Max): fetch 5 s (sha256-checked against `checksums.json`), prepare 1 s at 2078 MiB peak RSS. 1M prepare costs will be added once measured. Prepare for the 1M sets is heavy (GB of RAM, large ground-truth matmuls): raise `WATCHDOG_MAX_S` (default 1200 s) as needed.
@@ -80,23 +81,23 @@ uv sync
 export MOSS_ENV_FILE=/path/to/.env
 
 mkdir -p results/logs
-./watchdog.sh results/logs/fetch-cohere-100k.log .venv/bin/python bench_data.py fetch cohere-100k
-./watchdog.sh results/logs/prepare-cohere-100k.log .venv/bin/python bench_data.py prepare cohere-100k
+./watchdog.sh results/logs/fetch-cohere-100k.log $PWD/.venv/bin/python bench_data.py fetch cohere-100k
+./watchdog.sh results/logs/prepare-cohere-100k.log $PWD/.venv/bin/python bench_data.py prepare cohere-100k
 ./run_suite.sh cohere-100k all --queries 200 --levels 1,4,16 --duration 3
 open results/report.html
 ```
 
 - The watchdog prints `pid=... log=...` and a final `watchdog: rc=0 peak_rss_mb=... elapsed=...s` line. `cat` the log to see the command's output. It kills the job on memory pressure, RSS > 85% of RAM, or `WATCHDOG_MAX_S`.
-- Log names are prefixed (`fetch-`, `prepare-`) because `report.py` flags any `results/logs/<dataset>-*.log` without a result file as DNF.
+- Engine logs are `results/logs/<dataset>-<engine>.log` and hold that engine's newest attempt; other logs use a prefix (`fetch-`, `prepare-`) so the report ignores them.
 - `run_suite.sh` first upgrades `moss` to the latest release, then runs one watchdogged process per (dataset, engine), then rebuilds the report. A failed or killed run prints `DNF <dataset> <engine>` and appears under DNF in the report.
-- Use `.venv/bin/python` under the watchdog, never `uv run`, so the RSS cap measures the benchmark.
-- Runaway job, in this order: `pkill -9 -f run_suite.sh` (stops the loop), then `pkill -9 -f '\.venv/bin/python (run|bench_data|report)\.py'` (kills the running job).
+- Launch python as `$PWD/.venv/bin/python` from `benchmarks/` under the watchdog, never `uv run`: the watchdog then measures the benchmark's RSS, and the stop pattern below matches it.
+- Runaway job: `pkill -9 -f run_suite.sh; pkill -9 -f 'benchmarks/\.venv/bin/python'` (the loop first, or it logs a DNF and starts the next pair). The second pattern kills every benchmark python, so check `pgrep -fl 'benchmarks/\.venv/bin/python'` first. The watchdog is killed too, so the log ends without a `watchdog: rc=` line.
 
 Results: `results/<dataset>/<engine>-<timestamp>.json`, `results/summary.md`, `results/report.html` (works offline).
 
 ## Subsets
 
-`run_suite.sh "<datasets>" "<engines>|all" [run.py options]`. Datasets and engines are space-separated lists. Run a single pair with `./watchdog.sh results/logs/<dataset>-<engine>.log .venv/bin/python run.py <dataset> <engine> [options]`, then `.venv/bin/python report.py`.
+`run_suite.sh "<datasets>" "<engines>|all" [run.py options]`. Datasets and engines are space-separated lists. Run a single pair with `./watchdog.sh results/logs/<dataset>-<engine>.log $PWD/.venv/bin/python run.py <dataset> <engine> [options]`, then `$PWD/.venv/bin/python report.py`.
 
 | Flag | Example | Effect |
 |---|---|---|
@@ -114,21 +115,27 @@ Examples:
 ```bash
 ./run_suite.sh cohere-100k "moss faiss-hnsw zvec" --stages serial --k 10
 ./run_suite.sh cohere-100k "faiss-flat sqlite-vec" --docs 20000 --stages serial,concurrent --duration 5
+for n in 100000 250000 500000; do ./run_suite.sh cohere-1m all --docs $n --stages serial --queries 1000; done
 ```
+
+`--docs` runs get their own `<dataset>-subsets` section, which opens with the scaling chart.
 
 ## Reading the report
 
 `results/report.html` has one section per dataset:
 
-- **Precision vs speed:** Pareto frontier per engine and k (ann-benchmarks style). Dropdowns pick the speed metric (QPS, p50, p95, p99, p99.9, mean) and k.
+- **Recall (vector) or nDCG@10 (text) vs speed:** Pareto frontier per engine and k (ann-benchmarks style); exact engines are dotted horizontal lines ending at their point. Dropdowns pick the speed metric (QPS, p50, p95, p99, p99.9, mean) and k.
 - **Concurrency ladder:** QPS and latency (percentile dropdown) against clients.
-- **Operating-point latency, build cost** (time, docs/s, peak RSS) **and filtered search** (recall, latency, QPS dropdown).
+- **Operating-point latency, build cost** (time, docs/s), **memory** (index, build peak, search peak, RSS increase over the build, on disk) **and filtered search** (dropdown: warm recall, cold / warm latency percentiles and QPS, cold first-query latency).
+- **Example results** (text datasets): for 10 queries, each engine's top 5 at its operating point, with ✓ on documents the dataset labels relevant, so a person can judge the results directly.
+- **Scaling** (`<dataset>-subsets` section, from `--docs` runs): one line per engine over corpus size, including the full run when it exists; the dropdown picks latency, QPS, recall (or nDCG@10), memory or build time.
 - Hover for exact values and parameters; click a legend entry to hide an engine; double-click to isolate it.
-- **DNF** = a log exists in `results/logs/` with no result file (killed by the watchdog, out of memory, or crashed). The table shows the log's last line.
+- **DNF** = an engine's newest log has no `wrote` line and no result exists for that run (killed by the watchdog, out of memory, or crashed). The table shows the log's last line.
+- **STALE:** if an engine's newest attempt failed but an older result for the same run exists, `report.py` prints `STALE <log>: <last line>`, exits 1 and writes nothing, so an old number never stands in for a failed rerun. Read the log, fix the cause and rerun (or move the old result out of `results/` on purpose). Running `report.py` while a run is in progress stops here too.
 
 ## Moss notes
 
-- **Exact search.** Recall is 1.0 against brute force; there are no ANN knobs, so each vector dataset gives one precision point per (dataset, k). On text datasets `alpha` (1.0 vector only, 0.8 default hybrid) is the sweep.
+- **Exact search.** Recall is 1.0 against brute force; there are no ANN knobs, so each vector dataset gives one recall point per (dataset, k). On text datasets `alpha` (1.0 vector only, 0.8 default hybrid) is the sweep.
 - **Normalization.** Moss scores by inner product without normalizing, so all vectors are L2-normalized for every engine (raw Cohere vectors: recall@100 0.41 against cosine).
 - **Calls serialize per session.** More clients add latency, not throughput. cohere-100k smoke run (Apple M5 Max, moss 1.15.1), QPS / p99 ms:
 
