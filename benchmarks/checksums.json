@@ -6,5 +6,6 @@
  "cohere-100k/neighbors_tail_1p.parquet": "29bb3daeea1e25d2d97ec0cb0459335858c8cd20b2df8638fab336cf7b4e3c9a",
  "cohere-100k/scalar_labels.parquet": "737b19e395ab035a5b6baf46405bccad12404504eb819cc39a19f988b2f09152",
  "cohere-100k/shuffle_train.parquet": "9590e29f947e21cea6caae8a40e5a8f656937cbecd47859492bfae3fd9806540",
- "cohere-100k/test.parquet": "252a25003060713a268cd2bf5c5f8fab6159f13772924859487907bef64f1391"
+ "cohere-100k/test.parquet": "252a25003060713a268cd2bf5c5f8fab6159f13772924859487907bef64f1391",
+ "hotpotqa-1m/hotpotqa.zip": "c62459dbc91d31329584507b1fa564b3b1abcee58800967113054ee0f5a15c62"
 }
