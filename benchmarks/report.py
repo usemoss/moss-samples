@@ -424,7 +424,7 @@ def filter_bars(name: str, runs: dict[str, dict]) -> go.Figure | None:
     engines = list(runs)
     tags = list(dict.fromkeys(f["filter"] for r in runs.values() for f in r["filter"]))
     by = {e: {f["filter"]: f for f in r["filter"]} for e, r in runs.items()}
-    views: dict[str, tuple[str, str, str | None]] = {"recall@100": ("warm", "recall@100", None)}
+    views: dict[str, tuple[str, str, str | None]] = {"warm recall@100": ("warm", "recall@100", None)}
     for p in ("warm", "cold"):
         views |= {f"{p} {lbl} latency, ms": (p, "latency_ms", key) for lbl, key in LATENCY.items()}
         views[f"{p} QPS"] = (p, "qps", None)
@@ -438,7 +438,7 @@ def filter_bars(name: str, runs: dict[str, dict]) -> go.Figure | None:
         return x[view[2]] if view[2] else x
 
     fig = go.Figure()
-    grouped_bars(fig, engines, {t: [val(e, t, views["recall@100"]) for e in engines] for t in tags}, ".4f")
+    grouped_bars(fig, engines, {t: [val(e, t, views["warm recall@100"]) for e in engines] for t in tags}, ".4f")
     fig.update_layout(
         updatemenus=[
             menu(
@@ -450,7 +450,7 @@ def filter_bars(name: str, runs: dict[str, dict]) -> go.Figure | None:
                             {"y": [[val(e, t, view) for e in engines] for t in tags]},
                             {
                                 "yaxis.title.text": v,
-                                "yaxis.type": "linear" if v.startswith("recall") else "log",
+                                "yaxis.type": "linear" if "recall" in v else "log",
                             },
                         ],
                     }
@@ -460,7 +460,7 @@ def filter_bars(name: str, runs: dict[str, dict]) -> go.Figure | None:
             )
         ]
     )
-    fig = layout(fig, f"{name}: filtered search (VectorDBBench int / label cases)", "engine", "recall@100")
+    fig = layout(fig, f"{name}: filtered search (VectorDBBench int / label cases)", "engine", "warm recall@100")
     fig.update_layout(legend={"title": {"text": "filter case (texture)"}})
     return fig
 
@@ -479,7 +479,7 @@ def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> go.Figur
         "build time, s": (lambda r, row: r["load"]["build_s"], "log"),
     }
     by: dict[str, list[tuple[dict, dict]]] = {}
-    for r in [*subs.values(), *full.values()]:
+    for r in [*subs.values(), *(r for e, r in full.items() if e in {s["engine"] for s in subs.values()})]:
         by.setdefault(r["engine"], []).append((r, max(at_op(r), key=lambda row: row["k"])))
     fig = go.Figure()
     for eng, pts in by.items():
@@ -545,6 +545,12 @@ def section(
     title: str, runs: dict[str, dict], figs: list[go.Figure], missing: list[str]
 ) -> tuple[list[str], list]:
     """Markdown lines and an ordered list of HTML fragments / figures for one dataset or its --docs subsets."""
+    if not runs:  # only failed attempts: heading and the DNF table, no charts
+        md = [f"## {title}", "", "No run finished.", "", "### Did not finish", ""]
+        m, h = table(["engine and reason"], [[x] for x in missing])
+        return md + m + [""], [
+            f"<h2>{html.escape(title)}</h2><p>No run finished.</p><h3>Did not finish</h3>{h}"
+        ]
     r0 = next(iter(runs.values()))
     intro = (
         "Runs on the first N docs (--docs, ground truth recomputed); the scaling chart adds the full run when it exists."
@@ -730,30 +736,29 @@ def main() -> None:
         ],
         [],
     )
-    for name in sorted(runs):
-        full = {e: r for e, r in runs[name].items() if "-docs" not in e}
-        subs = {e: r for e, r in runs[name].items() if "-docs" in e}
+    for name in sorted(set(runs) | {ds for ds, _, ok, _, _ in att if not ok}):
+        full = {e: r for e, r in runs.get(name, {}).items() if "-docs" not in e}
+        subs = {e: r for e, r in runs.get(name, {}).items() if "-docs" in e}
         dnfs = [(key, last) for ds, key, ok, last, _ in att if ds == name and not ok]
-        if full:
-            figs = [
-                tradeoff(name, full),
-                *ladder(name, full),
-                latency_bars(name, full),
-                build_bars(name, full),
-                memory_bars(name, full),
-            ]
-            fb = filter_bars(name, full)
-            m, p = section(
-                name, full, figs + ([fb] if fb else []),
-                [f"{k}: DNF, {last}" for k, last in dnfs if "-docs" not in k],
-            )
+        dnf_full = [f"{k}: DNF, {last}" for k, last in dnfs if "-docs" not in k]
+        dnf_subs = [f"{k}: DNF, {last}" for k, last in dnfs if "-docs" in k]
+        if full or dnf_full:
+            figs = []
+            if full:
+                figs = [
+                    tradeoff(name, full),
+                    *ladder(name, full),
+                    latency_bars(name, full),
+                    build_bars(name, full),
+                    memory_bars(name, full),
+                ]
+                fb = filter_bars(name, full)
+                figs += [fb] if fb else []
+            m, p = section(name, full, figs, dnf_full)
             md += m
             parts += p
-        if subs:
-            m, p = section(
-                f"{name}-subsets", subs, [scaling(name, full, subs)],
-                [f"{k}: DNF, {last}" for k, last in dnfs if "-docs" in k],
-            )
+        if subs or dnf_subs:
+            m, p = section(f"{name}-subsets", subs, [scaling(name, full, subs)] if subs else [], dnf_subs)
             md += m
             parts += p
     body, first = [], True
