@@ -1,19 +1,24 @@
 """Benchmark one engine on one prepared dataset; writes results/<dataset>/<engine>[-docs<N>]-<timestamp>.json.
 
-usage: uv run python run.py <dataset> <engine> [options]      (engines: see engines.ENGINES; one per process)
+usage: ./watchdog.sh results/logs/<dataset>-<engine>.log $PWD/.venv/bin/python run.py <dataset> <engine> [options]
+       (engines: see engines.ENGINES; one per process; the first output line is "args: {...}")
 
 Stages (VectorDBBench / qdrant / ann-benchmarks methodology, see README.md):
-  load        build the index: build seconds, docs/s, RSS before/after build
+  load        build the index: build seconds, docs/s, RSS before/after build, index size on disk
   serial      one client, every sweep setting x every --k: recall@k, nDCG@k, p50/p95/p99/p99.9/mean latency, QPS
               (text datasets: nDCG@10 and Recall@100 against qrels, k = 100)
   concurrent  ladder of N in-flight clients sharing one index, --duration s per level: QPS + latency per level
-  filter      VectorDBBench filter cases (k = 100), scored against each case's own ground truth
+  filter      VectorDBBench filter cases (k = 100), scored against each case's own ground truth; per case a cold
+              pass (first use of that filter) then a warm pass, both measured
 The concurrent and filter stages run at the operating point: the fastest (lowest p50) sweep setting whose
 recall@max(k) >= --target-recall, else the most accurate setting (qdrant's "best speed at a precision threshold").
+After the operating point is applied, 100 unmeasured warm-up queries run. Memory: physical footprint (macOS
+proc_pid_rusage) after the dataset loads and after build, plus the peak of every stage, in the result's "memory" block.
 """
 
 import argparse
 import asyncio
+import ctypes
 import inspect
 import json
 import os
@@ -177,6 +182,51 @@ def rss_mb() -> float:
     )
 
 
+class RusageInfoV4(ctypes.Structure):
+    """struct rusage_info_v4 from macOS <sys/resource.h>; only the footprint fields are read."""
+
+    _fields_ = [("ri_uuid", ctypes.c_uint8 * 16)] + [
+        (f, ctypes.c_uint64)
+        for f in (
+            "ri_user_time ri_system_time ri_pkg_idle_wkups ri_interrupt_wkups ri_pageins ri_wired_size "
+            "ri_resident_size ri_phys_footprint ri_proc_start_abstime ri_proc_exit_abstime ri_child_user_time "
+            "ri_child_system_time ri_child_pkg_idle_wkups ri_child_interrupt_wkups ri_child_pageins "
+            "ri_child_elapsed_abstime ri_diskio_bytesread ri_diskio_byteswritten ri_cpu_time_qos_default "
+            "ri_cpu_time_qos_maintenance ri_cpu_time_qos_background ri_cpu_time_qos_utility "
+            "ri_cpu_time_qos_legacy ri_cpu_time_qos_user_initiated ri_cpu_time_qos_user_interactive "
+            "ri_billed_system_time ri_serviced_system_time ri_logical_writes ri_lifetime_max_phys_footprint "
+            "ri_instructions ri_cycles ri_billed_energy ri_serviced_energy ri_interval_max_phys_footprint "
+            "ri_runnable_time"
+        ).split()
+    ]
+
+
+LIBSYSTEM = ctypes.CDLL("/usr/lib/libSystem.B.dylib")
+
+
+def footprint_mb() -> tuple[float, float]:
+    """(current, peak since reset_peak()) physical footprint of this process in MB: Activity Monitor's "Memory",
+    which excludes clean file-backed pages such as the memory-mapped base vectors."""
+    r = RusageInfoV4()
+    if LIBSYSTEM.proc_pid_rusage(os.getpid(), 4, ctypes.byref(r)) != 0:  # 4 = RUSAGE_INFO_V4
+        raise OSError("proc_pid_rusage failed")
+    return r.ri_phys_footprint / 2**20, r.ri_interval_max_phys_footprint / 2**20
+
+
+def reset_peak() -> None:
+    """Start a new footprint peak interval (libproc's private proc_reset_footprint_interval; verified on macOS 26.6).
+    Reading the interval peak needs no sampling thread, so measured latencies are unaffected."""
+    if LIBSYSTEM.proc_reset_footprint_interval(os.getpid()) != 0:
+        raise OSError("proc_reset_footprint_interval failed")
+
+
+def disk_mb(eng: object) -> float:
+    """Allocated size in MB of the engine's index directory (chroma, lancedb, zvec, sqlite-vec keep their index in a
+    temp dir; text mode wraps the engine as .engine), counted like du; 0 for in-memory engines."""
+    d = getattr(getattr(eng, "engine", eng), "dir", None)
+    return sum(f.stat().st_blocks * 512 for f in Path(d).rglob("*") if f.is_file()) / 2**20 if d else 0.0
+
+
 async def main(a: argparse.Namespace) -> dict:
     """Run the selected stages for one engine and return the result document."""
     stages, ks = a.stages.split(","), [int(x) for x in a.k.split(",")]
@@ -204,7 +254,10 @@ async def main(a: argparse.Namespace) -> dict:
         "filter": [],
     }
 
+    mem: dict = {"baseline_footprint_mb": footprint_mb()[0], "peak_footprint_mb": {}}
+    peaks = mem["peak_footprint_mb"]
     rss0, t0 = rss_mb(), time.perf_counter()
+    reset_peak()
     if isinstance(eng, MossTextEngine):
         await eng.build(d["ids"], [c["text"] for c in d["corpus"]])
     else:
@@ -218,6 +271,7 @@ async def main(a: argparse.Namespace) -> dict:
         if inspect.isawaitable(r):
             await r
     build_s = time.perf_counter() - t0
+    peaks["build"] = footprint_mb()[1]
     n = len(d["ids"])
     out["load"] = {
         "docs": n,
@@ -226,9 +280,15 @@ async def main(a: argparse.Namespace) -> dict:
         "rss_before_build_mb": rss0,
         "rss_after_build_mb": rss_mb(),
     }
-    print(json.dumps(out["load"]), flush=True)
+    mem |= {
+        "footprint_after_build_mb": footprint_mb()[0],
+        "rss_after_build_mb": out["load"]["rss_after_build_mb"],
+        "disk_mb": disk_mb(eng),
+    }
+    print(json.dumps(out["load"] | mem), flush=True)
 
     qs = [q["text"] for q in d["queries_text"]] if text else list(d["queries"])
+    reset_peak()
     for params in eng.sweep or [{}]:
         if params:
             eng.set_search(params)
@@ -261,37 +321,44 @@ async def main(a: argparse.Namespace) -> dict:
             out["serial"].append(row)
             print(json.dumps(row), flush=True)
 
+    peaks["serial"] = footprint_mb()[1]
     rows = [r for r in out["serial"] if r["k"] == max(ks)]
     out["operating_point"] = operating_point(
         rows, "precision", None if text else a.target_recall
     )
     if out["operating_point"]:
         eng.set_search(out["operating_point"])
+    await timed(eng, qs[:100], max(ks))  # unmeasured warm-up at the operating point (Chroma reopens its client)
     if "filter" in stages and d.get("gt_filters"):
+        reset_peak()
         for tag in a.filters.split(","):
-            got, lat = await timed(eng, qs, 100, d["meta"]["filters"][tag])
-            out["filter"].append(
-                {
-                    "filter": tag,
-                    "k": 100,
+            row: dict = {"filter": tag, "k": 100}
+            for p in ("cold", "warm"):  # cold: first use of this filter in the process; warm: the same pass again
+                got, lat = await timed(eng, qs, 100, d["meta"]["filters"][tag])
+                row[p] = {
                     "recall@100": recall(got, d["gt_filters"][tag], 100),
                     "qps": len(lat) / sum(lat),
                     "latency_ms": latency_summary(lat),
+                    "first_ms": lat[0] * 1000,
                 }
-            )
-            print(json.dumps(out["filter"][-1]), flush=True)
+            out["filter"].append(row)
+            print(json.dumps(row), flush=True)
+        peaks["filter"] = footprint_mb()[1]
     if "concurrent" in stages:
+        reset_peak()
         for level in [int(x) for x in a.levels.split(",")]:
             out["concurrent"].append(
                 await ladder_level(eng, qs, max(ks), level, a.duration)
             )
             print(json.dumps(out["concurrent"][-1]), flush=True)
+        peaks["concurrent"] = footprint_mb()[1]
     r = eng.close()
     if inspect.isawaitable(r):
         await r
     out["load"]["peak_rss_mb"] = (
         resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 2**20
     )  # bytes on macOS
+    out["memory"] = mem
     return out
 
 
@@ -320,6 +387,7 @@ if __name__ == "__main__":
     p.add_argument("--filters", default="int_1p,int_99p,label_1p,label_50p")
     p.add_argument("--target-recall", type=float, default=0.95)
     args = p.parse_args()
+    print("args: " + json.dumps(vars(args)), flush=True)  # first log line: report.py reads the run key (--docs) from it
     if args.engine == "moss":
         ensure_latest_moss()
     res = asyncio.run(main(args))
