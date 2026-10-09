@@ -1,7 +1,8 @@
-"""Benchmark one engine on one prepared dataset; writes results/<dataset>/<engine>[-docs<N>]-<timestamp>.json.
+"""Benchmark one engine on one prepared dataset; writes results/<dataset>/<engine>[-docs<N>]-<stamp>.json.
 
-usage: ./watchdog.sh results/logs/<dataset>-<engine>.log $PWD/.venv/bin/python run.py <dataset> <engine> [options]
-       (engines: see engines.ENGINES; one per process; the first output line is "args: {...}")
+usage: ./run_suite.sh <dataset> <engine> [options]   (one watchdogged run.py per pair; its log is
+       results/logs/<dataset>-<engine>[-docs<N>]-<stamp>.log with the same --stamp as the result; engines: see
+       engines.ENGINES; the first output line is "args: {...}")
 
 Stages (VectorDBBench / qdrant / ann-benchmarks methodology, see README.md):
   load        build the index: build seconds, docs/s, RSS before/after build, index size on disk
@@ -422,6 +423,11 @@ if __name__ == "__main__":
     )
     p.add_argument("--filters", default="int_1p,int_99p,label_1p,label_50p")
     p.add_argument("--target-recall", type=float, default=0.95)
+    p.add_argument(
+        "--stamp",
+        default=time.strftime("%Y%m%dT%H%M%S"),
+        help="result file stamp; run_suite.sh passes the one in the log name",
+    )
     args = p.parse_args()
     print(
         "args: " + json.dumps(vars(args)), flush=True
@@ -432,6 +438,6 @@ if __name__ == "__main__":
     out_dir = RESULTS / args.dataset
     out_dir.mkdir(parents=True, exist_ok=True)
     tag = f"-docs{args.docs}" if args.docs else ""
-    path = out_dir / f"{args.engine}{tag}-{time.strftime('%Y%m%dT%H%M%S')}.json"
+    path = out_dir / f"{args.engine}{tag}-{args.stamp}.json"
     path.write_text(json.dumps(res, indent=1) + "\n")
     print(f"wrote {path}")

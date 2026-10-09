@@ -1,7 +1,7 @@
 """Fetch and prepare the standard benchmark datasets into data/<name>/ (see README.md, "Datasets").
 
-usage: ./watchdog.sh results/logs/fetch-<name>.log $PWD/.venv/bin/python bench_data.py fetch <name>     # resumable, sha256-checked
-       ./watchdog.sh results/logs/prepare-<name>.log $PWD/.venv/bin/python bench_data.py prepare <name> # HEAVY at 1M
+usage: ./watchdog.sh results/logs/fetch-<name>-<stamp>.log $PWD/.venv/bin/python bench_data.py fetch <name>     # resumable, sha256-checked
+       ./watchdog.sh results/logs/prepare-<name>-<stamp>.log $PWD/.venv/bin/python bench_data.py prepare <name> # HEAVY at 1M
 names: cohere-100k (smoke), cohere-1m, dbpedia-openai-1m, arxiv-titles-2m, hotpotqa-1m
 
 Prepared layout:

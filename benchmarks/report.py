@@ -4,10 +4,12 @@ usage: $PWD/.venv/bin/python report.py        then open results/report.html in a
 
 Per dataset, using each engine's newest full run (``-docs`` subset runs get their own section):
   charts  recall (vector) or nDCG@10 (text) vs speed (Pareto frontier per engine; dropdowns: speed metric = QPS / p50 / p95 / p99 / p99.9 /
-          mean, and k), concurrency ladder (QPS, and latency with a metric dropdown), latency at the operating point,
-          build cost (dropdown: build time / docs per s), memory (index, build and search peaks, RSS increase, disk),
-          filtered search (dropdown: warm recall, cold / warm latency and QPS, cold first-query latency); the
+          mean, and k), concurrency ladder (QPS, and latency with a metric dropdown), latency percentiles at the
+          operating point (line per engine), build cost (dropdown: build time / docs per s), memory (dropdown: index,
+          build and search peaks, RSS increase, disk; one point per engine), filtered search (line per engine across
+          the filter cases; dropdown: warm recall, cold / warm latency and QPS, cold first-query latency); the
           <dataset>-subsets section (--docs runs) has a scaling-vs-corpus-size chart instead
+Axes: log only where the values span 10x or more, titled "(log scale)"; recall, nDCG and memory are always linear.
   tables  operating point, full serial sweep, concurrency ladder, filter cases (cold and warm), memory, engines that
           did not finish (DNF)
 Refuses to write anything (exit 1, "STALE <log>: <last line>") when an engine's newest attempt failed but an older
@@ -38,13 +40,6 @@ STYLE = {
     "sqlite-vec": ("#4a3aa7", "#9085e9", "triangle-left", "solid"),
     "duckdb-vss": ("#e34948", "#e66767", "triangle-right", "solid"),
 }
-PATTERNS = [
-    "",
-    "/",
-    ".",
-    "x",
-    "-",
-]  # texture tells series apart inside an engine's bar group
 LATENCY = {"p50": "p50", "p95": "p95", "p99": "p99", "p99.9": "p999", "mean": "mean"}
 MEMORY = ["index", "build peak", "search peak", "RSS increase over build", "on disk"]
 STAGES = ["build", "serial", "filter", "concurrent"]
@@ -65,30 +60,24 @@ def newest_runs() -> dict[str, dict[str, dict]]:
 
 
 def attempts() -> list[tuple[str, str, bool, str, str]]:
-    """Newest attempt per engine log results/logs/<dataset>-<engine>.log: (dataset, run key, succeeded, last log
-    line, log name). run.py prints `args: {json}` first (its --docs makes the key <engine>-docs<N>) and `wrote <path>`
-    last, so a log without a `wrote ` line was killed, crashed or is still running. Other logs (fetch-, prepare-, ...)
-    are skipped: their names do not end in an engine name."""
-    out = []
-    for log in sorted((RESULTS / "logs").glob("*.log")):
-        eng = next((e for e in STYLE if log.stem.endswith("-" + e)), None)
-        if eng is None:
+    """Newest attempt per run: (dataset, run key, succeeded, last log line, log name). run_suite.sh names each log
+    results/logs/<dataset>-<engine>[-docs<N>]-<stamp>.log and its result results/<dataset>/<engine>[-docs<N>]-<stamp>.json
+    with the same stamp. run.py prints `wrote <path>` last, so a log without a `wrote ` line was killed, crashed or is
+    still running. Other logs (fetch-, prepare-, ...) are skipped: their names do not match."""
+    name = re.compile(
+        rf"(.+)-((?:{'|'.join(map(re.escape, STYLE))})(?:-docs\d+)?)-(\d{{8}}T\d{{6}})"
+    )
+    newest: dict[tuple[str, str], tuple[str, str, bool, str, str]] = {}
+    for log in sorted(
+        (RESULTS / "logs").glob("*.log")
+    ):  # same run key: sorted by stamp, the newest wins
+        if not (m := name.fullmatch(log.stem)):
             continue
         text = log.read_text(errors="replace")
-        args = re.search(r"^args: (.*)$", text, re.M)
-        docs = json.loads(args.group(1)).get("docs") if args else None
         last = (text.strip().splitlines() or ["(empty log)"])[-1][:160]
         ok = re.search(r"^wrote ", text, re.M) is not None
-        out.append(
-            (
-                log.stem[: -len(eng) - 1],
-                eng + (f"-docs{docs}" if docs else ""),
-                ok,
-                last,
-                log.name,
-            )
-        )
-    return out
+        newest[m[1], m[2]] = (m[1], m[2], ok, last, log.name)
+    return list(newest.values())
 
 
 def stale(
@@ -157,8 +146,24 @@ def trace_style(engine: str) -> dict:
     }
 
 
-def layout(fig: go.Figure, title: str, x: str, y: str, ylog: bool = False) -> go.Figure:
-    """Shared layout: recessive grid, legend on the right (click to hide, double-click to isolate)."""
+def yview(title: str, vals: list[float | None], log: bool = True) -> dict:
+    """Relayout keys for a y axis showing `vals` (also used by dropdown buttons): log scale with 1-2-5 ticks and
+    "(log scale)" in the title only when the values span 10x or more, since a narrower log axis labels its ticks
+    with bare digits ("5" for 500); `log=False` forces linear (recall, nDCG, memory)."""
+    v = [x for x in vals if x is not None and x > 0]
+    log = log and bool(v) and max(v) >= 10 * min(v)
+    return {
+        "yaxis.title.text": f"{title} (log scale)" if log else title,
+        "yaxis.type": "log" if log else "linear",
+        "yaxis.dtick": "D2" if log else None,
+        "yaxis.tickmode": "linear"
+        if log
+        else "auto",  # else a log->linear switch keeps whole-number ticks
+    }
+
+
+def layout(fig: go.Figure, title: str, x: str, y: dict) -> go.Figure:
+    """Shared layout: recessive grid, legend on the right (click to hide, double-click to isolate); `y` = yview()."""
     fig.update_layout(
         template="plotly_white",
         paper_bgcolor="#fcfcfb",
@@ -174,11 +179,9 @@ def layout(fig: go.Figure, title: str, x: str, y: str, ylog: bool = False) -> go
         legend={"title": {"text": "click / double-click"}},
         margin={"t": 130, "r": 20},
         xaxis_title=x,
-        yaxis_title=y,
-        yaxis_type="log" if ylog else "linear",
-        yaxis_dtick="D2" if ylog else None,  # log ticks at 1-2-5 only
         font={"family": "system-ui, sans-serif", "size": 13},
     )
+    fig.update_layout({k.replace(".", "_"): v for k, v in y.items()})
     return fig
 
 
@@ -259,6 +262,13 @@ def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
                     **style,
                 )
             )
+    ytitle = {
+        s: yview(
+            f"{s} ({'higher' if hi else 'lower'} is better)",
+            [p[1] for t in data[s] for p in t],
+        )
+        for s, (_, hi) in speeds.items()
+    }
     speed_buttons = [
         {
             "label": s,
@@ -269,10 +279,10 @@ def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
                     "y": [[p[1] for p in t] for t in data[s]],
                     "customdata": [[[p[2], p[3]] for p in t] for t in data[s]],
                 },
-                {"yaxis.title.text": f"{s} ({'higher' if hi else 'lower'} is better)"},
+                ytitle[s],
             ],
         }
-        for s, (_, hi) in speeds.items()
+        for s in speeds
     ]
     k_buttons = [
         {
@@ -293,8 +303,7 @@ def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
         fig,
         f"{name}: {metric_of(r0)} vs speed (Pareto frontier per engine)",
         metric_of(r0),
-        "serial QPS (higher is better)",
-        ylog=True,
+        ytitle["serial QPS"],
     )
 
 
@@ -329,6 +338,13 @@ def ladder(name: str, runs: dict[str, dict]) -> list[go.Figure]:
     order = sorted(
         LATENCY.items(), key=lambda kv: kv[0] != "p99"
     )  # p99 first: the chart opens on p99
+    lat_y = {
+        lbl: yview(
+            f"{lbl} latency, ms",
+            [c["latency_ms"][key] for r in runs.values() for c in r["concurrent"]],
+        )
+        for lbl, key in order
+    }
     lat.update_layout(
         updatemenus=[
             menu(
@@ -343,7 +359,7 @@ def ladder(name: str, runs: dict[str, dict]) -> list[go.Figure]:
                                     for r in runs.values()
                                 ]
                             },
-                            {"yaxis.title.text": f"{lbl} latency, ms"},
+                            lat_y[lbl],
                         ],
                     }
                     for lbl, key in order
@@ -357,62 +373,40 @@ def ladder(name: str, runs: dict[str, dict]) -> list[go.Figure]:
             qps,
             f"{name}: throughput vs concurrent clients (operating point)",
             "concurrent clients",
-            "QPS",
-            True,
+            yview("QPS", [y for t in qps.data for y in t.y]),
         ),
         layout(
             lat,
             f"{name}: latency vs concurrent clients (operating point)",
             "concurrent clients",
-            "p99 latency, ms",
-            True,
+            lat_y["p99"],
         ),
     ]
 
 
-def grouped_bars(
-    fig: go.Figure, engines: list[str], series: dict[str, list[float]], fmt: str
-) -> None:
-    """Grouped bars: x = engine (engine hue), one bar per series told apart by texture; hover shows the value."""
-    for j, (lab, vals) in enumerate(series.items()):
+def latency_lines(name: str, runs: dict[str, dict]) -> go.Figure:
+    """Serial latency percentiles at the operating point (largest k): one line per engine from p50 to p99.9; hover
+    adds the mean."""
+    pcts = [p for p in LATENCY if p != "mean"]
+    fig = go.Figure()
+    for e, r in runs.items():
+        lat = max(at_op(r), key=lambda row: row["k"])["latency_ms"]
         fig.add_trace(
-            go.Bar(
-                x=engines,
-                y=vals,
-                name=lab,
-                marker={
-                    "color": [trace_style(e)["line"]["color"] for e in engines],
-                    "pattern": {"shape": PATTERNS[j % len(PATTERNS)]},
-                    "line": {"color": "#fcfcfb", "width": 2},
-                },
-                hovertemplate=f"<b>%{{x}}</b><br>{lab}: %{{y:{fmt}}}<extra></extra>",
+            go.Scatter(
+                x=pcts,
+                y=[lat[LATENCY[p]] for p in pcts],
+                name=e,
+                mode="lines+markers",
+                hovertemplate=f"<b>{e}</b><br>%{{x}}: %{{y:.3f}} ms<br>mean {lat['mean']:.3f} ms<extra></extra>",
+                **trace_style(e),
             )
         )
-    fig.update_layout(barmode="group")
-
-
-def latency_bars(name: str, runs: dict[str, dict]) -> go.Figure:
-    """Serial latency percentiles at the operating point (largest k) per engine; legend keys series by texture."""
-    rows = {e: max(at_op(r), key=lambda row: row["k"]) for e, r in runs.items()}
-    fig = go.Figure()
-    grouped_bars(
+    return layout(
         fig,
-        list(rows),
-        {
-            lbl: [rows[e]["latency_ms"][key] for e in rows]
-            for lbl, key in LATENCY.items()
-        },
-        ".3f",
+        f"{name}: serial latency percentiles at the operating point",
+        "percentile",
+        yview("latency, ms", [y for t in fig.data for y in t.y]),
     )
-    fig = layout(
-        fig,
-        f"{name}: serial latency at the operating point",
-        "engine",
-        "latency, ms",
-        True,
-    )
-    fig.update_layout(legend={"title": {"text": "percentile (texture)"}})
-    return fig
 
 
 def build_bars(name: str, runs: dict[str, dict]) -> go.Figure:
@@ -422,8 +416,17 @@ def build_bars(name: str, runs: dict[str, dict]) -> go.Figure:
         "build time, s": [runs[e]["load"]["build_s"] for e in engines],
         "docs per second": [runs[e]["load"]["docs_per_s"] for e in engines],
     }
-    fig = go.Figure()
-    grouped_bars(fig, engines, {"build time, s": views["build time, s"]}, ".2f")
+    fig = go.Figure(
+        go.Bar(
+            x=engines,
+            y=views["build time, s"],
+            marker={
+                "color": [trace_style(e)["line"]["color"] for e in engines],
+                "line": {"color": "#fcfcfb", "width": 2},
+            },
+            hovertemplate="<b>%{x}</b><br>build time, s: %{y:.2f}<extra></extra>",
+        )
+    )
     fig.update_layout(
         updatemenus=[
             menu(
@@ -436,7 +439,7 @@ def build_bars(name: str, runs: dict[str, dict]) -> go.Figure:
                                 "y": [vals],
                                 "hovertemplate": f"<b>%{{x}}</b><br>{v}: %{{y:.2f}}<extra></extra>",
                             },
-                            {"yaxis.title.text": v},
+                            yview(v, vals),
                         ],
                     }
                     for v, vals in views.items()
@@ -445,34 +448,90 @@ def build_bars(name: str, runs: dict[str, dict]) -> go.Figure:
             )
         ]
     )
-    fig = layout(fig, f"{name}: index build", "engine", "build time, s", True)
+    fig = layout(
+        fig,
+        f"{name}: index build",
+        "engine",
+        yview("build time, s", views["build time, s"]),
+    )
     fig.update_layout(showlegend=False)
     return fig
 
 
-def memory_bars(name: str, runs: dict[str, dict]) -> go.Figure:
-    """Memory per engine in GB (see mem_gb); one bar per measure, told apart by texture; legend click hides one."""
+def memory_lines(name: str, runs: dict[str, dict]) -> go.Figure:
+    """Memory per engine in GB (see mem_gb): x = engine, one line through every engine's value for the measure the
+    dropdown picks; each point keeps its engine's color and marker."""
     mem = {e: mem_gb(r) for e, r in runs.items()}
-    fig = go.Figure()
-    grouped_bars(fig, list(runs), {s: [mem[e][s] for e in runs] for s in MEMORY}, ".3f")
+    engines = list(runs)
+    marks = [trace_style(e)["marker"] for e in engines]
+
+    def hover(m: str) -> str:
+        """Hover text for one measure."""
+        return f"<b>%{{x}}</b><br>{m}: %{{y:.3f}} GB<extra></extra>"
+
+    fig = go.Figure(
+        go.Scatter(
+            x=engines,
+            y=[mem[e][MEMORY[0]] for e in engines],
+            mode="lines+markers",
+            line={"color": "#52514e", "width": 1},
+            marker={
+                "color": [m["color"] for m in marks],
+                "symbol": [m["symbol"] for m in marks],
+                "size": 11,
+            },
+            hovertemplate=hover(MEMORY[0]),
+        )
+    )
+    fig.update_layout(
+        updatemenus=[
+            menu(
+                [
+                    {
+                        "label": m,
+                        "method": "update",
+                        "args": [
+                            {
+                                "y": [[mem[e][m] for e in engines]],
+                                "hovertemplate": hover(m),
+                            },
+                            {"yaxis.title.text": f"{m}, GB"},
+                        ],
+                    }
+                    for m in MEMORY
+                ],
+                0,
+            )
+        ]
+    )
     fig = layout(
         fig,
         f"{name}: memory (footprint over the post-load baseline; on disk = index files)",
         "engine",
-        "GB",
+        yview(f"{MEMORY[0]}, GB", [], log=False),
     )
-    fig.update_layout(legend={"title": {"text": "measure (texture)"}})
+    fig.update_layout(showlegend=False)
     return fig
 
 
-def filter_bars(name: str, runs: dict[str, dict]) -> go.Figure | None:
-    """Filtered search per engine and filter case; dropdown: warm recall@100, cold / warm latency percentiles and
-    QPS, cold first-query latency. A case an engine did not run (different --filters) is left as a gap."""
+def kept(tag: str) -> float:
+    """Percent of docs a VectorDBBench filter case keeps: int_<p>p drops the first p% of ids, label_<p>p keeps p%."""
+    p = float(tag.split("_")[1].rstrip("p"))
+    return 100 - p if tag.startswith("int") else p
+
+
+def filter_lines(name: str, runs: dict[str, dict]) -> go.Figure | None:
+    """Filtered search: one line per engine across the filter cases, ordered from most to fewest docs kept; dropdown:
+    warm recall@100, cold / warm latency percentiles and QPS, cold first-query latency. A case an engine did not run
+    (different --filters) is left as a gap."""
     runs = {e: r for e, r in runs.items() if r["filter"]}
     if not runs:
         return None
-    engines = list(runs)
-    tags = list(dict.fromkeys(f["filter"] for r in runs.values() for f in r["filter"]))
+    tags = sorted(
+        dict.fromkeys(f["filter"] for r in runs.values() for f in r["filter"]),
+        key=lambda t: -kept(t),
+    )
+    xs = [f"{t} ({kept(t):g}% kept)" for t in tags]
     by = {e: {f["filter"]: f for f in r["filter"]} for e, r in runs.items()}
     views: dict[str, tuple[str, str, str | None]] = {
         "warm recall@100": ("warm", "recall@100", None)
@@ -492,56 +551,55 @@ def filter_bars(name: str, runs: dict[str, dict]) -> go.Figure | None:
         x = by[e][t][view[0]][view[1]]
         return x[view[2]] if view[2] else x
 
+    ys = {
+        v: [[val(e, t, view) for t in tags] for e in runs] for v, view in views.items()
+    }
     fig = go.Figure()
-    grouped_bars(
-        fig,
-        engines,
-        {t: [val(e, t, views["warm recall@100"]) for e in engines] for t in tags},
-        ".4f",
-    )
+    for e, y in zip(runs, ys["warm recall@100"]):
+        fig.add_trace(
+            go.Scatter(
+                x=xs,
+                y=y,
+                name=e,
+                mode="lines+markers",
+                hovertemplate=f"<b>{e}</b><br>%{{x}}<br>%{{y:.4g}}<extra></extra>",
+                **trace_style(e),
+            )
+        )
+    yaxes = {
+        v: yview(v, [x for y in ys[v] for x in y], log="recall" not in v) for v in views
+    }
     fig.update_layout(
         updatemenus=[
             menu(
                 [
-                    {
-                        "label": v,
-                        "method": "update",
-                        "args": [
-                            {"y": [[val(e, t, view) for e in engines] for t in tags]},
-                            {
-                                "yaxis.title.text": v,
-                                "yaxis.type": "linear" if "recall" in v else "log",
-                            },
-                        ],
-                    }
-                    for v, view in views.items()
+                    {"label": v, "method": "update", "args": [{"y": ys[v]}, yaxes[v]]}
+                    for v in views
                 ],
                 0,
             )
         ]
     )
-    fig = layout(
+    return layout(
         fig,
         f"{name}: filtered search (VectorDBBench int / label cases)",
-        "engine",
-        "warm recall@100",
+        "filter case (share of docs kept)",
+        yaxes["warm recall@100"],
     )
-    fig.update_layout(legend={"title": {"text": "filter case (texture)"}})
-    return fig
 
 
 def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> go.Figure:
     """Metric against corpus size per engine: its --docs runs plus its full run (if any), each at its own operating
-    point and largest k; the dropdown picks the metric. Hover shows docs, queries used and the operating point."""
+    point and largest k; the dropdown picks the metric (log axes as in yview(); recall, nDCG and memory linear). Hover shows docs, queries used and the operating point."""
     r0 = next(iter(subs.values()))
     views = {
-        "p50 latency, ms": (lambda r, row: row["latency_ms"]["p50"], "log"),
-        "p99 latency, ms": (lambda r, row: row["latency_ms"]["p99"], "log"),
-        "serial QPS": (lambda r, row: row["qps"], "log"),
-        metric_of(r0): (lambda r, row: row["headline"], "linear"),
-        "index memory, GB": (lambda r, row: mem_gb(r)["index"], "linear"),
-        "build peak memory, GB": (lambda r, row: mem_gb(r)["build peak"], "linear"),
-        "build time, s": (lambda r, row: r["load"]["build_s"], "log"),
+        "p50 latency, ms": (lambda r, row: row["latency_ms"]["p50"], True),
+        "p99 latency, ms": (lambda r, row: row["latency_ms"]["p99"], True),
+        "serial QPS": (lambda r, row: row["qps"], True),
+        metric_of(r0): (lambda r, row: row["headline"], False),
+        "index memory, GB": (lambda r, row: mem_gb(r)["index"], False),
+        "build peak memory, GB": (lambda r, row: mem_gb(r)["build peak"], False),
+        "build time, s": (lambda r, row: r["load"]["build_s"], True),
     }
     by: dict[str, list[tuple[dict, dict]]] = {}
     for r in [
@@ -572,23 +630,19 @@ def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> go.Figur
                 **trace_style(eng),
             )
         )
+    ys = {
+        v: [[f(r, row) for r, row in pts] for pts in by.values()]
+        for v, (f, _) in views.items()
+    }
+    yaxes = {
+        v: yview(v, [y for t in ys[v] for y in t], log) for v, (_, log) in views.items()
+    }
     fig.update_layout(
         updatemenus=[
             menu(
                 [
-                    {
-                        "label": v,
-                        "method": "update",
-                        "args": [
-                            {
-                                "y": [
-                                    [f(r, row) for r, row in pts] for pts in by.values()
-                                ]
-                            },
-                            {"yaxis.title.text": v, "yaxis.type": scale},
-                        ],
-                    }
-                    for v, (f, scale) in views.items()
+                    {"label": v, "method": "update", "args": [{"y": ys[v]}, yaxes[v]]}
+                    for v in views
                 ],
                 0,
             )
@@ -598,9 +652,13 @@ def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> go.Figur
         fig,
         f"{name}: scaling with corpus size (operating point, largest k)",
         "docs",
-        "p50 latency, ms",
+        yaxes["p50 latency, ms"],
     )
-    fig.update_layout(xaxis_type="log", yaxis_type="log")
+    docs = [x for t in fig.data for x in t.x]
+    if max(docs) >= 10 * min(
+        docs
+    ):  # same rule as yview(): log only over a decade or more
+        fig.update_layout(xaxis_type="log", xaxis_title="docs (log scale)")
     return fig
 
 
@@ -911,11 +969,11 @@ def main() -> None:
                 figs = [
                     tradeoff(name, full),
                     *ladder(name, full),
-                    latency_bars(name, full),
+                    latency_lines(name, full),
                     build_bars(name, full),
-                    memory_bars(name, full),
+                    memory_lines(name, full),
                 ]
-                fb = filter_bars(name, full)
+                fb = filter_lines(name, full)
                 figs += [fb] if fb else []
             m, p = section(name, full, figs, dnf_full)
             md += m
@@ -944,7 +1002,8 @@ def main() -> None:
         else:
             body.append(p)
     dark = json.dumps(
-        {light: dark for light, dark, _, _ in STYLE.values()} | {"#fcfcfb": "#1a1a19"}
+        {light: dark for light, dark, _, _ in STYLE.values()}
+        | {"#fcfcfb": "#1a1a19", "#52514e": "#c3c2b7"}
     )
     page = (
         PAGE.replace("__ENV__", html.escape(env_line))

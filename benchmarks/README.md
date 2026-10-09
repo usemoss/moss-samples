@@ -63,8 +63,8 @@ Ground truth is exact brute force (cohere sets ship VectorDBBench's; ours agrees
 
 ```bash
 mkdir -p results/logs
-./watchdog.sh results/logs/fetch-<name>.log $PWD/.venv/bin/python bench_data.py fetch <name>
-./watchdog.sh results/logs/prepare-<name>.log $PWD/.venv/bin/python bench_data.py prepare <name>
+./watchdog.sh results/logs/fetch-<name>-$(date +%Y%m%dT%H%M%S).log $PWD/.venv/bin/python bench_data.py fetch <name>
+./watchdog.sh results/logs/prepare-<name>-$(date +%Y%m%dT%H%M%S).log $PWD/.venv/bin/python bench_data.py prepare <name>
 ```
 
 Measured on a cohere-100k smoke run (Apple M5 Max): fetch 5 s (sha256-checked against `checksums.json`), prepare 1 s at 2078 MiB peak RSS. hotpotqa-1m: fetch 84 s, prepare 7442 s (embedding 7418 s) at 25903 MiB peak RSS. Other 1M prepare costs will be added once measured. Prepare for the 1M sets is heavy (GB of RAM, large ground-truth matmuls): raise `WATCHDOG_MAX_S` (default 1200 s) as needed.
@@ -81,23 +81,23 @@ uv sync
 export MOSS_ENV_FILE=/path/to/.env
 
 mkdir -p results/logs
-./watchdog.sh results/logs/fetch-cohere-100k.log $PWD/.venv/bin/python bench_data.py fetch cohere-100k
-./watchdog.sh results/logs/prepare-cohere-100k.log $PWD/.venv/bin/python bench_data.py prepare cohere-100k
+./watchdog.sh results/logs/fetch-cohere-100k-$(date +%Y%m%dT%H%M%S).log $PWD/.venv/bin/python bench_data.py fetch cohere-100k
+./watchdog.sh results/logs/prepare-cohere-100k-$(date +%Y%m%dT%H%M%S).log $PWD/.venv/bin/python bench_data.py prepare cohere-100k
 ./run_suite.sh cohere-100k all --queries 200 --levels 1,4,16 --duration 3
 open results/report.html
 ```
 
 - The watchdog prints `pid=... log=...` and a final `watchdog: rc=0 peak_rss_mb=... elapsed=...s` line. `cat` the log to see the command's output. It kills the job on memory pressure, RSS > 85% of RAM, or `WATCHDOG_MAX_S`.
-- Engine logs are `results/logs/<dataset>-<engine>.log` and hold that engine's newest attempt; other logs use a prefix (`fetch-`, `prepare-`) so the report ignores them.
+- Every run gets its own log, never overwritten: `results/logs/<dataset>-<engine>[-docs<N>]-<stamp>.log`, and its result has the same name and stamp, `results/<dataset>/<engine>[-docs<N>]-<stamp>.json`. The newest stamp per run is the attempt the report checks. Fetch and prepare logs use a prefix (`fetch-`, `prepare-`) plus a stamp, so the report ignores them.
 - `run_suite.sh` first upgrades `moss` to the latest release, then runs one watchdogged process per (dataset, engine), then rebuilds the report. A failed or killed run prints `DNF <dataset> <engine>` and appears under DNF in the report.
 - Launch python as `$PWD/.venv/bin/python` from `benchmarks/` under the watchdog, never `uv run`: the watchdog then measures the benchmark's RSS, and the stop pattern below matches it.
 - Runaway job: `pkill -9 -f run_suite.sh; pkill -9 -f 'benchmarks/\.venv/bin/python'` (the loop first, or it logs a DNF and starts the next pair). The second pattern kills every benchmark python, so check `pgrep -fl 'benchmarks/\.venv/bin/python'` first. The watchdog is killed too, so the log ends without a `watchdog: rc=` line.
 
-Results: `results/<dataset>/<engine>-<timestamp>.json`, `results/summary.md`, `results/report.html` (works offline).
+Results: `results/<dataset>/<engine>[-docs<N>]-<stamp>.json`, `results/summary.md`, `results/report.html` (works offline).
 
 ## Subsets
 
-`run_suite.sh "<datasets>" "<engines>|all" [run.py options]`. Datasets and engines are space-separated lists. Run a single pair with `./watchdog.sh results/logs/<dataset>-<engine>.log $PWD/.venv/bin/python run.py <dataset> <engine> [options]`, then `$PWD/.venv/bin/python report.py`.
+`run_suite.sh "<datasets>" "<engines>|all" [run.py options]`. Datasets and engines are space-separated lists. Run a single pair the same way, `./run_suite.sh <dataset> <engine> [options]`, so its log and result share a stamp. Write `--docs N`, not `--docs=N` (the log name needs N).
 
 | Flag | Example | Effect |
 |---|---|---|
@@ -126,11 +126,14 @@ for n in 100000 250000 500000; do ./run_suite.sh cohere-1m all --docs $n --stage
 
 - **Recall (vector) or nDCG@10 (text) vs speed:** Pareto frontier per engine and k (ann-benchmarks style); exact engines are dotted horizontal lines ending at their point. Dropdowns pick the speed metric (QPS, p50, p95, p99, p99.9, mean) and k.
 - **Concurrency ladder:** QPS and latency (percentile dropdown) against clients.
-- **Operating-point latency, build cost** (time, docs/s), **memory** (index, build peak, search peak, RSS increase over the build, on disk) **and filtered search** (dropdown: warm recall, cold / warm latency percentiles and QPS, cold first-query latency).
+- **Operating-point latency:** one line per engine from p50 to p99.9 (hover adds the mean).
+- **Build cost** (time, docs/s) and **memory** (dropdown: index, build peak, search peak, RSS increase over the build, on disk; one point per engine).
+- **Filtered search:** one line per engine across the filter cases, from most to fewest docs kept (dropdown: warm recall, cold / warm latency percentiles and QPS, cold first-query latency).
+- **Axes:** log only where the values span 10x or more, and then titled "(log scale)" (ticks at 1-2-5, labelled with the leading digit); recall, nDCG and memory are always linear.
 - **Example results** (text datasets): for 10 queries, each engine's top 5 at its operating point, with ✓ on documents the dataset labels relevant, so a person can judge the results directly.
 - **Scaling** (`<dataset>-subsets` section, from `--docs` runs): one line per engine over corpus size, including the full run when it exists; the dropdown picks latency, QPS, recall (or nDCG@10), memory or build time.
 - Hover for exact values and parameters; click a legend entry to hide an engine; double-click to isolate it.
-- **DNF** = an engine's newest log has no `wrote` line and no result exists for that run (killed by the watchdog, out of memory, or crashed). The table shows the log's last line.
+- **DNF** = a run's newest log has no `wrote` line and no result exists for that run (killed by the watchdog, out of memory, or crashed). The table shows the log's last line.
 - **STALE:** if an engine's newest attempt failed but an older result for the same run exists, `report.py` prints `STALE <log>: <last line>`, exits 1 and writes nothing, so an old number never stands in for a failed rerun. Read the log, fix the cause and rerun (or move the old result out of `results/` on purpose). Running `report.py` while a run is in progress stops here too.
 
 ## Moss notes
