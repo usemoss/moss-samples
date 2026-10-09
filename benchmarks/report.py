@@ -14,7 +14,8 @@ The page has a Charts tab and a Tables tab, and a dataset picker. Per dataset, u
             (DNF). Click a header to sort; the box filters rows by every word typed; the best value per column among
             the shown rows is bold.
 Dropdowns list the mean first, then p50, p95, p99, p99.9. The operating point is the library-default search setting.
-Axes: log only where the values span 10x or more, titled "(log scale)"; recall, nDCG and memory are always linear.
+Axes: linear from 0, with one fixed range for every dropdown view of the same unit (switching mean / p50 ... p99.9
+never moves the axis); the recall axis of the trade-off chart keeps one range across k.
 Refuses to write anything (exit 1, "STALE <log>: <last line>") when an engine's newest attempt failed but an older
 result for the same run would be shown.
 Every chart: hover shows exact values and parameters; click a legend entry to hide an engine, double-click to isolate it.
@@ -171,24 +172,25 @@ def trace_style(engine: str) -> dict:
     }
 
 
-def yview(title: str, vals: list[float | None], log: bool = True) -> dict:
-    """Relayout keys for a y axis showing `vals` (also used by dropdown buttons): log scale with 1-2-5 ticks and
-    "(log scale)" in the title only when the values span 10x or more, since a narrower log axis labels its ticks
-    with bare digits ("5" for 500); `log=False` forces linear (recall, nDCG, memory)."""
-    v = [x for x in vals if x is not None and x > 0]
-    log = log and bool(v) and max(v) >= 10 * min(v)
+def yaxes(views: dict[str, list[float | None]]) -> dict[str, dict]:
+    """Relayout keys for the y axis of each dropdown view (title -> values): linear from 0, and views with the same
+    unit (the title's text after its last comma) share one fixed range, so switching mean / p50 ... p99.9 never
+    moves the axis."""
+    unit = {v: v.rsplit(", ", 1)[-1] for v in views}
+    top: dict[str, float] = {}
+    for v, xs in views.items():
+        top[unit[v]] = max([top.get(unit[v], 0), *(x for x in xs if x is not None)])
     return {
-        "yaxis.title.text": f"{title} (log scale)" if log else title,
-        "yaxis.type": "log" if log else "linear",
-        "yaxis.dtick": "D2" if log else None,
-        "yaxis.tickmode": "linear"
-        if log
-        else "auto",  # else a log->linear switch keeps whole-number ticks
+        v: {
+            "yaxis.title.text": v,
+            "yaxis.range": [0, 1.05 * top[unit[v]] or 1],
+        }
+        for v in views
     }
 
 
 def layout(fig: go.Figure, title: str, x: str, y: dict) -> go.Figure:
-    """Shared layout: recessive grid, legend on the right (click to hide, double-click to isolate); `y` = yview()."""
+    """Shared layout: recessive grid, legend on the right (click to hide, double-click to isolate); `y` = one entry of yaxes()."""
     fig.update_layout(
         template="plotly_white",
         paper_bgcolor="#fcfcfb",
@@ -315,12 +317,19 @@ def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
                     **common,
                 )
             )
-    ytitle = {
-        s: yview(
-            f"{s} latency, ms (lower is better)", [p[1] for t in data[s] for p in t]
+    ytitle = dict(
+        zip(
+            LATENCY,
+            yaxes(
+                {
+                    f"{s} latency, ms (lower is better)": [
+                        p[1] for t in data[s] for p in t
+                    ]
+                    for s in LATENCY
+                },
+            ).values(),
         )
-        for s in LATENCY
-    }
+    )
     speed_buttons = [
         {
             "label": s,
@@ -354,12 +363,17 @@ def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
     ]
     fig.update_layout(updatemenus=[menu(speed_buttons, 0), menu(k_buttons, 0.3)])
     r0 = next(iter(runs.values()))
-    return layout(
+    xs = [p[0] for t in data["mean"] for p in t]
+    pad = max(0.01, (max(xs) - min(xs)) * 0.03)
+    fig = layout(
         fig,
         f"{name}: {metric_of(r0)} vs latency (Pareto frontier per engine; ring = library default)",
         metric_of(r0),
         ytitle["mean"],
     )
+    return fig.update_xaxes(
+        range=[min(xs) - pad, max(xs) + pad]
+    )  # one range for every k
 
 
 def bars(
@@ -368,9 +382,9 @@ def bars(
     views: dict[str, list[float]],
     engines: list[str],
     unit: str,
-    log: bool = True,
 ) -> go.Figure:
-    """One bar per engine in its color; the dropdown picks the view (the first one opens)."""
+    """One bar per engine in its color, on a linear axis from 0 (a bar's length is its value); the dropdown picks
+    the view (the first one opens)."""
     first = next(iter(views))
 
     def hover(v: str) -> str:
@@ -388,9 +402,8 @@ def bars(
             hovertemplate=hover(first),
         )
     )
-    yaxes = {
-        v: yview(f"{v}, {unit}" if unit else v, vals, log) for v, vals in views.items()
-    }
+    ax = yaxes({f"{v}, {unit}" if unit else v: vals for v, vals in views.items()})
+    ax = dict(zip(views, ax.values()))
     fig.update_layout(
         updatemenus=[
             menu(
@@ -398,7 +411,7 @@ def bars(
                     {
                         "label": v,
                         "method": "update",
-                        "args": [{"y": [vals], "hovertemplate": hover(v)}, yaxes[v]],
+                        "args": [{"y": [vals], "hovertemplate": hover(v)}, ax[v]],
                     }
                     for v, vals in views.items()
                 ],
@@ -406,7 +419,7 @@ def bars(
             )
         ]
     )
-    fig = layout(fig, f"{name}: {title}", "engine", yaxes[first])
+    fig = layout(fig, f"{name}: {title}", "engine", ax[first])
     fig.update_layout(showlegend=False)
     return fig
 
@@ -450,7 +463,6 @@ def memory_bars(name: str, runs: dict[str, dict]) -> go.Figure:
         {m: [mem[e][m] for e in runs] for m in MEMORY},
         list(runs),
         "GB",
-        log=False,
     )
 
 
@@ -505,14 +517,12 @@ def filter_lines(name: str, runs: dict[str, dict]) -> go.Figure | None:
                 **trace_style(e),
             )
         )
-    yaxes = {
-        v: yview(v, [x for y in ys[v] for x in y], log="recall" not in v) for v in views
-    }
+    ax = yaxes({v: [x for y in ys[v] for x in y] for v in views})
     fig.update_layout(
         updatemenus=[
             menu(
                 [
-                    {"label": v, "method": "update", "args": [{"y": ys[v]}, yaxes[v]]}
+                    {"label": v, "method": "update", "args": [{"y": ys[v]}, ax[v]]}
                     for v in views
                 ],
                 0,
@@ -523,24 +533,24 @@ def filter_lines(name: str, runs: dict[str, dict]) -> go.Figure | None:
         fig,
         f"{name}: filtered search at the operating point (VectorDBBench int / label cases)",
         "filter case (share of docs kept)",
-        yaxes["warm recall@100"],
+        ax["warm recall@100"],
     )
 
 
 def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> go.Figure:
-    """Metric against corpus size per run (engine and metric mode): its --docs runs plus its full run (if any), each
-    at its operating point and largest k; the dropdown picks the metric (log axes as in yview(); recall, nDCG and
-    memory linear). Hover shows docs, queries used and the setting."""
+    """Metric against corpus size per run key (engine and metric mode): its --docs runs plus its full-corpus run in
+    `full` (if any), each at its operating point and largest k; the dropdown picks the metric (axes as in yaxes();
+    docs on a linear axis from 0). Hover shows docs, queries used and the setting."""
     r0 = next(iter(subs.values()))
-    views = {metric_of(r0): (lambda r, row: row["headline"], False)}
+    views = {metric_of(r0): lambda r, row: row["headline"]}
     views |= {
-        f"{s} latency, ms": (lambda r, row, key=key: row["latency_ms"][key], True)
+        f"{s} latency, ms": lambda r, row, key=key: row["latency_ms"][key]
         for s, key in LATENCY.items()
     }
     views |= {
-        "index memory, GB": (lambda r, row: mem_gb(r)["index"], False),
-        "build peak memory, GB": (lambda r, row: mem_gb(r)["build peak"], False),
-        "build time, s": (lambda r, row: r["load"]["build_s"], True),
+        "index memory, GB": lambda r, row: mem_gb(r)["index"],
+        "build peak memory, GB": lambda r, row: mem_gb(r)["build peak"],
+        "build time, s": lambda r, row: r["load"]["build_s"],
     }
     bases = {k.split("-docs")[0] for k in subs}
     by: dict[str, list[tuple[dict, dict]]] = {}
@@ -555,7 +565,7 @@ def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> go.Figur
         fig.add_trace(
             go.Scatter(
                 x=[r["load"]["docs"] for r, _ in pts],
-                y=[views[first][0](r, row) for r, row in pts],
+                y=[views[first](r, row) for r, row in pts],
                 customdata=[
                     [
                         r["args"].get("queries") or r["dataset"]["n_queries"],
@@ -572,16 +582,14 @@ def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> go.Figur
         )
     ys = {
         v: [[f(r, row) for r, row in pts] for pts in by.values()]
-        for v, (f, _) in views.items()
+        for v, f in views.items()
     }
-    yaxes = {
-        v: yview(v, [y for t in ys[v] for y in t], log) for v, (_, log) in views.items()
-    }
+    ax = yaxes({v: [y for t in ys[v] for y in t] for v in views})
     fig.update_layout(
         updatemenus=[
             menu(
                 [
-                    {"label": v, "method": "update", "args": [{"y": ys[v]}, yaxes[v]]}
+                    {"label": v, "method": "update", "args": [{"y": ys[v]}, ax[v]]}
                     for v in views
                 ],
                 0,
@@ -592,14 +600,9 @@ def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> go.Figur
         fig,
         f"{name}: scaling with corpus size (operating point, largest k)",
         "docs",
-        yaxes[first],
+        ax[first],
     )
-    docs = [x for t in fig.data for x in t.x]
-    if max(docs) >= 10 * min(
-        docs
-    ):  # same rule as yview(): log only over a decade or more
-        fig.update_layout(xaxis_type="log", xaxis_title="docs (log scale)")
-    return fig
+    return fig.update_xaxes(range=[0, 1.05 * max(x for t in fig.data for x in t.x)])
 
 
 def better(col: str) -> str:
@@ -982,7 +985,11 @@ def main() -> None:
                 continue
             figs = []
             if rs and title.endswith("-subsets"):
-                figs = [scaling(name, full, rs)]
+                figs = [
+                    scaling(
+                        name, {k: r for k, r in have.items() if "-docs" not in k}, rs
+                    )
+                ]
             elif rs:
                 figs = [
                     tradeoff(title, rs),

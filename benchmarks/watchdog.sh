@@ -1,11 +1,13 @@
 #!/bin/zsh
-# Run a command, killing it on memory pressure, RSS > 85% of RAM, or WATCHDOG_MAX_S seconds (default 1200). macOS only.
-# usage: [WATCHDOG_MAX_S=7200] ./watchdog.sh <logfile> <cmd...>
+# Run a command, killing it on memory pressure, RSS > WATCHDOG_MAX_RSS_GB (default 85% of RAM), or WATCHDOG_MAX_S
+# seconds (default 1200). macOS only.
+# usage: [WATCHDOG_MAX_S=7200] [WATCHDOG_MAX_RSS_GB=40] ./watchdog.sh <logfile> <cmd...>
 # Stop: pkill -9 -f run_suite.sh; pkill -9 -f 'benchmarks/\.venv/bin/python'. Wrap the python process itself
 # ($PWD/.venv/bin/python ... from benchmarks/), not `uv run`, or the RSS cap measures uv instead.
 log=$1; shift
 max_s=${WATCHDOG_MAX_S:-1200}
-max_rss_kb=$(( $(sysctl -n hw.memsize) / 1024 * 85 / 100 ))
+max_rss_kb=$(( ${WATCHDOG_MAX_RSS_GB:-0} * 1048576 ))
+(( max_rss_kb )) || max_rss_kb=$(( $(sysctl -n hw.memsize) / 1024 * 85 / 100 ))
 "$@" > "$log" 2>&1 &
 pid=$!
 echo "pid=$pid log=$log"

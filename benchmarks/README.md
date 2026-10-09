@@ -133,7 +133,7 @@ for n in 100000 250000 500000; do ./run_suite.sh cohere-1m all --docs $n --stage
 - **Operating-point latency:** one bar per engine at the library default and the largest k (dropdown: mean, p50, p95, p99, p99.9).
 - **Build cost** (time, docs/s) and **memory** (dropdown: index, build peak, search peak, RSS increase over the build, on disk): one bar per engine.
 - **Filtered search:** one line per engine across the filter cases, from most to fewest docs kept (dropdown: warm recall, warm then cold latency, cold first-query latency).
-- **Axes:** log only where the values span 10x or more, and then titled "(log scale)" (ticks at 1-2-5, labelled with the leading digit); recall, nDCG and memory are always linear.
+- **Axes:** linear from 0. Dropdown views with the same unit share one fixed range, so switching mean / p50 / p95 / p99 / p99.9 never moves the axis, and the trade-off chart keeps one recall range across k. Use box zoom (drag) or double-click a legend entry to read engines close to 0.
 - **Tables:** operating point, full serial sweep, filter cases, memory, DNF. Click a header to sort; type in the box above a table to keep the rows where every word matches a cell (numbers exactly, so `hnsw 100` keeps the HNSW rows at k = 100); the best value of each column among the shown rows is bold.
 - **Example results** (text datasets, Tables tab): for 10 queries, each engine's top 5 at its operating point, with ✓ on documents the dataset labels relevant, so a person can judge the results directly.
 - **Scaling** (`-subsets` section, from `--docs` runs): one line per run over corpus size, including the full run when it exists; the dropdown picks recall (or nDCG@10), latency, memory or build time.
