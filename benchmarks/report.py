@@ -61,6 +61,9 @@ ABOUT = {
     "setting's values, so only the ring matches the latency bars below. Dropdowns: latency statistic, k.",
     "latency": "Search latency per engine at its library-default setting (the ring above, or an exact engine's line), "
     "at the largest k, one query at a time over all queries. Dropdown: latency statistic.",
+    "equal": "Like-for-like speed: for each recall target, the mean latency of the cheapest setting in the engine's "
+    "sweep that reaches it (approximate engines tuned up, exact engines at their only setting). The bar label names "
+    "the setting; an engine with no bar never reached the target in its sweep. Dropdown: k and recall target.",
     "build": "Time to build each engine's index from the vectors, or the docs indexed per second. Dropdown: measure.",
     "memory": "Memory each engine adds, in GB, as process footprint over the footprint after the dataset is "
     "loaded: index (after build), build peak, search peak, RSS increase over the build, and index files on disk "
@@ -476,6 +479,77 @@ def latency_bars(name: str, runs: dict[str, dict]) -> go.Figure:
     )
 
 
+TARGETS = (0.95, 0.99)  # equal-recall view: recall@k targets
+
+
+def cheapest(r: dict, k: int, target: float) -> dict | None:
+    """The serial row with the lowest mean latency among one run's settings that reach recall@k >= target."""
+    ok = [row for row in r["serial"] if row["k"] == k and row["headline"] >= target]
+    return min(ok, key=lambda row: row["latency_ms"]["mean"], default=None)
+
+
+def equal_recall(name: str, runs: dict[str, dict]) -> go.Figure:
+    """Mean latency per engine at its cheapest setting reaching each recall@k target (any setting of its sweep, not
+    only the default); an engine that never reaches the target has no bar and "not reached" under its name. Dropdown:
+    k (largest first) and target."""
+    ks = sorted({row["k"] for r in runs.values() for row in r["serial"]})
+    views = {f"recall@{k} >= {t}": (k, t) for k in reversed(ks) for t in TARGETS}
+    rows = {
+        v: [cheapest(r, k, t) for r in runs.values()] for v, (k, t) in views.items()
+    }
+    ys = {
+        v: [row["latency_ms"]["mean"] if row else None for row in rows[v]]
+        for v in views
+    }
+    text = {
+        v: [
+            setting(row["params"], single(r)) if row else "not reached"
+            for r, row in zip(runs.values(), rows[v])
+        ]
+        for v in views
+    }
+    ax = yaxes({f"mean latency at {v}, ms": ys[v] for v in views})
+    ax = dict(zip(views, ax.values()))
+    first = next(iter(views))
+    fig = go.Figure(
+        go.Bar(
+            x=list(runs),
+            y=ys[first],
+            text=text[first],
+            textposition="outside",
+            cliponaxis=False,
+            marker={
+                "color": [trace_style(e)["line"]["color"] for e in runs],
+                "line": {"color": "#fcfcfb", "width": 2},
+            },
+            hovertemplate="<b>%{x}</b><br>%{text}<br>mean %{y:.3f} ms<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        updatemenus=[
+            menu(
+                [
+                    {
+                        "label": v,
+                        "method": "update",
+                        "args": [{"y": [ys[v]], "text": [text[v]]}, ax[v]],
+                    }
+                    for v in views
+                ],
+                0,
+            )
+        ]
+    )
+    fig = layout(
+        fig,
+        f"{name}: latency at equal recall (cheapest setting reaching the target)",
+        "engine (bar label: the setting used)",
+        ax[first],
+    )
+    fig.update_layout(showlegend=False)
+    return fig
+
+
 def build_bars(name: str, runs: dict[str, dict]) -> go.Figure:
     """Index build cost per engine; dropdown: build seconds, docs per second."""
     return bars(
@@ -789,6 +863,30 @@ def section(
         ],
         op,
     )
+    if not text:
+        add(
+            "Equal recall (cheapest setting reaching each recall@k target, by mean latency)",
+            ["engine", "k", "target", "setting", *qcols, *lat_cols],
+            [
+                [
+                    e,
+                    str(k),
+                    f"{t}",
+                    setting(row["params"], single(r)) if row else "not reached",
+                    f"{row['headline']:.4f}" if row else "-",
+                    *(
+                        f"{row['latency_ms'][key]:.3f}" if row else "-"
+                        for key in LATENCY.values()
+                    ),
+                ]
+                for k in sorted(
+                    {row["k"] for r in runs.values() for row in r["serial"]}
+                )
+                for t in TARGETS
+                for e, r in runs.items()
+                for row in [cheapest(r, k, t)]
+            ],
+        )
     add(
         "Full serial sweep",
         ["engine", "setting", "k", *qcols, *lat_cols],
@@ -1041,6 +1139,11 @@ def main() -> None:
                 figs = [
                     (ABOUT["tradeoff"], tradeoff(title, rs)),
                     (ABOUT["latency"], latency_bars(title, rs)),
+                    *(
+                        [(ABOUT["equal"], equal_recall(title, rs))]
+                        if next(iter(rs.values()))["dataset"]["kind"] != "text"
+                        else []
+                    ),
                     (ABOUT["build"], build_bars(title, rs)),
                     (ABOUT["memory"], memory_bars(title, rs)),
                 ]
