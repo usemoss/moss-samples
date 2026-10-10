@@ -14,8 +14,9 @@ The page has a Charts tab and a Tables tab, and a dataset picker. Per dataset, u
             (DNF). Click a header to sort; the box filters rows by every word typed; the best value per column among
             the shown rows is bold.
 Dropdowns list the mean first, then p50, p95, p99, p99.9. The operating point is the library-default search setting.
-Axes: linear from 0, with one fixed range for every dropdown view of the same unit (switching mean / p50 ... p99.9
-never moves the axis); the recall axis of the trade-off chart keeps one range across k.
+Each chart has a short description above it. Axes: linear from 0, except the trade-off chart's latency axis (log);
+one fixed range for every dropdown view of the same unit (switching mean / p50 ... p99.9 never moves the axis); the
+recall axis of the trade-off chart keeps one range across k.
 Refuses to write anything (exit 1, "STALE <log>: <last line>") when an engine's newest attempt failed but an older
 result for the same run would be shown.
 Every chart: hover shows exact values and parameters; click a legend entry to hide an engine, double-click to isolate it.
@@ -26,6 +27,7 @@ engine, ✓ = labelled relevant).
 
 import html
 import json
+import math
 import re
 from pathlib import Path
 
@@ -50,6 +52,26 @@ LATENCY = {"mean": "mean", "p50": "p50", "p95": "p95", "p99": "p99", "p99.9": "p
 MEMORY = ["index", "build peak", "search peak", "RSS increase over build", "on disk"]
 STAGES = ["build", "serial", "filter"]
 IP = {"ip", "dot"}  # metrics that are inner product (moss, zvec: ip; qdrant: dot)
+# One-paragraph description shown above each chart.
+ABOUT = {
+    "tradeoff": "Search quality against latency for every search setting each engine was run with (its sweep, e.g. "
+    "HNSW ef from 16 to 1024). A line keeps only the settings that no other setting of that engine beats on both "
+    "quality and latency (Pareto frontier); the ring marks the library default, the setting every other chart uses. "
+    "Exact engines have a single setting and draw a dotted line at its latency. Hovering a point shows that "
+    "setting's values, so only the ring matches the latency bars below. Dropdowns: latency statistic, k.",
+    "latency": "Search latency per engine at its library-default setting (the ring above, or an exact engine's line), "
+    "at the largest k, one query at a time over all queries. Dropdown: latency statistic.",
+    "build": "Time to build each engine's index from the vectors, or the docs indexed per second. Dropdown: measure.",
+    "memory": "Memory each engine adds, in GB, as process footprint over the footprint after the dataset is "
+    "loaded: index (after build), build peak, search peak, RSS increase over the build, and index files on disk "
+    "(disk-backed engines keep part of their index in OS-cached files). Dropdown: measure.",
+    "filter": "Filtered search (VectorDBBench cases, from 99% of docs kept to 1%) at k = 100 and the library-default "
+    "setting, each case scored against its own ground truth. Cold = the first pass over a filter, warm = the "
+    "repeat pass; first-query = the cold pass's first query. Dropdown: recall or latency statistic.",
+    "scaling": "How each engine changes with corpus size: its --docs runs plus the full run, at the library-default "
+    "setting and the largest k. One line per engine and metric mode (-ip = inner product). Dropdown: quality, "
+    "latency statistic, memory or build time.",
+}
 
 
 def run_key(r: dict) -> str:
@@ -172,21 +194,34 @@ def trace_style(engine: str) -> dict:
     }
 
 
-def yaxes(views: dict[str, list[float | None]]) -> dict[str, dict]:
-    """Relayout keys for the y axis of each dropdown view (title -> values): linear from 0, and views with the same
-    unit (the title's text after its last comma) share one fixed range, so switching mean / p50 ... p99.9 never
-    moves the axis."""
+def yaxes(views: dict[str, list[float | None]], log: bool = False) -> dict[str, dict]:
+    """Relayout keys for the y axis of each dropdown view (title -> values): linear from 0 (or log, titled
+    "(log scale)"), and views with the same unit (the title's text after its last comma) share one fixed range, so
+    switching mean / p50 ... p99.9 never moves the axis."""
     unit = {v: v.rsplit(", ", 1)[-1] for v in views}
-    top: dict[str, float] = {}
+    vals: dict[str, list[float]] = {}
     for v, xs in views.items():
-        top[unit[v]] = max([top.get(unit[v], 0), *(x for x in xs if x is not None)])
-    return {
-        v: {
-            "yaxis.title.text": v,
-            "yaxis.range": [0, 1.05 * top[unit[v]] or 1],
-        }
-        for v in views
-    }
+        vals.setdefault(unit[v], []).extend(x for x in xs if x is not None)
+    out = {}
+    for v in views:
+        top, pos = max(vals[unit[v]], default=0), [x for x in vals[unit[v]] if x > 0]
+        out[v] = {"yaxis.title.text": v, "yaxis.range": [0, 1.05 * top or 1]}
+        if log and pos:
+            lo, hi = min(pos) / 1.3, max(pos) * 1.3
+            ticks = [  # 1-2-5 ticks labelled in full (Plotly's own log ticks read "5" for both 0.5 and 50)
+                m * 10.0**e
+                for e in range(math.floor(math.log10(lo)), math.ceil(math.log10(hi)))
+                for m in (1, 2, 5)
+                if lo <= m * 10.0**e <= hi
+            ]
+            out[v] = {
+                "yaxis.title.text": f"{v} (log scale)",
+                "yaxis.type": "log",
+                "yaxis.range": [math.log10(lo), math.log10(hi)],
+                "yaxis.tickvals": ticks,
+                "yaxis.ticktext": [f"{t:g}" for t in ticks],
+            }
+    return out
 
 
 def layout(fig: go.Figure, title: str, x: str, y: dict) -> go.Figure:
@@ -327,6 +362,7 @@ def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
                     ]
                     for s in LATENCY
                 },
+                log=True,  # latencies span 100x+ (0.1 ms HNSW to 40+ ms exact scans)
             ).values(),
         )
     )
@@ -660,9 +696,13 @@ def examples(runs: dict[str, dict]) -> str:
 
 
 def section(
-    title: str, runs: dict[str, dict], figs: list[go.Figure], missing: list[str]
+    title: str,
+    runs: dict[str, dict],
+    figs: list[tuple[str, go.Figure]],
+    missing: list[str],
 ) -> tuple[list[str], list, list[str]]:
-    """Markdown lines, chart-tab parts (HTML fragments and figures) and table-tab HTML fragments for one section."""
+    """Markdown lines, chart-tab parts (HTML fragments and figures, each figure after its (description, figure)
+    description) and table-tab HTML fragments for one section."""
     head = f"<h2>{html.escape(title)}</h2>"
     if not runs:  # only failed attempts: heading and the DNF table, no charts
         md = [f"## {title}", "", "No run finished.", "", "### Did not finish", ""]
@@ -687,7 +727,9 @@ def section(
     if missing:
         intro += f" Did not finish: {', '.join(m.split(':')[0] for m in missing)}."
     md = [f"## {title}", "", intro, ""]
-    charts = [f"{head}<p>{html.escape(intro)}</p>", *figs]
+    charts = [f"{head}<p>{html.escape(intro)}</p>"]
+    for about, fig in figs:
+        charts += [f"<p class='about'>{html.escape(about)}</p>", fig]
     tables = [f"{head}<p>{html.escape(intro)}</p>"]
 
     def add(name: str, cols: list[str], rows: list[list[str]]) -> None:
@@ -849,7 +891,7 @@ input.flt{display:block;margin:4px 0 6px;width:min(360px,100%)}
 th,td{border-bottom:1px solid var(--rule);padding:4px 10px;text-align:right;white-space:nowrap}
 th:first-child,td:first-child{text-align:left}table.sortable th{cursor:pointer;user-select:none}
 th[data-dir=asc]::after{content:" ▲"}th[data-dir=desc]::after{content:" ▼"}td.best{font-weight:700;background:var(--best)}
-td.snip{white-space:normal;text-align:left;min-width:320px}summary{cursor:pointer;margin:6px 0}
+td.snip{white-space:normal;text-align:left;min-width:320px}p.about{margin:28px 0 0;max-width:900px}summary{cursor:pointer;margin:6px 0}
 </style></head><body><h1>Moss vector benchmark</h1><p>__ENV__</p>
 <nav><button data-tab="charts" aria-pressed="true">Charts</button><button data-tab="tables" aria-pressed="false">Tables</button>
 <label>dataset <select id="ds">__OPTIONS__</select></label></nav>
@@ -986,18 +1028,24 @@ def main() -> None:
             figs = []
             if rs and title.endswith("-subsets"):
                 figs = [
-                    scaling(
-                        name, {k: r for k, r in have.items() if "-docs" not in k}, rs
+                    (
+                        ABOUT["scaling"],
+                        scaling(
+                            name,
+                            {k: r for k, r in have.items() if "-docs" not in k},
+                            rs,
+                        ),
                     )
                 ]
             elif rs:
                 figs = [
-                    tradeoff(title, rs),
-                    latency_bars(title, rs),
-                    build_bars(title, rs),
-                    memory_bars(title, rs),
+                    (ABOUT["tradeoff"], tradeoff(title, rs)),
+                    (ABOUT["latency"], latency_bars(title, rs)),
+                    (ABOUT["build"], build_bars(title, rs)),
+                    (ABOUT["memory"], memory_bars(title, rs)),
                 ]
-                figs += [fb] if (fb := filter_lines(title, rs)) else []
+                if fb := filter_lines(title, rs):
+                    figs.append((ABOUT["filter"], fb))
             m, charts, tables = section(title, rs, figs, missing)
             md += m
             body += [(name, "charts", p) for p in charts]
