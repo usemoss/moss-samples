@@ -73,7 +73,7 @@ mkdir -p results/logs
 ./watchdog.sh results/logs/prepare-<name>-$(date +%Y%m%dT%H%M%S).log $PWD/.venv/bin/python bench_data.py prepare <name>
 ```
 
-Measured on a cohere-100k smoke run (Apple M5 Max): fetch 5 s (sha256-checked against `checksums.json`), prepare 1 s at 2078 MiB peak RSS. hotpotqa-1m: fetch 84 s, prepare 7442 s (embedding 7418 s) at 25903 MiB peak RSS. Other 1M prepare costs will be added once measured. Prepare for the 1M sets is heavy (GB of RAM, large ground-truth matmuls): raise `WATCHDOG_MAX_S` (default 1200 s) as needed.
+Measured on a cohere-100k smoke run (Apple M5 Max): fetch 5 s (sha256-checked against `checksums.json`), prepare 1 s at 2078 MiB peak RSS. hotpotqa-1m: fetch 84 s, prepare 7442 s (embedding 7418 s) at 25903 MiB peak RSS. dbpedia-openai-1m: fetch 271 s (9.0 GB, 26 shards), prepare 79 s at 25710 MiB peak RSS. cohere-1m and arxiv-titles-2m are not measured yet. Prepare for the 1M sets is heavy (GB of RAM, large ground-truth matmuls): raise `WATCHDOG_MAX_S` (default 1200 s) as needed.
 
 ## Quick start
 
