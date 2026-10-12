@@ -7,26 +7,26 @@ usage: $PWD/.venv/bin/python report.py
 
 The page has a Charts tab and a Tables tab, and a dataset picker. Per dataset, using each run key's
 newest result:
-  sections  <dataset> (library-default metric), <dataset> · inner product (--metric ip runs, plus
-            the default run of each engine whose default metric is already inner product) and
-            <dataset>-subsets (--docs runs)
-  charts    recall (vector) or nDCG@10 (text) vs latency (Pareto frontier per engine, the
-            library-default setting ringed; dropdowns: latency statistic, k), latency at the
-            operating point (bars; dropdown: statistic), latency at equal recall (vector datasets;
-            bars; dropdown: k and recall target), build cost (bars; dropdown: build time / docs
-            per s), memory (bars; dropdown: index, build and search peaks, RSS increase, disk),
-            filtered search (line per engine across the filter cases; dropdown: warm recall,
-            warm / cold latency, cold first-query latency); the -subsets section has a scaling
-            chart instead
+  sections  <dataset> · dataset metric (cosine ≡ inner product on unit vectors) (--metric ip runs,
+            plus the default run of each engine whose default metric is already inner product),
+            <dataset> · library default metric, and <dataset>-subsets (--docs runs)
+  charts    numbered cards, each with its description, separated by rules. Vector sections:
+            1 headline, latency at equal recall (cheapest setting reaching recall@k >= target;
+            opens at the largest k and 0.95), 2 recall vs latency (Pareto frontier per engine as in
+            ann-benchmarks, the library-default setting ringed), 3 latency at the operating point
+            at one k for every engine, 4 build cost, 5 memory, 6 filtered search (with an
+            unfiltered reference point). Text sections lead with nDCG@10 vs latency and stack the
+            corpus-embedding time (measured at prepare) on the non-Moss build bars. The -subsets
+            section has a scaling chart instead.
   tables    operating point, equal recall (vector datasets), full serial sweep, filter cases (cold
-            and warm), memory, engines that did not finish (DNF). Click a header to sort; the box
-            filters rows by every word typed; the best value per column among the shown rows is
-            bold.
+            and warm, with the unfiltered reference), memory, engines that did not finish (DNF).
+            Click a header to sort; per-column value filters (CSS, no JS: tick values to show only
+            them, nothing ticked = all, "clear filters" resets); the best value per column among
+            the shown rows is bold.
 Dropdowns list the mean first, then p50, p95, p99, p99.9. The operating point is the
-library-default search setting. Each chart has a short description above it. Axes: linear from 0,
-except the trade-off chart's latency axis (log); one fixed range for every dropdown view of the
-same unit (switching mean / p50 ... p99.9 never moves the axis); the recall axis of the trade-off
-chart keeps one range across k.
+library-default search setting. Axes: linear from 0, except the trade-off chart's latency axis
+(log); one fixed range for every dropdown view of the same unit (switching mean / p50 ... p99.9
+never moves the axis); the recall axis of the trade-off chart keeps one range across k.
 Refuses to write anything (exit 1, "STALE <log>: <last line>") when an engine's newest attempt
 failed but an older result for the same run would be shown.
 Every chart: hover shows exact values and parameters; click a legend entry to hide an engine,
