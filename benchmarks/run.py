@@ -39,7 +39,7 @@ from pathlib import Path
 
 import numpy as np
 
-from bench_data import DATA, exact_topk, load
+from bench_data import DATA, check_docs, load, subset_gt_path
 from engines import ENGINES, MossTextEngine, make_engine
 from metrics import (
     latency_summary,
@@ -133,8 +133,9 @@ def subset(d: dict, docs: int | None, queries: int | None, stages: list[str]) ->
     """Limit a vector dataset to its first docs and/or first queries.
 
     Fewer queries also cut their ground truth (plain and per filter). A doc subset gets its labels
-    cut and its exact ground truth recomputed (top 100, or every doc when fewer). The input dict is
-    not modified.
+    cut and loads its exact ground truth from data/<name>/gt_docs<N>.npy (bench_data.py
+    subset-gt, which run_suite.sh runs), sliced to the queries kept; computing it here would
+    inflate the memory baseline. The input dict is not modified.
 
     Args:
         d: Dataset as returned by bench_data.load().
@@ -146,8 +147,9 @@ def subset(d: dict, docs: int | None, queries: int | None, stages: list[str]) ->
         A shallow copy of d with the subset applied and meta's n_base / n_queries updated.
 
     Raises:
-        SystemExit: docs is set and stages include "filter" (filter ground truth covers the full
-            set).
+        SystemExit: docs is set and: the stages include "filter" on a dataset with filter ground
+            truth (it covers the full set), docs is outside 1..n_base - 1, or the cached ground
+            truth is missing or older than the prepared base vectors.
     """
     d = dict(d, meta=dict(d["meta"]))
     if queries:
@@ -155,12 +157,20 @@ def subset(d: dict, docs: int | None, queries: int | None, stages: list[str]) ->
         d["gt_filters"] = {t: g[:queries] for t, g in d.get("gt_filters", {}).items()}
         d["meta"]["n_queries"] = len(d["queries"])
     if docs:
-        if "filter" in stages:
+        if "filter" in stages and d.get("gt_filters"):
             raise SystemExit(
                 "--docs cannot be combined with the filter stage (filter ground truth covers the full set)"
             )
+        name = d["meta"]["name"]
+        check_docs(docs, d["meta"]["n_base"])
+        path = subset_gt_path(name, docs)
+        if not path.exists() or path.stat().st_mtime < (DATA / name / "base.npy").stat().st_mtime:
+            raise SystemExit(  # missing, or older than the prepared vectors (re-prepared since)
+                f"missing or stale {path}; run_suite.sh creates it, or run "
+                f"bench_data.py subset-gt {name} {docs} under the watchdog"
+            )
         d["base"], d["ids"] = np.asarray(d["base"][:docs]), d["ids"][:docs]
-        d["gt"] = d["ids"][exact_topk(d["base"], d["queries"], min(100, docs))]
+        d["gt"] = np.load(path)[: len(d["queries"])]  # cached for every query; rows are per query
         if "labels" in d:
             d["labels"] = d["labels"][:docs]
         d["meta"]["n_base"] = docs

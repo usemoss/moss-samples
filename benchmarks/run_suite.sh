@@ -19,6 +19,16 @@ if (( ${engines[(Ie)moss]} )); then
   uv lock --upgrade-package moss && uv sync || { echo "could not update moss"; exit 1; }
 fi
 mkdir -p results/logs
+# --docs N: exact ground truth over the first N docs, computed once per dataset in its own process
+# (computing it inside run.py inflated the memory baseline); run.py refuses --docs without it.
+i=${@[(I)--docs]}
+if (( i )); then
+  for d in $datasets; do
+    [[ -f data/$d/gt_docs${@[i+1]}.npy && ! data/$d/base.npy -nt data/$d/gt_docs${@[i+1]}.npy ]] && continue
+    ./watchdog.sh results/logs/subset-gt-$d-${@[i+1]}-$(date +%Y%m%dT%H%M%S).log \
+      $PWD/.venv/bin/python bench_data.py subset-gt $d ${@[i+1]} || { echo "subset-gt $d ${@[i+1]} failed"; exit 1; }
+  done
+fi
 # --metric ip: engines whose default metric is already inner product have no ip mode; the report reuses their default run
 skip=()
 i=${@[(I)--metric]}; (( i )) && [[ ${@[i+1]} == ip ]] && skip=($($PWD/.venv/bin/python -c \

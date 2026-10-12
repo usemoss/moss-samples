@@ -2,7 +2,10 @@
 
 usage: bench_data.py fetch <name>      download the raw files (resumable, sha256-checked)
        bench_data.py prepare <name>    write the prepared layout (HEAVY at 1M)
-       run either under the watchdog from benchmarks/, with the absolute interpreter:
+       bench_data.py subset-gt <name> <docs>
+                                       exact GT over the first <docs> docs, for --docs runs
+                                       (run_suite.sh runs it when needed)
+       run each under the watchdog from benchmarks/, with the absolute interpreter:
        ./watchdog.sh results/logs/<step>-<name>-<stamp>.log $PWD/.venv/bin/python bench_data.py ...
 names: cohere-100k (smoke), cohere-1m, dbpedia-openai-1m, arxiv-titles-2m, hotpotqa-1m
 
@@ -190,6 +193,59 @@ def exact_topk(base: np.ndarray, queries: np.ndarray, k: int = 100, chunk: int =
         order = np.argsort(-np.take_along_axis(s, top, axis=1), axis=1, kind="stable")
         out[i : i + chunk] = np.take_along_axis(top, order, axis=1)
     return out
+
+
+def check_docs(docs: int, n_base: int) -> None:
+    """Refuse a doc subset that is not a proper prefix of the corpus.
+
+    Args:
+        docs: Requested number of docs (--docs).
+        n_base: Docs in the full dataset.
+
+    Raises:
+        SystemExit: docs is not between 1 and n_base - 1 (a full run covers all docs).
+    """
+    if not 0 < docs < n_base:
+        raise SystemExit(
+            f"--docs must be between 1 and {n_base - 1}; a full run covers all {n_base}"
+        )
+
+
+def subset_gt_path(name: str, docs: int) -> Path:
+    """Path of the cached exact top-100 ground truth over the first `docs` docs of a dataset.
+
+    Args:
+        name: Dataset name.
+        docs: Number of leading docs.
+
+    Returns:
+        data/<name>/gt_docs<docs>.npy.
+    """
+    return DATA / name / f"gt_docs{docs}.npy"
+
+
+def subset_gt(name: str, docs: int) -> None:
+    """Write the exact top-100 doc ids of every query over the first `docs` docs (--docs runs).
+
+    Computed in its own process because the brute-force temporaries (chunk x docs scores) stay
+    counted in the process footprint after they are freed; computing them inside run.py inflated
+    its memory baseline (up to 440 MB at 75k docs). run.py slices the rows for --queries (each
+    row depends only on its own query).
+
+    Args:
+        name: Vector dataset name; data/<name>/ must be prepared.
+        docs: Number of leading docs.
+
+    Raises:
+        SystemExit: A text dataset, or docs outside 1..n_base - 1.
+    """
+    d = load(name)
+    if d["meta"]["kind"] != "vector":
+        raise SystemExit("subset-gt applies to vector datasets only")
+    check_docs(docs, d["meta"]["n_base"])
+    top = exact_topk(np.asarray(d["base"][:docs]), d["queries"], min(100, docs))
+    np.save(subset_gt_path(name, docs), d["ids"][:docs][top])
+    print(f"{name}: wrote {subset_gt_path(name, docs)} {top.shape}")
 
 
 def select_subset(corpus_ids: Iterable[str], required: set[str], size: int) -> set[str]:
@@ -584,12 +640,17 @@ PREPARE: dict[str, Callable[[str], None]] = {
 }
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3 or sys.argv[1] not in ("fetch", "prepare"):
+    cmd = sys.argv[1] if len(sys.argv) > 1 else ""
+    if cmd not in ("fetch", "prepare", "subset-gt") or len(sys.argv) != (
+        4 if cmd == "subset-gt" else 3
+    ):
         raise SystemExit(__doc__)  # a typo must not start the heavy prepare
-    cmd, name = sys.argv[1], sys.argv[2]
-    if name not in SOURCES:
+    name = sys.argv[2]
+    if cmd != "subset-gt" and name not in SOURCES:  # fetch / prepare index SOURCES and PREPARE
         raise SystemExit(f"unknown dataset {name}; choose from {', '.join(SOURCES)}")
     if cmd == "fetch":
         fetch(name)
-    else:
+    elif cmd == "prepare":
         PREPARE[name](name)
+    else:
+        subset_gt(name, int(sys.argv[3]))  # any prepared vector dataset
