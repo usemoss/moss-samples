@@ -19,10 +19,12 @@ Stages (VectorDBBench / qdrant / ann-benchmarks methodology, see README.md):
   filter      VectorDBBench filter cases (k = 100), scored against each case's own ground truth;
               per case a cold pass (first use of that filter) then a warm pass, both measured
 The operating point is the library-default search setting ({}, the first point of every sweep);
-the filter stage runs there, after 100 unmeasured warm-up queries. Text datasets keep the top 5
-of the first 10 warm-up queries as example results. Memory: physical footprint (macOS
-proc_pid_rusage) after the dataset loads and after build, plus the peak of every stage, in the
-result's "memory" block.
+the filter stage runs there, after 100 unmeasured warm-up queries. Warm-up queries are never
+measured: the queries after the measured ones when at least 100 exist (--queries below the total),
+else 100 indexed docs (vectors, or corpus texts on text datasets). Text datasets keep the top 5 of
+the first 10 queries, from an unmeasured pass after the filter stage, as example results.
+Memory: physical footprint (macOS proc_pid_rusage) after the dataset loads and after build, plus the
+peak of every stage, in the result's "memory" block.
 """
 
 import argparse
@@ -296,15 +298,40 @@ def disk_mb(eng: object) -> float:
     )
 
 
+def warmup_set(d: dict, all_q: object, measured: int, text: bool) -> tuple[list, str]:
+    """Pick 100 warm-up queries that are never measured.
+
+    Warming up on measured queries made those queries faster in their measured pass (zvec 5-9%,
+    chroma about 6% on cohere-100k), so the warm-up uses the queries after the measured ones when
+    at least 100 exist (--queries below the total), else 100 indexed docs as queries.
+
+    Args:
+        d: Dataset after subsetting.
+        all_q: Every query of the dataset (vectors, or text rows), before --queries.
+        measured: Number of measured queries (the first `measured` of all_q).
+        text: True for a text dataset.
+
+    Returns:
+        The warm-up queries and their source: "queries", "doc vectors" or "corpus texts".
+    """
+    spare = all_q[measured : measured + 100]
+    if len(spare) == 100:
+        return ([q["text"] for q in spare] if text else list(spare)), "queries"
+    if text:
+        return [c["text"] for c in d["corpus"][:100]], "corpus texts"
+    return list(np.asarray(d["base"][:100])), "doc vectors"
+
+
 async def main(a: argparse.Namespace) -> dict:
     """Run the selected stages for one engine on one dataset.
 
     Loads the dataset (applying --docs / --queries), runs the engine's untimed open() (the Moss
     session), reads the memory baseline and builds the index (load stage, timed). The serial
-    stage runs every sweep setting at every k, after 100 unmeasured warm-up queries per setting. The
-    operating point then gets 100 more warm-up queries (on text datasets, the top 5 of the first 10
-    become example results), and the filter stage, when selected and the dataset has filters, runs
-    each case cold then warm. Memory is read after load, after build and as the peak of each stage.
+    stage runs every sweep setting at every k, after 100 unmeasured warm-up queries per setting
+    (see warmup_set). The operating point then gets the same warm-up, and the filter stage, when
+    selected and the dataset has filters, runs each case cold then warm; text datasets then take
+    their example results from an unmeasured pass over the first 10 queries. Memory is read after
+    load, after build and as the peak of each stage.
 
     Args:
         a: Parsed command-line arguments (see the parser at the bottom of this module).
@@ -321,6 +348,7 @@ async def main(a: argparse.Namespace) -> dict:
     stages, ks = a.stages.split(","), [int(x) for x in a.k.split(",")]
     d = load(a.dataset)
     text = d["meta"]["kind"] == "text"
+    all_q = d["queries_text"] if text else d["queries"]  # before --queries: spares warm up
     if text and a.docs:
         raise SystemExit("--docs is not supported for text datasets (it would drop qrel documents)")
     if text:
@@ -398,13 +426,14 @@ async def main(a: argparse.Namespace) -> dict:
     print(json.dumps(out["load"] | mem), flush=True)
 
     qs = [q["text"] for q in d["queries_text"]] if text else list(d["queries"])
+    warm_qs, out["warmup"] = warmup_set(d, all_q, len(qs), text)
     reset_peak()
     for params in eng.sweep:
         eng.set_search(params)
         todo = [k for k in ks if params.get("ef", k) >= k]  # HNSW needs ef >= k
         if not todo:
             continue
-        await timed(eng, qs[:100], min(todo))  # warm-up for this setting, unmeasured
+        await timed(eng, warm_qs, min(todo))  # warm-up for this setting, unmeasured
         for k in todo:
             got, lat = await timed(eng, qs, k)
             row = {
@@ -434,23 +463,7 @@ async def main(a: argparse.Namespace) -> dict:
     peaks["serial"] = footprint_mb()[1]
     out["operating_point"] = {}  # the library default
     eng.set_search({})
-    warm, _ = await timed(
-        eng, qs[:100], max(ks)
-    )  # unmeasured warm-up at the operating point (Chroma reopens its client)
-    if text:  # top 5 of the first 10 queries for the report's example results; corpus position = id
-        out["examples"] = [
-            {
-                "query": q["text"],
-                "results": [
-                    {
-                        "text": d["corpus"][i]["text"][:240],
-                        "relevant": str(i) in d["qrels"][q["id"]],
-                    }
-                    for i in g[:5]
-                ],
-            }
-            for q, g in zip(d["queries_text"][:10], warm)
-        ]
+    await timed(eng, warm_qs, max(ks))  # unmeasured warm-up (Chroma reopens its client)
     if "filter" in stages and d.get("gt_filters"):
         reset_peak()
         for tag in a.filters.split(","):
@@ -468,6 +481,21 @@ async def main(a: argparse.Namespace) -> dict:
             out["filter"].append(row)
             print(json.dumps(row), flush=True)
         peaks["filter"] = footprint_mb()[1]
+    if text:  # top 5 of the first 10 queries for the report's example results; corpus position = id
+        ex, _ = await timed(eng, qs[:10], max(ks))  # unmeasured, after every measured pass
+        out["examples"] = [
+            {
+                "query": q["text"],
+                "results": [
+                    {
+                        "text": d["corpus"][i]["text"][:240],
+                        "relevant": str(i) in d["qrels"][q["id"]],
+                    }
+                    for i in g[:5]
+                ],
+            }
+            for q, g in zip(d["queries_text"][:10], ex)
+        ]
     r = eng.close()
     if inspect.isawaitable(r):
         await r
