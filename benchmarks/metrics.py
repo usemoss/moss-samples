@@ -27,6 +27,9 @@ def recall(got: Sequence[Sequence[int]], gt: np.ndarray, k: int) -> float:
     return float(np.mean([len(set(g[:k]) & set(t[:k].tolist())) / k for g, t in zip(got, gt)]))
 
 
+# REF: https://en.wikipedia.org/wiki/Discounted_cumulative_gain#Normalized_DCG
+
+
 def ndcg_gt(got: Sequence[Sequence[int]], gt: np.ndarray, k: int) -> float:
     """Mean nDCG@k graded by rank in the exact ground truth (VectorDBBench calc_vector_metrics).
 
