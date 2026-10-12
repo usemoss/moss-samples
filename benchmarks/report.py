@@ -37,6 +37,7 @@ results (top 5 of 10 queries per engine, ✓ = labelled relevant).
 """
 
 import html
+import itertools
 import json
 import math
 import re
@@ -67,27 +68,47 @@ STAGES = ["build", "serial", "filter"]
 IP = {"ip", "dot"}  # metrics that are inner product (moss, zvec: ip; qdrant: dot)
 # One-paragraph description shown above each chart.
 ABOUT = {
-    "tradeoff": "Search quality against latency for every search setting each engine was run with (its sweep, e.g. "
+    "tradeoff": "Secondary headline. Search quality against latency for every search setting each engine was run "
+    "with (its sweep, e.g. "
     "HNSW ef from 16 to 1024). A line keeps only the settings that no other setting of that engine beats on both "
     "quality and latency (Pareto frontier); the ring marks the library default, the setting every other chart uses. "
     "Exact engines have a single setting and draw a dotted line at its latency. Hovering a point shows that "
     "setting's values, so only the ring matches the latency bars below. Dropdowns: latency statistic, k.",
     "latency": "Search latency per engine at its library-default setting (the ring above, or an exact engine's line), "
     "at the largest k, one query at a time over all queries. Dropdown: latency statistic.",
-    "equal": "Like-for-like speed: for each recall target, the mean latency of the cheapest setting in the engine's "
-    "sweep that reaches it (approximate engines tuned up, exact engines at their only setting). The bar label names "
-    "the setting; an engine with no bar never reached the target in its sweep. Dropdown: k and recall target.",
-    "build": "Time to build each engine's index from the vectors, or the docs indexed per second. Dropdown: measure.",
+    "equal": "Headline. Like-for-like speed: for each recall target, the mean latency of the cheapest setting in "
+    "the engine's sweep that reaches it (approximate engines tuned up, exact engines at their only setting), as public "
+    "benchmarks compare speed at a recall threshold (Qdrant, VIBE, big-ann). Opens at the largest k and 0.95. The bar "
+    "label names the setting; an engine with no bar never reached the target in its sweep. Dropdown: k and recall "
+    "target.",
+    "build": "Time to build each engine's index from the vectors (ingest + index; client and Moss session setup "
+    "excluded), or the docs indexed per second. Text datasets: Moss embeds the corpus inside its build with its "
+    "built-in model, while the other engines index vectors embedded once at prepare (fastembed, batch 256); that "
+    "embedding time is stacked on their bars, so every bar covers embedding + indexing. Dropdown: measure.",
     "memory": "Memory each engine adds, in GB, as process footprint over the footprint after the dataset is "
     "loaded: index (after build), build peak, search peak, RSS increase over the build, and index files on disk "
     "(disk-backed engines keep part of their index in OS-cached files). Dropdown: measure.",
     "filter": "Filtered search (VectorDBBench cases, from 99% of docs kept to 1%) at k = 100 and the library-default "
-    "setting, each case scored against its own ground truth. Cold = the first pass over a filter, warm = the "
-    "repeat pass; first-query = the cold pass's first query. Dropdown: recall or latency statistic.",
+    "setting, each case scored against its own ground truth. The first point, unfiltered, is the same engine's "
+    "serial result at k = 100 and the same setting (not re-measured), so the drop from it is what the filter costs. "
+    "Cold = the first pass over a filter, warm = the repeat pass; first-query = the cold pass's first query. "
+    "Dropdown: recall or latency statistic.",
     "scaling": "How each engine changes with corpus size: its --docs runs plus the full run, at the library-default "
     "setting and the largest k. One line per engine and metric mode (-ip = inner product). Dropdown: quality, "
     "latency statistic, memory or build time.",
 }
+# Short chart names for the numbered chart cards, by ABOUT key.
+TITLES = {
+    "equal": "Headline: latency at equal recall",
+    "tradeoff": "Quality vs latency trade-off",
+    "latency": "Latency at the operating point",
+    "build": "Index build",
+    "memory": "Memory",
+    "filter": "Filtered search",
+    "scaling": "Scaling with corpus size",
+}
+FILTER_COLS = {"engine", "metric", "setting", "k", "filter", "target"}  # get value filters
+TABLES = itertools.count()  # unique id per rendered table (scopes its filter CSS)
 
 
 def run_key(r: dict) -> str:
@@ -254,8 +275,9 @@ def frontier(
 ) -> list[tuple[float, float, str, float]]:
     """Keep the Pareto frontier of (quality, latency) points (ann-benchmarks create_pointset).
 
-    Points are scanned from the highest quality down; a point is kept when its latency is below that
-    of every point kept before it, so no kept point is beaten on both axes.
+    Points are scanned fastest first (equal latency: higher quality first); a point is kept when its
+    quality is higher than every point kept before it, so at equal quality only the fastest stays.
+    Unlike ann-benchmarks, zero-quality points are not skipped.
 
     Args:
         points: (quality, latency, setting name, quality) tuples, as built in tradeoff().
@@ -263,11 +285,11 @@ def frontier(
     Returns:
         The frontier points in ascending order (quality, then latency).
     """
-    out, best = [], None
-    for p in sorted(points, key=lambda p: -p[0]):
-        if best is None or p[1] < best:
+    out, best = [], -math.inf
+    for p in sorted(points, key=lambda p: (p[1], -p[0])):
+        if p[0] > best:
             out.append(p)
-            best = p[1]
+            best = p[0]
     return sorted(out)
 
 
@@ -284,7 +306,7 @@ def trace_style(engine: str) -> dict:
         {"line": ..., "marker": ...} with the engine's light-theme color, dash and marker symbol.
     """
     color, _, symbol, dash = STYLE.get(
-        re.sub(r"(-ip)?(-docs\d+)?$", "", engine),
+        re.sub(r"(-ip)?(-docs\d+)?( \(k=\d+\))?$", "", engine),
         ("#52514e", "#c3c2b7", "circle", "solid"),
     )
     return {
@@ -625,7 +647,11 @@ def bars(
 
 
 def latency_bars(name: str, runs: dict[str, dict]) -> go.Figure:
-    """Plot serial latency at the operating point per engine, at each engine's largest k.
+    """Plot serial latency at the operating point per engine, at one k for every engine.
+
+    The k is the largest one every run measured at its operating point, so the bars compare like
+    for like. If the runs share no k, each bar uses its engine's largest k and names it in its
+    label.
 
     Args:
         name: Section title, used in the chart title.
@@ -634,13 +660,21 @@ def latency_bars(name: str, runs: dict[str, dict]) -> go.Figure:
     Returns:
         Bar chart with a dropdown over mean, p50 ... p99.9.
     """
-    lat = {e: max(at_op(r), key=lambda row: row["k"]) for e, r in runs.items()}
-    k = max(row["k"] for row in lat.values())
+    common = set.intersection(*({row["k"] for row in at_op(r)} for r in runs.values()))
+    k = max(common, default=None)
+    lat = {
+        e: next(row for row in at_op(r) if row["k"] == k)
+        if k
+        else max(at_op(r), key=lambda row: row["k"])
+        for e, r in runs.items()
+    }
     return bars(
         name,
-        f"serial latency at the operating point (library default, k = {k})",
+        f"serial latency at the operating point (library default, k = {k} for every engine)"
+        if k
+        else "serial latency at the operating point (library default; k differs, see labels)",
         {f"{s} latency": [lat[e]["latency_ms"][key] for e in runs] for s, key in LATENCY.items()},
-        list(runs),
+        list(runs) if k else [f"{e} (k={lat[e]['k']})" for e in runs],
         "ms",
     )
 
@@ -723,7 +757,7 @@ def equal_recall(name: str, runs: dict[str, dict]) -> go.Figure:
     )
     fig = layout(
         fig,
-        f"{name}: latency at equal recall (cheapest setting reaching the target)",
+        f"{name}: headline: mean latency at equal recall (cheapest setting reaching recall@k >= target)",
         "engine (bar label: the setting used)",
         ax[first],
     )
@@ -734,6 +768,10 @@ def equal_recall(name: str, runs: dict[str, dict]) -> go.Figure:
 def build_bars(name: str, runs: dict[str, dict]) -> go.Figure:
     """Plot index build cost per engine.
 
+    On text datasets the non-Moss engines index vectors embedded once at prepare, so their bars
+    stack that corpus-embedding time (the dataset's corpus_embed_s) on the index build; Moss embeds
+    inside its build, so its bar is one piece.
+
     Args:
         name: Section title, used in the chart title.
         runs: Run key -> result document.
@@ -741,16 +779,83 @@ def build_bars(name: str, runs: dict[str, dict]) -> go.Figure:
     Returns:
         Bar chart with a dropdown over build seconds and docs per second.
     """
-    return bars(
-        name,
-        "index build",
-        {
-            "build time, s": [r["load"]["build_s"] for r in runs.values()],
-            "docs per second": [r["load"]["docs_per_s"] for r in runs.values()],
-        },
-        list(runs),
-        "",
+    if next(iter(runs.values()))["dataset"]["kind"] != "text":
+        return bars(
+            name,
+            "index build",
+            {
+                "build time, s": [r["load"]["build_s"] for r in runs.values()],
+                "docs per second": [r["load"]["docs_per_s"] for r in runs.values()],
+            },
+            list(runs),
+            "",
+        )
+    idx = [r["load"]["build_s"] for r in runs.values()]
+    emb = [embed_s(r) or 0.0 for r in runs.values()]
+    docs = [r["load"]["docs"] for r in runs.values()]
+    views = {
+        "build time incl. corpus embedding, s": (idx, emb),
+        "docs per second incl. corpus embedding": (
+            [n / (a + b) for n, a, b in zip(docs, idx, emb)],
+            [0.0] * len(idx),
+        ),
+    }
+    ax = yaxes({v: [a + b for a, b in zip(*ys)] for v, ys in views.items()})
+    first, names = next(iter(views)), list(runs)
+    hover = "<b>%{x}</b><br>%{fullData.name}: %{y:.3f}<extra></extra>"
+    fig = go.Figure(
+        [
+            go.Bar(
+                name="index build (Moss: embedding + index, built-in model)",
+                x=names,
+                y=views[first][0],
+                marker={
+                    "color": [trace_style(e)["line"]["color"] for e in names],
+                    "line": {"color": "#fcfcfb", "width": 2},
+                },
+                hovertemplate=hover,
+            ),
+            go.Bar(
+                name="corpus embedding (fastembed all-MiniLM-L6-v2 @512, measured once at prepare)",
+                x=names,
+                y=views[first][1],
+                marker={
+                    "color": "#c3c2b7",
+                    "pattern": {"shape": "/"},
+                    "line": {"color": "#fcfcfb", "width": 2},
+                },
+                hovertemplate=hover,
+            ),
+        ]
     )
+    fig.update_layout(
+        barmode="stack",
+        updatemenus=[
+            menu(
+                [
+                    {"label": v, "method": "update", "args": [{"y": [a, b]}, ax[v]]}
+                    for v, (a, b) in views.items()
+                ],
+                0,
+            )
+        ],
+    )
+    return layout(fig, f"{name}: index build incl. corpus embedding", "engine", ax[first])
+
+
+def embed_s(r: dict) -> float | None:
+    """Corpus-embedding seconds measured at prepare, for a non-Moss run on a text dataset.
+
+    Args:
+        r: Result document, as written by run.py.
+
+    Returns:
+        The dataset's corpus_embed_s, or None for Moss (it embeds inside its build) and vector
+        datasets.
+    """
+    if r["dataset"]["kind"] != "text" or r["engine"] == "moss":
+        return None
+    return r["dataset"].get("corpus_embed_s")
 
 
 def memory_bars(name: str, runs: dict[str, dict]) -> go.Figure:
@@ -788,12 +893,25 @@ def kept(tag: str) -> float:
     return 100 - p if tag.startswith("int") else p
 
 
+def unfiltered(r: dict) -> dict | None:
+    """The serial row a filter case compares with: the operating point at k = 100.
+
+    Args:
+        r: Result document, as written by run.py.
+
+    Returns:
+        That serial row, or None when the run did not measure k = 100.
+    """
+    return next((row for row in at_op(r) if row["k"] == 100), None)
+
+
 def filter_lines(name: str, runs: dict[str, dict]) -> go.Figure | None:
     """Plot filtered search: one line per engine across the filter cases.
 
-    Cases are ordered from most to fewest docs kept. Dropdown: warm recall@100, warm then cold
-    latency (mean, p50 ... p99.9), cold first-query latency. A case an engine did not run (different
-    --filters) is left as a gap.
+    Cases are ordered from most to fewest docs kept, after an "unfiltered" point: the same engine's
+    serial result at k = 100 (see unfiltered()), not re-measured. Dropdown: warm recall@100, warm
+    then cold latency (mean, p50 ... p99.9), cold first-query latency. A case an engine did not run
+    (different --filters) is left as a gap.
 
     Args:
         name: Section title, used in the chart title.
@@ -805,11 +923,14 @@ def filter_lines(name: str, runs: dict[str, dict]) -> go.Figure | None:
     runs = {e: r for e, r in runs.items() if r["filter"]}
     if not runs:
         return None
-    tags = sorted(
-        dict.fromkeys(f["filter"] for r in runs.values() for f in r["filter"]),
-        key=lambda t: -kept(t),
-    )
-    xs = [f"{t} ({kept(t):g}% kept)" for t in tags]
+    tags = [
+        "unfiltered",
+        *sorted(
+            dict.fromkeys(f["filter"] for r in runs.values() for f in r["filter"]),
+            key=lambda t: -kept(t),
+        ),
+    ]
+    xs = ["unfiltered (100% kept)"] + [f"{t} ({kept(t):g}% kept)" for t in tags[1:]]
     by = {e: {f["filter"]: f for f in r["filter"]} for e, r in runs.items()}
     views: dict[str, tuple[str, str, str | None]] = {
         "warm recall@100": ("warm", "recall@100", None)
@@ -830,6 +951,11 @@ def filter_lines(name: str, runs: dict[str, dict]) -> go.Figure | None:
         Returns:
             The value, or None if the engine did not run that case.
         """
+        if t == "unfiltered":
+            row = unfiltered(runs[e])
+            if row is None or view[1] == "first_ms":
+                return None
+            return row["headline"] if view[1] == "recall@100" else row["latency_ms"][view[2]]
         if t not in by[e]:
             return None
         x = by[e][t][view[0]][view[1]]
@@ -958,27 +1084,58 @@ def better(col: str) -> str:
 
 
 def table(head: list[str], rows: list[list[str]]) -> tuple[list[str], str]:
-    """Render one table as markdown and as sortable, filterable HTML.
+    """Render one table as markdown and as sortable HTML with per-column value filters.
+
+    Each FILTER_COLS column gets a list of its values, unticked: nothing ticked shows every row,
+    ticking values shows only those (OR within a column, AND across columns), and "clear filters"
+    (a plain form reset) unticks everything. The filtering is pure CSS (:has()), one rule per value;
+    rows carry value indices, so no value needs CSS escaping. PAGE's script adds sorting and
+    best-value bolding.
 
     Args:
         head: Column headers.
         rows: Rows of cell strings.
 
     Returns:
-        The markdown lines and the HTML (a filter box and the table; PAGE's script adds sorting,
-        filtering and best-value bolding).
+        The markdown lines and the HTML.
     """
     md = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)] + [
         "| " + " | ".join(r) + " |" for r in rows
     ]
+    n, cat = next(TABLES), [i for i, h in enumerate(head) if h in FILTER_COLS]
+    order = lambda v: (0, float(v), v) if re.fullmatch(r"-?[\d.]+", v) else (1, 0.0, v)  # noqa: E731
+    idx = {c: {v: i for i, v in enumerate(sorted({r[c] for r in rows}, key=order))} for c in cat}
+    css = "".join(
+        f"#tf{n}:has(input[data-c='{c}']:checked):has(input[data-c='{c}'][data-v='{i}']:not(:checked)) "
+        f"tr[data-c{c}='{i}']{{display:none}}"
+        for c in cat
+        for i in idx[c].values()
+    )
+    boxes = "".join(
+        f"<details><summary>{html.escape(head[c])}</summary>"
+        + "".join(
+            f"<label><input type=checkbox data-c='{c}' data-v='{i}'>{html.escape(v)}</label>"
+            for v, i in idx[c].items()
+        )
+        + "</details>"
+        for c in cat
+    )
     th = "".join(
         f"<th data-better='{better(h)}' title='click to sort'>{html.escape(h)}</th>" for h in head
     )
-    tb = "".join("<tr>" + "".join(f"<td>{html.escape(c)}</td>" for c in r) + "</tr>" for r in rows)
+    tb = "".join(
+        "<tr "
+        + " ".join(f"data-c{c}='{idx[c][r[c]]}'" for c in cat)
+        + ">"
+        + "".join(f"<td>{html.escape(x)}</td>" for x in r)
+        + "</tr>"
+        for r in rows
+    )
     return (
         md,
-        "<input class='flt' type='search' placeholder='filter rows: every word must match a cell (numbers exactly)'>"
-        f"<div class='tw'><table class='sortable'><thead><tr>{th}</tr></thead><tbody>{tb}</tbody></table></div>",
+        f"<style>{css}</style><div id='tf{n}' class='tf'><form class='cf'>{boxes}"
+        "<input type=reset value='clear filters'></form>"
+        f"<div class='tw'><table class='sortable'><thead><tr>{th}</tr></thead><tbody>{tb}</tbody></table></div></div>",
     )
 
 
@@ -1031,8 +1188,8 @@ def section(
     Args:
         title: Section title.
         runs: Run key -> result document of this section.
-        figs: (description, figure) pairs in display order; each description is shown above its
-            figure.
+        figs: (ABOUT / TITLES key, figure) pairs in display order; each figure gets a numbered card
+            with its title and description above it.
         missing: "<run key>: DNF, <last log line>" for each run that did not finish.
 
     Returns:
@@ -1052,18 +1209,32 @@ def section(
     text = r0["dataset"]["kind"] == "text"
     n = sorted({row["latency_ms"]["n"] for r in runs.values() for row in r["serial"]})
     queries = f"{n[0]:,}" if len(n) == 1 else f"{n[0]:,} to {n[-1]:,} (differs by engine)"
+    kmax = max(row["k"] for r in runs.values() for row in r["serial"])
     intro = (
-        "Runs on the first N docs (--docs, ground truth recomputed); the scaling chart adds the full run when it exists."
+        "Runs on the first N docs (--docs, exact ground truth over those docs); the scaling chart adds the full run "
+        "when it exists."
         if title.endswith("-subsets")
         else f"{r0['dataset']['n_base']:,} docs, {queries} queries. Every engine runs with its library's default "
-        "index and search settings; the operating point is the default search setting."
+        "index and search settings; the operating point is the default search setting. "
+        + (
+            "Headline (chart 1): nDCG@10 against end-to-end mean latency (query embedding included)."
+            if text
+            else f"Headline (chart 1): mean serial latency of each engine's cheapest setting reaching recall@{kmax} "
+            ">= 0.95, the like-for-like comparison public benchmarks use (speed at a recall threshold: Qdrant, VIBE, "
+            "big-ann); chart 2 is the full recall-vs-latency trade-off."
+        )
     )
     if missing:
         intro += f" Did not finish: {', '.join(m.split(':')[0] for m in missing)}."
     md = [f"## {title}", "", intro, ""]
     charts = [f"{head}<p>{html.escape(intro)}</p>"]
-    for about, fig in figs:
-        charts += [f"<p class='about'>{html.escape(about)}</p>", fig]
+    for i, (key, fig) in enumerate(figs, 1):
+        charts += [
+            f"<hr><figure class='chart'><figcaption><h3>Chart {i} · {html.escape(TITLES[key])}</h3>"
+            f"<p class='about'>{html.escape(ABOUT[key])}</p></figcaption>",
+            fig,
+            "</figure>",
+        ]
     tables = [f"{head}<p>{html.escape(intro)}</p>"]
 
     def add(name: str, cols: list[str], rows: list[list[str]]) -> None:
@@ -1112,6 +1283,7 @@ def section(
                     *quality(row),
                     *(f"{row['latency_ms'][key]:.3f}" for key in LATENCY.values()),
                     f"{r['load']['build_s']:.1f}",
+                    *([f"{embed_s(r):.1f}" if embed_s(r) is not None else "in build"] if text else []),
                     f"{g['index']:.2f}",
                     f"{g['build peak']:.2f}",
                     f"{g['on disk']:.2f}",
@@ -1127,6 +1299,7 @@ def section(
             *qcols,
             *lat_cols,
             "build s",
+            *(["corpus embed s"] if text else []),
             "index GB",
             "build peak GB",
             "disk GB",
@@ -1171,6 +1344,8 @@ def section(
         [
             e,
             f["filter"],
+            f"{u['headline']:.4f}" if u else "-",
+            f"{u['latency_ms']['mean']:.3f}" if u else "-",
             f"{f['cold']['recall@100']:.4f}",
             f"{f['warm']['recall@100']:.4f}",
             f"{f['cold']['first_ms']:.3f}",
@@ -1181,6 +1356,7 @@ def section(
             ),
         ]
         for e, r in runs.items()
+        for u in [unfiltered(r)]
         for f in r["filter"]
     ]
     if filt:
@@ -1189,6 +1365,8 @@ def section(
             [
                 "engine",
                 "filter",
+                "unfiltered recall@100",
+                "unfiltered mean ms",
                 "recall@100 cold",
                 "recall@100 warm",
                 "cold first query ms",
@@ -1242,18 +1420,23 @@ nav{position:sticky;top:0;background:var(--surface);padding:8px 0;border-bottom:
 display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 nav button,nav select,input.flt{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--rule);
 border-radius:6px;padding:4px 12px}nav button[aria-pressed=true]{border-color:var(--ink);font-weight:600}
-input.flt{display:block;margin:4px 0 6px;width:min(360px,100%)}
+.tf form{margin:4px 0 6px}.tf details{display:inline-block;margin:0 12px 4px 0;vertical-align:top}
+.tf label{display:block;font-size:13px}.tf input[type=reset]{font:inherit;color:var(--ink);background:var(--surface);
+border:1px solid var(--rule);border-radius:6px;padding:2px 10px}
 .tw{overflow-x:auto}table{border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13px}
 th,td{border-bottom:1px solid var(--rule);padding:4px 10px;text-align:right;white-space:nowrap}
 th:first-child,td:first-child{text-align:left}table.sortable th{cursor:pointer;user-select:none}
 th[data-dir=asc]::after{content:" ▲"}th[data-dir=desc]::after{content:" ▼"}td.best{font-weight:700;background:var(--best)}
-td.snip{white-space:normal;text-align:left;min-width:320px}p.about{margin:28px 0 0;max-width:900px}summary{cursor:pointer;margin:6px 0}
+td.snip{white-space:normal;text-align:left;min-width:320px}summary{cursor:pointer;margin:6px 0}
+figure.chart{margin:0;border:1px solid var(--rule);border-radius:8px;padding:12px 16px}figure.chart h3{margin:0 0 4px}
+p.about{margin:0;max-width:900px}hr{border:0;border-top:2px solid var(--rule);margin:32px 0}
 </style></head><body><h1>Moss vector benchmark</h1><p>__ENV__</p>
 <nav><button data-tab="charts" aria-pressed="true">Charts</button><button data-tab="tables" aria-pressed="false">Tables</button>
 <label>dataset <select id="ds">__OPTIONS__</select></label></nav>
 <p>Charts: hover any point or bar for exact values; click a legend entry to hide an engine, double-click to isolate it;
-dropdowns above each chart switch the measure. Tables: click a header to sort; type in a table's box to filter its rows (each word must match a cell; numbers match exactly);
-the best value per column among the shown rows is bold.</p>__BODY__
+dropdowns above each chart switch the measure. Tables: click a header to sort; open a column's value list and tick values
+to show only those rows (nothing ticked = all rows; "clear filters" unticks everything); the best value per column among
+the shown rows is bold.</p>__BODY__
 <script>
 // Dark mode: the same hues stepped for the dark surface (validated palette), applied after Plotly renders.
 const DARK = __DARK__;
@@ -1279,11 +1462,11 @@ const show = () => {
 for (const b of document.querySelectorAll("nav button")) b.onclick = () => { tab = b.dataset.tab; show(); };
 document.getElementById("ds").onchange = show;
 show();
-// Tables: sort on header click, filter by words, bold the best value per column among the shown rows.
+// Tables: sort on header click, bold the best value per column among the shown rows (value filters are CSS).
 const num = td => { const v = parseFloat(td.textContent); return isNaN(v) ? null : v; };
 const best = t => {
   for (const td of t.querySelectorAll("td.best")) td.classList.remove("best");
-  const rows = [...t.tBodies[0].rows].filter(r => !r.hidden);
+  const rows = [...t.tBodies[0].rows].filter(r => getComputedStyle(r).display !== "none");
   [...t.tHead.rows[0].cells].forEach((th, i) => {
     if (!th.dataset.better) return;
     const vals = rows.map(r => num(r.cells[i])).filter(v => v !== null);
@@ -1305,15 +1488,9 @@ for (const t of document.querySelectorAll("table.sortable")) {
     });
     t.tBodies[0].append(...rows);
   });
-  const box = t.closest(".tw").previousElementSibling;
-  box.oninput = () => {
-    const words = box.value.toLowerCase().split(/\\s+/).filter(Boolean);
-    // a word matches a number cell exactly ("100" is not 0.1003) and a text cell anywhere in it
-    const hit = (td, w) => num(td) !== null && /^[-\\d.]+$/.test(td.textContent)
-      ? td.textContent === w : td.textContent.toLowerCase().includes(w);
-    for (const r of t.tBodies[0].rows) r.hidden = !words.every(w => [...r.cells].some(td => hit(td, w)));
-    best(t);
-  };
+  const f = t.closest(".tf");  // re-bold after a value filter changes or "clear filters" (reset fires first)
+  f.addEventListener("change", () => best(t));
+  f.addEventListener("reset", () => setTimeout(() => best(t)));
   best(t);
 }
 </script></body></html>"""
@@ -1371,9 +1548,13 @@ def main() -> None:
         ip = {k[:-3]: r for k, r in have.items() if k.endswith("-ip")}
         if ip:  # engines without an ip mode: their default run already ranks by inner product
             ip |= {k: r for k, r in full.items() if r.get("metric") in IP and k not in ip}
-        groups = [
-            (name, full, lambda k: not re.search(r"-ip|-docs", k)),
-            (f"{name} · inner product", ip, lambda k: k.endswith("-ip")),
+        groups = [  # the dataset-metric section first: cosine datasets, unit vectors
+            (
+                f"{name} · dataset metric (cosine ≡ inner product on unit vectors)",
+                ip,
+                lambda k: k.endswith("-ip"),
+            ),
+            (f"{name} · library default metric", full, lambda k: not re.search(r"-ip|-docs", k)),
             (
                 f"{name}-subsets",
                 {k: r for k, r in have.items() if "-docs" in k},
@@ -1388,7 +1569,7 @@ def main() -> None:
             if rs and title.endswith("-subsets"):
                 figs = [
                     (
-                        ABOUT["scaling"],
+                        "scaling",
                         scaling(
                             name,
                             {k: r for k, r in have.items() if "-docs" not in k},
@@ -1397,19 +1578,16 @@ def main() -> None:
                     )
                 ]
             elif rs:
-                figs = [
-                    (ABOUT["tradeoff"], tradeoff(title, rs)),
-                    (ABOUT["latency"], latency_bars(title, rs)),
-                    *(
-                        [(ABOUT["equal"], equal_recall(title, rs))]
-                        if next(iter(rs.values()))["dataset"]["kind"] != "text"
-                        else []
-                    ),
-                    (ABOUT["build"], build_bars(title, rs)),
-                    (ABOUT["memory"], memory_bars(title, rs)),
+                vector = next(iter(rs.values()))["dataset"]["kind"] != "text"
+                figs = [  # headline first: equal recall (vector) or the trade-off (text)
+                    *([("equal", equal_recall(title, rs))] if vector else []),
+                    ("tradeoff", tradeoff(title, rs)),
+                    ("latency", latency_bars(title, rs)),
+                    ("build", build_bars(title, rs)),
+                    ("memory", memory_bars(title, rs)),
                 ]
                 if fb := filter_lines(title, rs):
-                    figs.append((ABOUT["filter"], fb))
+                    figs.append(("filter", fb))
             m, charts, tables = section(title, rs, figs, missing)
             md += m
             body += [(name, "charts", p) for p in charts]
