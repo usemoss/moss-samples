@@ -92,9 +92,7 @@ def newest_runs() -> dict[str, dict[str, dict]]:
     runs: dict[str, dict[str, dict]] = {}
     for p in sorted(RESULTS.glob("*/*.json")):
         r = json.loads(p.read_text())
-        runs.setdefault(p.parent.name, {})[run_key(r)] = r | {
-            "file": str(p.relative_to(RESULTS))
-        }
+        runs.setdefault(p.parent.name, {})[run_key(r)] = r | {"file": str(p.relative_to(RESULTS))}
     return runs
 
 
@@ -140,9 +138,7 @@ def mem_gb(r: dict) -> dict[str, float]:
         "index": (m["footprint_after_build_mb"] - base) / 1024,
         "build peak": (peaks["build"] - base) / 1024,
         "search peak": (search - base) / 1024,
-        "RSS increase over build": (
-            m["rss_after_build_mb"] - r["load"]["rss_before_build_mb"]
-        )
+        "RSS increase over build": (m["rss_after_build_mb"] - r["load"]["rss_before_build_mb"])
         / 1024,
         "on disk": m["disk_mb"] / 1024,
     }
@@ -151,9 +147,7 @@ def mem_gb(r: dict) -> dict[str, float]:
 def metric_of(r: dict) -> str:
     """Label of the headline measure: nDCG@10 for text datasets, recall@k against the exact top-k for vector datasets."""
     return (
-        "nDCG@10 (human labels)"
-        if r["dataset"]["kind"] == "text"
-        else "recall@k (vs exact top-k)"
+        "nDCG@10 (human labels)" if r["dataset"]["kind"] == "text" else "recall@k (vs exact top-k)"
     )
 
 
@@ -273,20 +267,13 @@ def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
     Dropdowns pick the latency statistic and k."""
     ks = sorted({row["k"] for r in runs.values() for row in r["serial"]})
     lo = {
-        k: min(
-            row["headline"]
-            for r in runs.values()
-            for row in r["serial"]
-            if row["k"] == k
-        )
+        k: min(row["headline"] for r in runs.values() for row in r["serial"] if row["k"] == k)
         for k in ks
     }  # an exact engine's line starts at the lowest value any engine reached at that k
     label = metric_of(next(iter(runs.values()))).split(" ")[0]  # recall@k or nDCG@10
     fig, data = go.Figure(), {s: [] for s in LATENCY}
 
-    def pts(
-        rows: list[dict], s: str, one: bool
-    ) -> list[tuple[float, float, str, float]]:
+    def pts(rows: list[dict], s: str, one: bool) -> list[tuple[float, float, str, float]]:
         """(headline, latency statistic s, setting, headline) per row."""
         return [
             (
@@ -360,9 +347,7 @@ def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
             LATENCY,
             yaxes(
                 {
-                    f"{s} latency, ms (lower is better)": [
-                        p[1] for t in data[s] for p in t
-                    ]
+                    f"{s} latency, ms (lower is better)": [p[1] for t in data[s] for p in t]
                     for s in LATENCY
                 },
                 log=True,  # latencies span 100x+ (0.1 ms HNSW to 40+ ms exact scans)
@@ -392,8 +377,7 @@ def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
                 {
                     "visible": [tr.meta == k for tr in fig.data],
                     "showlegend": [
-                        tr.meta == k and not tr.name.endswith(" default")
-                        for tr in fig.data
+                        tr.meta == k and not tr.name.endswith(" default") for tr in fig.data
                     ],
                 }
             ],
@@ -410,9 +394,7 @@ def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
         metric_of(r0),
         ytitle["mean"],
     )
-    return fig.update_xaxes(
-        range=[min(xs) - pad, max(xs) + pad]
-    )  # one range for every k
+    return fig.update_xaxes(range=[min(xs) - pad, max(xs) + pad])  # one range for every k
 
 
 def bars(
@@ -470,10 +452,7 @@ def latency_bars(name: str, runs: dict[str, dict]) -> go.Figure:
     return bars(
         name,
         f"serial latency at the operating point (library default, k = {k})",
-        {
-            f"{s} latency": [lat[e]["latency_ms"][key] for e in runs]
-            for s, key in LATENCY.items()
-        },
+        {f"{s} latency": [lat[e]["latency_ms"][key] for e in runs] for s, key in LATENCY.items()},
         list(runs),
         "ms",
     )
@@ -494,13 +473,8 @@ def equal_recall(name: str, runs: dict[str, dict]) -> go.Figure:
     k (largest first) and target."""
     ks = sorted({row["k"] for r in runs.values() for row in r["serial"]})
     views = {f"recall@{k} >= {t}": (k, t) for k in reversed(ks) for t in TARGETS}
-    rows = {
-        v: [cheapest(r, k, t) for r in runs.values()] for v, (k, t) in views.items()
-    }
-    ys = {
-        v: [row["latency_ms"]["mean"] if row else None for row in rows[v]]
-        for v in views
-    }
+    rows = {v: [cheapest(r, k, t) for r in runs.values()] for v, (k, t) in views.items()}
+    ys = {v: [row["latency_ms"]["mean"] if row else None for row in rows[v]] for v in views}
     text = {
         v: [
             setting(row["params"], single(r)) if row else "not reached"
@@ -599,10 +573,7 @@ def filter_lines(name: str, runs: dict[str, dict]) -> go.Figure | None:
         "warm recall@100": ("warm", "recall@100", None)
     }
     for p in ("warm", "cold"):
-        views |= {
-            f"{p} {lbl} latency, ms": (p, "latency_ms", key)
-            for lbl, key in LATENCY.items()
-        }
+        views |= {f"{p} {lbl} latency, ms": (p, "latency_ms", key) for lbl, key in LATENCY.items()}
     views["cold first-query latency, ms"] = ("cold", "first_ms", None)
 
     def val(e: str, t: str, view: tuple[str, str, str | None]) -> float | None:
@@ -612,9 +583,7 @@ def filter_lines(name: str, runs: dict[str, dict]) -> go.Figure | None:
         x = by[e][t][view[0]][view[1]]
         return x[view[2]] if view[2] else x
 
-    ys = {
-        v: [[val(e, t, view) for t in tags] for e in runs] for v, view in views.items()
-    }
+    ys = {v: [[val(e, t, view) for t in tags] for e in runs] for v, view in views.items()}
     fig = go.Figure()
     for e, y in zip(runs, ys["warm recall@100"]):
         fig.add_trace(
@@ -631,10 +600,7 @@ def filter_lines(name: str, runs: dict[str, dict]) -> go.Figure | None:
     fig.update_layout(
         updatemenus=[
             menu(
-                [
-                    {"label": v, "method": "update", "args": [{"y": ys[v]}, ax[v]]}
-                    for v in views
-                ],
+                [{"label": v, "method": "update", "args": [{"y": ys[v]}, ax[v]]} for v in views],
                 0,
             )
         ]
@@ -690,18 +656,12 @@ def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> go.Figur
                 **trace_style(eng),
             )
         )
-    ys = {
-        v: [[f(r, row) for r, row in pts] for pts in by.values()]
-        for v, f in views.items()
-    }
+    ys = {v: [[f(r, row) for r, row in pts] for pts in by.values()] for v, f in views.items()}
     ax = yaxes({v: [y for t in ys[v] for y in t] for v in views})
     fig.update_layout(
         updatemenus=[
             menu(
-                [
-                    {"label": v, "method": "update", "args": [{"y": ys[v]}, ax[v]]}
-                    for v in views
-                ],
+                [{"label": v, "method": "update", "args": [{"y": ys[v]}, ax[v]]} for v in views],
                 0,
             )
         ]
@@ -731,13 +691,9 @@ def table(head: list[str], rows: list[list[str]]) -> tuple[list[str], str]:
         "| " + " | ".join(r) + " |" for r in rows
     ]
     th = "".join(
-        f"<th data-better='{better(h)}' title='click to sort'>{html.escape(h)}</th>"
-        for h in head
+        f"<th data-better='{better(h)}' title='click to sort'>{html.escape(h)}</th>" for h in head
     )
-    tb = "".join(
-        "<tr>" + "".join(f"<td>{html.escape(c)}</td>" for c in r) + "</tr>"
-        for r in rows
-    )
+    tb = "".join("<tr>" + "".join(f"<td>{html.escape(c)}</td>" for c in r) + "</tr>" for r in rows)
     return (
         md,
         "<input class='flt' type='search' placeholder='filter rows: every word must match a cell (numbers exactly)'>"
@@ -789,9 +745,7 @@ def section(
     r0 = next(iter(runs.values()))
     text = r0["dataset"]["kind"] == "text"
     n = sorted({row["latency_ms"]["n"] for r in runs.values() for row in r["serial"]})
-    queries = (
-        f"{n[0]:,}" if len(n) == 1 else f"{n[0]:,} to {n[-1]:,} (differs by engine)"
-    )
+    queries = f"{n[0]:,}" if len(n) == 1 else f"{n[0]:,} to {n[-1]:,} (differs by engine)"
     intro = (
         "Runs on the first N docs (--docs, ground truth recomputed); the scaling chart adds the full run when it exists."
         if title.endswith("-subsets")
@@ -817,11 +771,7 @@ def section(
         q = row.get(f"recall@{row['k']}")
         return [
             f"{row['headline']:.4f}",
-            *(
-                [f"{row['r_precision']:.4f}", f"{q:.4f}" if q is not None else "-"]
-                if text
-                else []
-            ),
+            *([f"{row['r_precision']:.4f}", f"{q:.4f}" if q is not None else "-"] if text else []),
         ]
 
     qcols = [
@@ -874,14 +824,9 @@ def section(
                     f"{t}",
                     setting(row["params"], single(r)) if row else "not reached",
                     f"{row['headline']:.4f}" if row else "-",
-                    *(
-                        f"{row['latency_ms'][key]:.3f}" if row else "-"
-                        for key in LATENCY.values()
-                    ),
+                    *(f"{row['latency_ms'][key]:.3f}" if row else "-" for key in LATENCY.values()),
                 ]
-                for k in sorted(
-                    {row["k"] for r in runs.values() for row in r["serial"]}
-                )
+                for k in sorted({row["k"] for r in runs.values() for row in r["serial"]})
                 for t in TARGETS
                 for e, r in runs.items()
                 for row in [cheapest(r, k, t)]
@@ -927,11 +872,7 @@ def section(
                 "recall@100 cold",
                 "recall@100 warm",
                 "cold first query ms",
-                *(
-                    f"{p} {x} ms"
-                    for p in ("warm", "cold")
-                    for x in ("mean", "p50", "p99")
-                ),
+                *(f"{p} {x} ms" for p in ("warm", "cold") for x in ("mean", "p50", "p99")),
             ],
             filt,
         )
@@ -944,10 +885,7 @@ def section(
                 e,
                 f"{base / 1024:.2f}",
                 f"{g['index']:.2f}",
-                *(
-                    f"{(peaks[s] - base) / 1024:.2f}" if s in peaks else "-"
-                    for s in STAGES
-                ),
+                *(f"{(peaks[s] - base) / 1024:.2f}" if s in peaks else "-" for s in STAGES),
                 f"{g['RSS increase over build']:.2f}",
                 f"{g['on disk']:.2f}",
                 f"{r['load']['peak_rss_mb'] / 1024:.2f}",
@@ -1080,16 +1018,12 @@ def main() -> None:
         )
     envs = [r["env"] for ds in runs.values() for r in ds.values()]
     env, versions = envs[0], {}
-    for e in (
-        envs
-    ):  # every version used across runs (run_suite.sh upgrades moss between runs)
+    for e in envs:  # every version used across runs (run_suite.sh upgrades moss between runs)
         for pkg, v in e["versions"].items():
             versions.setdefault(pkg, set()).add(v)
     env_line = (
         f"Hardware: {env['cpu']}, {env['cores']} cores, {env['ram_gb']} GB, {env['os']}. "
-        "Versions: "
-        + ", ".join(p + " " + " / ".join(sorted(v)) for p, v in versions.items())
-        + "."
+        "Versions: " + ", ".join(p + " " + " / ".join(sorted(v)) for p, v in versions.items()) + "."
     )
     md = [
         "# Benchmark results",
@@ -1107,9 +1041,7 @@ def main() -> None:
         full = {k: r for k, r in have.items() if not re.search(r"-ip|-docs", k)}
         ip = {k[:-3]: r for k, r in have.items() if k.endswith("-ip")}
         if ip:  # engines without an ip mode: their default run already ranks by inner product
-            ip |= {
-                k: r for k, r in full.items() if r.get("metric") in IP and k not in ip
-            }
+            ip |= {k: r for k, r in full.items() if r.get("metric") in IP and k not in ip}
         groups = [
             (name, full, lambda k: not re.search(r"-ip|-docs", k)),
             (f"{name} · inner product", ip, lambda k: k.endswith("-ip")),
@@ -1177,9 +1109,7 @@ def main() -> None:
     )
     page = (
         PAGE.replace("__ENV__", html.escape(env_line))
-        .replace(
-            "__OPTIONS__", "".join(f"<option>{html.escape(n)}</option>" for n in names)
-        )
+        .replace("__OPTIONS__", "".join(f"<option>{html.escape(n)}</option>" for n in names))
         .replace("__BODY__", "\n".join(parts))
         .replace("__DARK__", dark)
     )

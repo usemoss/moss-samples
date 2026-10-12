@@ -66,9 +66,9 @@ PACKAGES = [
 def ensure_latest_moss() -> None:
     """Exit unless the installed moss is the newest release on PyPI (the suite always benchmarks the latest Moss)."""
     installed = version("moss")
-    latest = json.load(
-        urllib.request.urlopen("https://pypi.org/pypi/moss/json", timeout=10)
-    )["info"]["version"]
+    latest = json.load(urllib.request.urlopen("https://pypi.org/pypi/moss/json", timeout=10))[
+        "info"
+    ]["version"]
     if installed != latest:
         raise SystemExit(
             f"moss {installed} is installed but {latest} is the latest release; run: "
@@ -173,9 +173,7 @@ def footprint_mb() -> tuple[float, float]:
     """(current, peak since reset_peak()) physical footprint of this process in MB: Activity Monitor's "Memory",
     which excludes clean file-backed pages such as the memory-mapped base vectors."""
     r = RusageInfoV4()
-    if (
-        LIBSYSTEM.proc_pid_rusage(os.getpid(), 4, ctypes.byref(r)) != 0
-    ):  # 4 = RUSAGE_INFO_V4
+    if LIBSYSTEM.proc_pid_rusage(os.getpid(), 4, ctypes.byref(r)) != 0:  # 4 = RUSAGE_INFO_V4
         raise OSError("proc_pid_rusage failed")
     return r.ri_phys_footprint / 2**20, r.ri_interval_max_phys_footprint / 2**20
 
@@ -204,9 +202,7 @@ async def main(a: argparse.Namespace) -> dict:
     d = load(a.dataset)
     text = d["meta"]["kind"] == "text"
     if text and a.docs:
-        raise SystemExit(
-            "--docs is not supported for text datasets (it would drop qrel documents)"
-        )
+        raise SystemExit("--docs is not supported for text datasets (it would drop qrel documents)")
     if text:
         ks = [k for k in ks if k >= 10]  # nDCG@10 needs 10 results
         if not ks:
@@ -291,9 +287,7 @@ async def main(a: argparse.Namespace) -> dict:
                 "latency_ms": latency_summary(lat),
             }
             if text:
-                by_q = {
-                    q["id"]: [str(x) for x in g] for q, g in zip(d["queries_text"], got)
-                }
+                by_q = {q["id"]: [str(x) for x in g] for q, g in zip(d["queries_text"], got)}
                 qrels = {q["id"]: d["qrels"][q["id"]] for q in d["queries_text"]}
                 row |= {
                     "ndcg@10": ndcg_qrels(by_q, qrels, 10),
@@ -371,9 +365,7 @@ if __name__ == "__main__":
         default="serial,filter",
         help="load and serial always run; this selects filter",
     )
-    p.add_argument(
-        "--k", default="1,10,50,100", help="text datasets use the values >= 10"
-    )
+    p.add_argument("--k", default="1,10,50,100", help="text datasets use the values >= 10")
     p.add_argument("--queries", type=int, help="use only the first N queries")
     p.add_argument(
         "--docs",
@@ -393,17 +385,18 @@ if __name__ == "__main__":
         help="result file stamp; run_suite.sh passes the one in the log name",
     )
     args = p.parse_args()
+
     print(
         "args: " + json.dumps(vars(args)), flush=True
     )  # first log line: the exact arguments of this attempt
+
     if args.engine == "moss":
         ensure_latest_moss()
     res = asyncio.run(main(args))
     out_dir = RESULTS / args.dataset
     out_dir.mkdir(parents=True, exist_ok=True)
-    tag = ("-ip" if args.metric == "ip" else "") + (
-        f"-docs{args.docs}" if args.docs else ""
-    )
+    tag = ("-ip" if args.metric == "ip" else "") + (f"-docs{args.docs}" if args.docs else "")
     path = out_dir / f"{args.engine}{tag}-{args.stamp}.json"
     path.write_text(json.dumps(res, indent=1) + "\n")
+
     print(f"wrote {path}")

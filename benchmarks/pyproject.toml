@@ -23,3 +23,7 @@ dependencies = [
 
 [tool.uv]
 package = false
+
+[tool.ruff]
+line-length = 100
+indent-width = 4

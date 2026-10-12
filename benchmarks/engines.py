@@ -1,24 +1,30 @@
-"""Engine adapters: every engine runs off the shelf, with its library's default index and search settings.
+"""Engine adapters: every engine runs off the shelf, with its library's default index and search
+settings.
 
 Contract (used by run.py), identical for all engines:
   name: str              short identifier written into result files
-  METRICS: dict          metric mode -> distance used: "default" = the library's default metric, "ip" = inner product
-                         (cosine where the engine has none); an engine whose default is already inner product has
-                         only "default"
+  METRICS: dict          metric mode -> distance used: "default" = the library's default metric,
+                         "ip" = inner product
+                         (cosine where the engine has none); an engine whose default is already
+                         inner product has only "default"
   metric: str            the distance this instance uses (METRICS[mode])
-  sweep: list[dict]      search settings for the serial stage; {} = the library default, which every sweep starts
-                         with ([{}] = exact engine, one point)
-  build(ids, vectors, metadata) -> None     index all docs (ids int64, vectors (n, d) float32, metadata or None)
+  sweep: list[dict]      search settings for the serial stage; {} = the library default, which
+                         every sweep starts with ([{}] = exact engine, one point)
+  build(ids, vectors, metadata) -> None     index all docs (ids int64, vectors (n, d) float32,
+                                            metadata or None)
   set_search(params) -> None                apply one sweep setting; {} restores the library default
-  search(q, k, flt) -> list[int]            top-k doc ids for one query vector; flt is a neutral filter or None
+  search(q, k, flt) -> list[int]            top-k doc ids for one query vector; flt is a neutral
+                                            filter or None
   close() -> None                           free resources
+
 Moss's build/search/close are coroutines (its public API is async); the other engines are synchronous.
 Vectors are L2-normalized, so l2, inner product and cosine rank documents identically.
-Each search returns what the library returns by default (never vectors unless that is its default); SQL engines
+Each search returns what the library returns by default (never vectors unless that is its default);
+SQL engines
 select id, labels and the distance where the index allows it.
 
-A neutral filter is {"field": "id", "op": "gte", "value": int} or {"field": "labels", "op": "eq", "value": str}.
-Metadata rows are {"id": int, "labels": str}.
+A neutral filter is {"field": "id", "op": "gte", "value": int} or {"field": "labels", "op": "eq",
+"value": str}. Metadata rows are {"id": int, "labels": str}.
 """
 
 import shutil
@@ -42,7 +48,9 @@ def _sql_op(flt: dict) -> str:
 
 
 class MossEngine:
-    """Moss through its public Python API: one uniquely named SessionIndex with custom vectors, never pushed."""
+    """Moss through its public Python API: one uniquely named SessionIndex with custom vectors,
+    never pushed.
+    """
 
     name, sweep, METRICS = "moss", [{}], {"default": "ip"}
 
@@ -61,21 +69,15 @@ class MossEngine:
 
         if "MOSS_ENV_FILE" in os.environ:
             load_dotenv(os.environ["MOSS_ENV_FILE"], override=True)
-        client = MossClient(
-            os.environ["MOSS_PROJECT_ID"], os.environ["MOSS_PROJECT_KEY"]
-        )
-        self.session = await client.session(
-            f"bench-{uuid.uuid4().hex[:8]}", model_id="custom"
-        )
+        client = MossClient(os.environ["MOSS_PROJECT_ID"], os.environ["MOSS_PROJECT_KEY"])
+        self.session = await client.session(f"bench-{uuid.uuid4().hex[:8]}", model_id="custom")
         for i in range(0, len(ids), BATCH):
             docs = [
                 DocumentInfo(
                     id=str(ids[i + j]),
                     text="",
                     embedding=row,
-                    metadata={k: str(v) for k, v in metadata[i + j].items()}
-                    if metadata
-                    else None,
+                    metadata={k: str(v) for k, v in metadata[i + j].items()} if metadata else None,
                 )
                 for j, row in enumerate(vectors[i : i + BATCH].tolist())
             ]
@@ -117,17 +119,13 @@ class ChromaEngine:
         """mode picks the metric (see METRICS)."""
         self.metric = self.METRICS[mode]
 
-    def build(
-        self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None
-    ) -> None:
+    def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
         """Create a collection (only the space is set, in "ip" mode) and add docs in the client's max batch size."""
         import chromadb
         from chromadb.config import Settings
 
         self.dir = Path(tempfile.mkdtemp(prefix="bench-chroma-"))
-        client = chromadb.PersistentClient(
-            str(self.dir), Settings(anonymized_telemetry=False)
-        )
+        client = chromadb.PersistentClient(str(self.dir), Settings(anonymized_telemetry=False))
         self.col = client.create_collection(
             "bench",
             configuration={"hnsw": {"space": "ip"}} if self.metric == "ip" else None,
@@ -150,19 +148,14 @@ class ChromaEngine:
         ef = params.get("ef", self.default_ef)
         self.col.modify(configuration={"hnsw": {"ef_search": ef}})
         chromadb.PersistentClient(str(self.dir), settings).clear_system_cache()
-        self.col = chromadb.PersistentClient(str(self.dir), settings).get_collection(
-            "bench"
-        )
+        self.col = chromadb.PersistentClient(str(self.dir), settings).get_collection("bench")
 
     def search(self, q: np.ndarray, k: int, flt: dict | None = None) -> list[int]:
         """Query by embedding (default include: metadatas, documents, distances); neutral filters map to Chroma's
         where clause ($gte / $eq)."""
         where = {flt["field"]: {f"${flt['op']}": flt["value"]}} if flt else None
         return [
-            int(x)
-            for x in self.col.query(query_embeddings=[q], n_results=k, where=where)[
-                "ids"
-            ][0]
+            int(x) for x in self.col.query(query_embeddings=[q], n_results=k, where=where)["ids"][0]
         ]
 
     def close(self) -> None:
@@ -189,9 +182,7 @@ class LanceEngine:
         )
         self.params: dict = {}
 
-    def build(
-        self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None
-    ) -> None:
+    def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
         """Write a Lance table in a temp dir (batches of 100k rows), then build the index (only the metric set, in
         "ip" mode)."""
         import lancedb
@@ -207,9 +198,7 @@ class LanceEngine:
                 "vector": pa.FixedSizeListArray.from_arrays(pa.array(v.ravel()), d),
             }
             if metadata:
-                cols["labels"] = pa.array(
-                    [m["labels"] for m in metadata[i : i + 100_000]]
-                )
+                cols["labels"] = pa.array([m["labels"] for m in metadata[i : i + 100_000]])
             if self.table is None:
                 self.table = db.create_table("bench", pa.table(cols))
             else:
@@ -253,9 +242,7 @@ class QdrantLocalEngine:
         """mode picks the metric (see METRICS)."""
         self.metric = self.METRICS[mode]
 
-    def build(
-        self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None
-    ) -> None:
+    def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
         """Create a DOT collection and upsert points in batches; the payload holds id and labels."""
         from qdrant_client import QdrantClient
         from qdrant_client.models import Distance, PointStruct, VectorParams
@@ -290,9 +277,7 @@ class QdrantLocalEngine:
             cond = (
                 FieldCondition(key=flt["field"], range=Range(gte=flt["value"]))
                 if flt["op"] == "gte"
-                else FieldCondition(
-                    key=flt["field"], match=MatchValue(value=flt["value"])
-                )
+                else FieldCondition(key=flt["field"], match=MatchValue(value=flt["value"]))
             )
             f = Filter(must=[cond])
         return [
@@ -322,9 +307,7 @@ class FaissEngine:
         self.sweep = EF_SWEEP if kind == "hnsw" else [{}]
         self.selectors = {}
 
-    def build(
-        self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None
-    ) -> None:
+    def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
         """Add all vectors; FAISS ids are row positions and self.ids maps them back to doc ids."""
         import faiss
 
@@ -336,9 +319,7 @@ class FaissEngine:
             self.index = faiss.IndexHNSWFlat(d, FAISS_HNSW_M, metric)
             self.default_ef = self.index.hnsw.efSearch
         for i in range(0, len(ids), 100_000):
-            self.index.add(
-                np.ascontiguousarray(vectors[i : i + 100_000], dtype=np.float32)
-            )
+            self.index.add(np.ascontiguousarray(vectors[i : i + 100_000], dtype=np.float32))
         self.ids, self.meta = np.asarray(ids), metadata
 
     def set_search(self, params: dict) -> None:
@@ -356,11 +337,7 @@ class FaissEngine:
                 pos = np.nonzero(self.ids >= flt["value"])[0].astype(np.int64)
             else:
                 pos = np.array(
-                    [
-                        i
-                        for i, m in enumerate(self.meta)
-                        if m[flt["field"]] == flt["value"]
-                    ],
+                    [i for i, m in enumerate(self.meta) if m[flt["field"]] == flt["value"]],
                     dtype=np.int64,
                 )
             self.selectors[key] = (faiss.IDSelectorBatch(pos), pos)
@@ -379,9 +356,7 @@ class FaissEngine:
                 if self.kind == "hnsw"
                 else faiss.SearchParameters(sel=sel)
             )
-        _, idx = self.index.search(
-            np.asarray(q, dtype=np.float32)[None, :], k, params=params
-        )
+        _, idx = self.index.search(np.asarray(q, dtype=np.float32)[None, :], k, params=params)
         return [int(self.ids[i]) for i in idx[0] if i >= 0]
 
     def close(self) -> None:
@@ -398,9 +373,7 @@ class ZvecEngine:
         """mode picks the metric (see METRICS)."""
         self.metric = self.METRICS[mode]
 
-    def build(
-        self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None
-    ) -> None:
+    def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
         """Create the collection in a temp dir (default options), insert in batches, then optimize (builds the
         index). id and labels get default inverted indexes so they can be filtered."""
         import zvec
@@ -445,11 +418,7 @@ class ZvecEngine:
                         vectors={"dense": v},
                         fields={
                             "id": int(ids[i + j]),
-                            **(
-                                {"labels": metadata[i + j]["labels"]}
-                                if metadata
-                                else {}
-                            ),
+                            **({"labels": metadata[i + j]["labels"]} if metadata else {}),
                         },
                     )
                     for j, v in enumerate(vectors[i : i + BATCH].tolist())
@@ -496,9 +465,7 @@ class SqliteVecEngine:
         """mode picks the metric (see METRICS)."""
         self.metric = self.METRICS[mode]
 
-    def build(
-        self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None
-    ) -> None:
+    def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
         """Create a vec0 table with id/labels metadata columns and insert in batches."""
         import sqlite_vec
 
@@ -553,9 +520,7 @@ class DuckdbVssEngine:
         """mode picks the metric (see METRICS)."""
         self.metric = self.METRICS[mode]
 
-    def build(
-        self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None
-    ) -> None:
+    def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
         """Load rows through Arrow in batches, then CREATE INDEX ... USING HNSW (only the metric set, in "ip" mode)."""
         import duckdb
         import pyarrow as pa
@@ -563,16 +528,10 @@ class DuckdbVssEngine:
         self.d = vectors.shape[1]
         self.con = duckdb.connect()
         self.con.execute("INSTALL vss; LOAD vss")
-        self.con.execute(
-            f"CREATE TABLE t (id BIGINT, labels VARCHAR, v FLOAT[{self.d}])"
-        )
+        self.con.execute(f"CREATE TABLE t (id BIGINT, labels VARCHAR, v FLOAT[{self.d}])")
         for i in range(0, len(ids), 100_000):
             v = np.ascontiguousarray(vectors[i : i + 100_000], dtype=np.float32)
-            labels = (
-                [m["labels"] for m in metadata[i : i + 100_000]]
-                if metadata
-                else [""] * len(v)
-            )
+            labels = [m["labels"] for m in metadata[i : i + 100_000]] if metadata else [""] * len(v)
             batch = pa.table(
                 {
                     "id": pa.array(ids[i : i + 100_000]),
@@ -586,9 +545,7 @@ class DuckdbVssEngine:
         with_ = " WITH (metric = 'ip')" if self.metric == "ip" else ""
         self.con.execute(f"CREATE INDEX idx ON t USING HNSW (v){with_}")
         # the ORDER BY function must match the index metric, or the index is not used
-        self.dist = (
-            "array_negative_inner_product" if self.metric == "ip" else "array_distance"
-        )
+        self.dist = "array_negative_inner_product" if self.metric == "ip" else "array_distance"
 
     def set_search(self, params: dict) -> None:
         """Set hnsw_ef_search, or reset it to the index default for {}."""
@@ -639,12 +596,8 @@ class MossTextEngine:
 
         if "MOSS_ENV_FILE" in os.environ:
             load_dotenv(os.environ["MOSS_ENV_FILE"], override=True)
-        client = MossClient(
-            os.environ["MOSS_PROJECT_ID"], os.environ["MOSS_PROJECT_KEY"]
-        )
-        self.session = await client.session(
-            f"bench-{uuid.uuid4().hex[:8]}", model_id="moss-minilm"
-        )
+        client = MossClient(os.environ["MOSS_PROJECT_ID"], os.environ["MOSS_PROJECT_KEY"])
+        self.session = await client.session(f"bench-{uuid.uuid4().hex[:8]}", model_id="moss-minilm")
         for i in range(0, len(ids), 100):
             await self.session.add_docs(
                 [

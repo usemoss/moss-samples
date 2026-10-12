@@ -121,9 +121,7 @@ def unit(x: np.ndarray) -> np.ndarray:
     return x / np.linalg.norm(x, axis=1, keepdims=True)
 
 
-def exact_topk(
-    base: np.ndarray, queries: np.ndarray, k: int = 100, chunk: int = 256
-) -> np.ndarray:
+def exact_topk(base: np.ndarray, queries: np.ndarray, k: int = 100, chunk: int = 256) -> np.ndarray:
     """Brute-force top-k row indices by inner product, best first, computed in query chunks."""
     out = np.empty((len(queries), k), dtype=np.int64)
     for i in range(0, len(queries), chunk):
@@ -274,10 +272,7 @@ def prepare_dbpedia(name: str) -> None:
     x = np.concatenate(
         [
             np.asarray(
-                pq.read_table(s, columns=["openai"])
-                .column("openai")
-                .combine_chunks()
-                .flatten(),
+                pq.read_table(s, columns=["openai"]).column("openai").combine_chunks().flatten(),
                 dtype=np.float32,
             ).reshape(-1, 1536)
             for s in shards
@@ -317,18 +312,11 @@ def prepare_arxiv(name: str) -> None:
     queries = unit(np.array([t["query"] for t in tests], dtype=np.float32))
     gt = exact_topk(base, queries, 100)
     agree = float(
-        np.mean(
-            [
-                len(set(g[:10].tolist()) & set(t["closest_ids"])) / 10
-                for g, t in zip(gt, tests)
-            ]
-        )
+        np.mean([len(set(g[:10].tolist()) & set(t["closest_ids"])) / 10 for g, t in zip(gt, tests)])
     )
     print(f"top-10 agreement with Qdrant closest_ids: {agree:.4f}")
     if agree < 0.99:
-        raise SystemExit(
-            "ground truth disagrees with Qdrant's; the id mapping or metric is wrong"
-        )
+        raise SystemExit("ground truth disagrees with Qdrant's; the id mapping or metric is wrong")
     meta = {
         "name": name,
         "kind": "vector",
@@ -369,14 +357,10 @@ def prepare_beir(name: str, beir_set: str = "hotpotqa", size: int = 1_000_000) -
         with z.open(f"{beir_set}/qrels/test.tsv") as f:
             for row in csv.DictReader(io.TextIOWrapper(f), delimiter="\t"):
                 if int(row["score"]) > 0:
-                    qrels_raw.setdefault(row["query-id"], {})[row["corpus-id"]] = int(
-                        row["score"]
-                    )
+                    qrels_raw.setdefault(row["query-id"], {})[row["corpus-id"]] = int(row["score"])
         required = {d for rels in qrels_raw.values() for d in rels}
         with z.open(f"{beir_set}/corpus.jsonl") as f:
-            keep = select_subset(
-                (json.loads(line)["_id"] for line in f), required, size
-            )
+            keep = select_subset((json.loads(line)["_id"] for line in f), required, size)
         pos: dict[str, int] = {}
         with (
             z.open(f"{beir_set}/corpus.jsonl") as f,
@@ -386,18 +370,13 @@ def prepare_beir(name: str, beir_set: str = "hotpotqa", size: int = 1_000_000) -
                 d = json.loads(line)
                 if d["_id"] in keep:
                     text = (
-                        f"{d.get('title') or ''} {d.get('text') or ''}".replace(
-                            "\t", " "
-                        )
+                        f"{d.get('title') or ''} {d.get('text') or ''}".replace("\t", " ")
                         .replace("\n", " ")
                         .strip()
                     )
                     pos[d["_id"]] = len(pos)
                     w.write(
-                        json.dumps(
-                            {"id": pos[d["_id"]], "doc_id": d["_id"], "text": text}
-                        )
-                        + "\n"
+                        json.dumps({"id": pos[d["_id"]], "doc_id": d["_id"], "text": text}) + "\n"
                     )
         with (
             z.open(f"{beir_set}/queries.jsonl") as f,
@@ -407,9 +386,7 @@ def prepare_beir(name: str, beir_set: str = "hotpotqa", size: int = 1_000_000) -
                 q = json.loads(line)
                 if q["_id"] in qrels_raw:
                     w.write(json.dumps({"id": q["_id"], "text": q["text"]}) + "\n")
-    qrels = {
-        q: {str(pos[d]): r for d, r in rels.items()} for q, rels in qrels_raw.items()
-    }
+    qrels = {q: {str(pos[d]): r for d, r in rels.items()} for q, rels in qrels_raw.items()}
     (out / "qrels.json").write_text(json.dumps(qrels))
     meta = {
         "name": name,
@@ -445,9 +422,7 @@ def embed_corpus(name: str, batch: int = 256) -> None:
         out[i] = v / np.linalg.norm(v)
     out.flush()
     meta_path = DATA / name / "meta.json"
-    meta = json.loads(meta_path.read_text()) | {
-        "corpus_embed_s": time.perf_counter() - t0
-    }
+    meta = json.loads(meta_path.read_text()) | {"corpus_embed_s": time.perf_counter() - t0}
     meta_path.write_text(json.dumps(meta, indent=1) + "\n")
     print(f"{name}: embedded {len(texts)} docs in {meta['corpus_embed_s']:.0f}s")
 
