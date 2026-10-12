@@ -1,22 +1,26 @@
-"""Benchmark one engine on one prepared dataset; writes results/<dataset>/<engine>[-ip][-docs<N>]-<stamp>.json.
+"""Benchmark one engine on one prepared dataset and write the result as JSON.
+
+The result goes to results/<dataset>/<engine>[-ip][-docs<N>]-<stamp>.json.
 
 usage: ./run_suite.sh <dataset> <engine> [options]   (one watchdogged run.py per pair; its log is
-       results/logs/<dataset>-<engine>[-ip][-docs<N>]-<stamp>.log with the same --stamp as the result; engines: see
-       engines.ENGINES; the first output line is "args: {...}")
+       results/logs/<dataset>-<engine>[-ip][-docs<N>]-<stamp>.log with the same --stamp as the
+       result; engines: see engines.ENGINES; the first output line is "args: {...}")
 
-Every engine runs off the shelf: library-default index and search settings (see engines.py). --metric picks the
-library's default distance or inner product (cosine where an engine has none).
+Every engine runs off the shelf: library-default index and search settings (see engines.py).
+--metric picks the library's default distance or inner product (cosine where an engine has none).
 
 Stages (VectorDBBench / qdrant / ann-benchmarks methodology, see README.md):
   load        build the index: build seconds, docs/s, RSS before/after build, index size on disk
-  serial      one client, every sweep setting x every --k: recall@k and nDCG@k vs exact top-k (vector), nDCG@10,
-              recall@k and R-precision vs human labels (text, k >= 10), p50/p95/p99/p99.9/mean latency
-  filter      VectorDBBench filter cases (k = 100), scored against each case's own ground truth; per case a cold
-              pass (first use of that filter) then a warm pass, both measured
-The operating point is the library-default search setting ({}, the first point of every sweep); the filter stage
-runs there, after 100 unmeasured warm-up queries. Text datasets keep the top 5 of the first 10
-warm-up queries as example results. Memory: physical footprint (macOS
-proc_pid_rusage) after the dataset loads and after build, plus the peak of every stage, in the result's "memory" block.
+  serial      one client, every sweep setting x every --k: recall@k and nDCG@k vs exact top-k
+              (vector), nDCG@10, recall@k and R-precision vs human labels (text, k >= 10),
+              p50/p95/p99/p99.9/mean latency
+  filter      VectorDBBench filter cases (k = 100), scored against each case's own ground truth;
+              per case a cold pass (first use of that filter) then a warm pass, both measured
+The operating point is the library-default search setting ({}, the first point of every sweep);
+the filter stage runs there, after 100 unmeasured warm-up queries. Text datasets keep the top 5
+of the first 10 warm-up queries as example results. Memory: physical footprint (macOS
+proc_pid_rusage) after the dataset loads and after build, plus the peak of every stage, in the
+result's "memory" block.
 """
 
 import argparse
@@ -64,7 +68,15 @@ PACKAGES = [
 
 
 def ensure_latest_moss() -> None:
-    """Exit unless the installed moss is the newest release on PyPI (the suite always benchmarks the latest Moss)."""
+    """Exit unless the installed moss package is the newest release on PyPI.
+
+    The suite always benchmarks the latest Moss; run.py checks this before every Moss run.
+
+    Raises:
+        SystemExit: The installed version is not PyPI's latest; the message gives the upgrade
+            command.
+        urllib.error.URLError: PyPI cannot be reached.
+    """
     installed = version("moss")
     latest = json.load(urllib.request.urlopen("https://pypi.org/pypi/moss/json", timeout=10))[
         "info"
@@ -77,7 +89,17 @@ def ensure_latest_moss() -> None:
 
 
 async def search(eng: object, q: object, k: int, flt: dict | None = None) -> list[int]:
-    """Call eng.search natively: coroutines are awaited, sync engines run inline."""
+    """Run one query on any engine, awaiting it when the engine's search is a coroutine.
+
+    Args:
+        eng: Engine adapter (see engines.py); Moss's search is async, the others are synchronous.
+        q: Query vector, or query text for a text-mode engine.
+        k: Number of results.
+        flt: Neutral filter (see engines.py), or None.
+
+    Returns:
+        Top-k doc ids, best first.
+    """
     if inspect.iscoroutinefunction(eng.search):
         return await eng.search(q, k, flt)
     return eng.search(q, k, flt)
@@ -86,7 +108,19 @@ async def search(eng: object, q: object, k: int, flt: dict | None = None) -> lis
 async def timed(
     eng: object, qs: list, k: int, flt: dict | None = None
 ) -> tuple[list[list[int]], list[float]]:
-    """Serial pass: results and per-query latency (seconds, perf_counter) for every query."""
+    """Run every query once, in order, and time each call.
+
+    One client, no concurrency: each latency is the perf_counter time around one search() call.
+
+    Args:
+        eng: Engine adapter (see engines.py).
+        qs: Query vectors, or query texts for a text-mode engine.
+        k: Number of results per query.
+        flt: Neutral filter applied to every query, or None.
+
+    Returns:
+        The result ids and the latency in seconds of every query, both in query order.
+    """
     got, lat = [], []
     for q in qs:
         t0 = time.perf_counter()
@@ -96,7 +130,25 @@ async def timed(
 
 
 def subset(d: dict, docs: int | None, queries: int | None, stages: list[str]) -> dict:
-    """Limit a vector dataset to the first `docs` docs / `queries` queries; a doc subset gets exact GT recomputed."""
+    """Limit a vector dataset to its first docs and/or first queries.
+
+    Fewer queries also cut their ground truth (plain and per filter). A doc subset gets its labels
+    cut and its exact ground truth recomputed (top 100, or every doc when fewer). The input dict is
+    not modified.
+
+    Args:
+        d: Dataset as returned by bench_data.load().
+        docs: Keep only this many docs; None or 0 keeps all.
+        queries: Keep only this many queries; None or 0 keeps all.
+        stages: Stages of this run; a doc subset cannot run the filter stage.
+
+    Returns:
+        A shallow copy of d with the subset applied and meta's n_base / n_queries updated.
+
+    Raises:
+        SystemExit: docs is set and stages include "filter" (filter ground truth covers the full
+            set).
+    """
     d = dict(d, meta=dict(d["meta"]))
     if queries:
         d["queries"], d["gt"] = d["queries"][:queries], d["gt"][:queries]
@@ -116,10 +168,22 @@ def subset(d: dict, docs: int | None, queries: int | None, stages: list[str]) ->
 
 
 def env() -> dict:
-    """Hardware and software versions recorded in every result file."""
+    """Collect the hardware and software versions recorded in every result file.
+
+    Returns:
+        CPU brand, core count, RAM in GB, OS, Python version, the short git commit and the installed
+        version of every package in PACKAGES.
+    """
 
     def sh(*cmd: str) -> str:
-        """stdout of a command, stripped."""
+        """Run a command without a shell and return its stdout.
+
+        Args:
+            *cmd: Program and arguments.
+
+        Returns:
+            The command's stdout, stripped.
+        """
         return subprocess.run(cmd, capture_output=True, text=True).stdout.strip()
 
     return {
@@ -170,8 +234,17 @@ LIBSYSTEM = ctypes.CDLL("/usr/lib/libSystem.B.dylib")
 
 
 def footprint_mb() -> tuple[float, float]:
-    """(current, peak since reset_peak()) physical footprint of this process in MB: Activity Monitor's "Memory",
-    which excludes clean file-backed pages such as the memory-mapped base vectors."""
+    """Read this process's physical footprint and its peak since the last reset_peak().
+
+    The footprint is Activity Monitor's "Memory": it excludes clean file-backed pages such as the
+    memory-mapped base vectors.
+
+    Returns:
+        The current footprint and the interval peak, in MB.
+
+    Raises:
+        OSError: proc_pid_rusage fails.
+    """
     r = RusageInfoV4()
     if LIBSYSTEM.proc_pid_rusage(os.getpid(), 4, ctypes.byref(r)) != 0:  # 4 = RUSAGE_INFO_V4
         raise OSError("proc_pid_rusage failed")
@@ -179,15 +252,30 @@ def footprint_mb() -> tuple[float, float]:
 
 
 def reset_peak() -> None:
-    """Start a new footprint peak interval (libproc's private proc_reset_footprint_interval; verified on macOS 26.6).
-    Reading the interval peak needs no sampling thread, so measured latencies are unaffected."""
+    """Start a new footprint peak interval for footprint_mb().
+
+    Calls libproc's private proc_reset_footprint_interval (verified on macOS 26.6). Reading the
+    interval peak needs no sampling thread, so measured latencies are unaffected.
+
+    Raises:
+        OSError: proc_reset_footprint_interval fails.
+    """
     if LIBSYSTEM.proc_reset_footprint_interval(os.getpid()) != 0:
         raise OSError("proc_reset_footprint_interval failed")
 
 
 def disk_mb(eng: object) -> float:
-    """Allocated size in MB of the engine's index directory (chroma, lancedb, zvec, sqlite-vec keep their index in a
-    temp dir; text mode wraps the engine as .engine), counted like du; 0 for in-memory engines."""
+    """Measure the allocated size of an engine's index directory, counted like du.
+
+    Chroma, LanceDB, zvec and sqlite-vec keep their index in a temp dir (the adapter's `dir`); in
+    text mode the adapter is wrapped and found as `.engine`.
+
+    Args:
+        eng: Engine adapter, possibly wrapped by QueryEmbedder.
+
+    Returns:
+        Allocated size in MB; 0 for in-memory engines (no `dir`).
+    """
     d = getattr(getattr(eng, "engine", eng), "dir", None)
     return (
         sum(f.stat().st_blocks * 512 for f in Path(d).rglob("*") if f.is_file()) / 2**20
@@ -197,7 +285,26 @@ def disk_mb(eng: object) -> float:
 
 
 async def main(a: argparse.Namespace) -> dict:
-    """Run the selected stages for one engine and return the result document."""
+    """Run the selected stages for one engine on one dataset.
+
+    Loads the dataset (applying --docs / --queries) and builds the index (load stage). The serial
+    stage runs every sweep setting at every k, after 100 unmeasured warm-up queries per setting. The
+    operating point then gets 100 more warm-up queries (on text datasets, the top 5 of the first 10
+    become example results), and the filter stage, when selected and the dataset has filters, runs
+    each case cold then warm. Memory is read after load, after build and as the peak of each stage.
+
+    Args:
+        a: Parsed command-line arguments (see the parser at the bottom of this module).
+
+    Returns:
+        The result document: dataset meta, engine, metric, env, args, and the load, serial, filter,
+        operating_point and memory blocks (text datasets add examples).
+
+    Raises:
+        SystemExit: The arguments do not fit the dataset (--docs on a text dataset, no --k of at
+            least 10 on a text dataset, a k above the ground-truth width, unknown stages or filters)
+            or the engine has no such --metric mode.
+    """
     stages, ks = a.stages.split(","), [int(x) for x in a.k.split(",")]
     d = load(a.dataset)
     text = d["meta"]["kind"] == "text"

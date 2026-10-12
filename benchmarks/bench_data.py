@@ -1,14 +1,18 @@
 """Fetch and prepare the standard benchmark datasets into data/<name>/ (see README.md, "Datasets").
 
-usage: ./watchdog.sh results/logs/fetch-<name>-<stamp>.log $PWD/.venv/bin/python bench_data.py fetch <name>     # resumable, sha256-checked
-       ./watchdog.sh results/logs/prepare-<name>-<stamp>.log $PWD/.venv/bin/python bench_data.py prepare <name> # HEAVY at 1M
+usage: bench_data.py fetch <name>      download the raw files (resumable, sha256-checked)
+       bench_data.py prepare <name>    write the prepared layout (HEAVY at 1M)
+       run either under the watchdog from benchmarks/, with the absolute interpreter:
+       ./watchdog.sh results/logs/<step>-<name>-<stamp>.log $PWD/.venv/bin/python bench_data.py ...
 names: cohere-100k (smoke), cohere-1m, dbpedia-openai-1m, arxiv-titles-2m, hotpotqa-1m
 
 Prepared layout:
-  vector datasets  base.npy (float32, unit rows), ids.npy (int64), queries.npy, gt.npy (int64 top-100 ids),
-                   optional labels.npy + gt_<filter>.npy, meta.json ("filters": neutral filter specs)
-  text dataset     corpus.jsonl ({"id": int position, "doc_id", "text"}), queries.jsonl, qrels.json
-                   (keys are int positions as strings), base_minilm.npy (fastembed vectors for non-Moss engines)
+  vector datasets  base.npy (float32, unit rows), ids.npy (int64), queries.npy, gt.npy (int64
+                   top-100 ids), optional labels.npy + gt_<filter>.npy, meta.json ("filters":
+                   neutral filter specs)
+  text dataset     corpus.jsonl ({"id": int position, "doc_id", "text"}), queries.jsonl,
+                   qrels.json (keys are int positions as strings), base_minilm.npy (fastembed
+                   vectors for non-Moss engines)
 """
 
 import hashlib
@@ -34,13 +38,22 @@ VDBB_FILTER_FILES = {
 HF_DBPEDIA = "KShivendu/dbpedia-entities-openai-1M"
 HF_DBPEDIA_REV = "af9b8869cc2d8debbd254d77737865bb09a2067f"
 MINILM = "sentence-transformers/all-MiniLM-L6-v2"  # same weights as Moss's built-in moss-minilm
-# moss-minilm embeds up to 512 tokens; fastembed 0.9.0 truncates at 256 by default. At 512, fastembed vectors
+# moss-minilm embeds up to 512 tokens; fastembed 0.9.0 truncates at 256 by default. At 512,
+# fastembed vectors
 # reproduce Moss's built-in retrieval exactly (SciFact nDCG@10 0.6541 for both; 0.6451 at 256).
 MINILM_MAX_TOKENS = 512
 
 
 def vdbb_files(case: str) -> dict[str, str]:
-    """Download URLs of one VectorDBBench case: base, queries, ground truth, labels and filter ground truth."""
+    """List the download URLs of one VectorDBBench case.
+
+    Args:
+        case: Case directory on the VectorDBBench asset host, e.g. "cohere_small_100k".
+
+    Returns:
+        File name -> URL for the base vectors, queries, ground truth, scalar labels and the ground
+        truth of the four filter cases.
+    """
     names = [
         "shuffle_train.parquet",
         "test.parquet",
@@ -54,7 +67,13 @@ def vdbb_files(case: str) -> dict[str, str]:
 
 
 def dbpedia_files() -> dict[str, str]:
-    """Download URLs of the 26 parquet shards of the pinned HF revision (listed through the HF tree API)."""
+    """List the download URLs of the 26 parquet shards of the pinned DBpedia-OpenAI-1M revision.
+
+    The shard names come from the Hugging Face tree API (one HTTP request).
+
+    Returns:
+        Shard file name -> download URL at revision HF_DBPEDIA_REV.
+    """
     url = f"https://huggingface.co/api/datasets/{HF_DBPEDIA}/tree/{HF_DBPEDIA_REV}/data"
     tree = json.load(urllib.request.urlopen(url))
     base = f"https://huggingface.co/datasets/{HF_DBPEDIA}/resolve/{HF_DBPEDIA_REV}"
@@ -62,14 +81,22 @@ def dbpedia_files() -> dict[str, str]:
 
 
 def arxiv_files() -> dict[str, str]:
-    """Download URL of Qdrant's arxiv-titles-384-angular (no-filters) tarball."""
+    """Return the download URL of Qdrant's arxiv-titles-384-angular (no-filters) tarball.
+
+    Returns:
+        File name -> URL (one entry).
+    """
     return {
         "arxiv_no_filters.tar.gz": "https://storage.googleapis.com/ann-filtered-benchmark/datasets/arxiv_no_filters.tar.gz"
     }
 
 
 def hotpotqa_files() -> dict[str, str]:
-    """Download URL of the BEIR HotpotQA zip."""
+    """Return the download URL of the BEIR HotpotQA zip.
+
+    Returns:
+        File name -> URL (one entry).
+    """
     return {
         "hotpotqa.zip": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/hotpotqa.zip"
     }
@@ -94,7 +121,19 @@ def sha256(path: Path) -> str:
 
 
 def fetch(name: str) -> None:
-    """Download every raw file (resuming partial ones); record sha256 on first fetch, verify on later fetches."""
+    """Download every raw file of a dataset into data/<name>/raw/ and check its sha256.
+
+    A file already listed in checksums.json counts as complete and is not downloaded again; any
+    other file is (re)downloaded with curl, resuming a partial download. The first fetch records
+    each file's sha256 in checksums.json and later fetches verify it.
+
+    Args:
+        name: Dataset name, a key of SOURCES.
+
+    Raises:
+        SystemExit: A file's sha256 differs from the recorded one.
+        subprocess.CalledProcessError: curl fails.
+    """
     raw = DATA / name / "raw"
     raw.mkdir(parents=True, exist_ok=True)
     sums = json.loads(CHECKSUMS.read_text())
@@ -116,13 +155,34 @@ def fetch(name: str) -> None:
 
 
 def unit(x: np.ndarray) -> np.ndarray:
-    """Rows scaled to unit L2 norm, as float32 (inner product on unit vectors = cosine)."""
+    """Scale each row to unit L2 norm, as float32.
+
+    Inner product on unit vectors equals cosine similarity, and l2 distance ranks them the same way.
+
+    Args:
+        x: Matrix with one vector per row.
+
+    Returns:
+        A new float32 matrix with unit-norm rows.
+    """
     x = np.asarray(x, dtype=np.float32)
     return x / np.linalg.norm(x, axis=1, keepdims=True)
 
 
 def exact_topk(base: np.ndarray, queries: np.ndarray, k: int = 100, chunk: int = 256) -> np.ndarray:
-    """Brute-force top-k row indices by inner product, best first, computed in query chunks."""
+    """Find the exact top-k rows of base for each query by inner product (brute force).
+
+    Queries are scored `chunk` at a time, so the score matrix in memory is chunk x n_base.
+
+    Args:
+        base: Doc vectors, one per row.
+        queries: Query vectors, one per row.
+        k: Number of neighbors per query.
+        chunk: Queries scored per matrix product.
+
+    Returns:
+        Row indices into base, shape (n_queries, k), int64, best first.
+    """
     out = np.empty((len(queries), k), dtype=np.int64)
     for i in range(0, len(queries), chunk):
         s = queries[i : i + chunk] @ base.T
@@ -133,7 +193,23 @@ def exact_topk(base: np.ndarray, queries: np.ndarray, k: int = 100, chunk: int =
 
 
 def select_subset(corpus_ids: Iterable[str], required: set[str], size: int) -> set[str]:
-    """VectorDBBench _build_selected_doc_ids: keep every qrel doc, then fill in corpus order up to size."""
+    """Choose up to size docs, keeping every qrel doc (VectorDBBench _build_selected_doc_ids).
+
+    Every required doc is kept and the rest of the budget is filled with docs in corpus order. The
+    scan stops once the budget is full and every required doc has been seen.
+
+    Args:
+        corpus_ids: Doc ids in corpus order (iterated once).
+        required: Doc ids that must be kept (those with a qrel).
+        size: Maximum number of docs.
+
+    Returns:
+        The selected doc ids.
+
+    Raises:
+        ValueError: There are more required docs than size, or required docs are missing from the
+            corpus.
+    """
     if len(required) > size:
         raise ValueError(f"size={size} is too small for {len(required)} qrel documents")
     selected, found = set(required), set()
@@ -150,7 +226,13 @@ def select_subset(corpus_ids: Iterable[str], required: set[str], size: int) -> s
 
 
 def save(name: str, meta: dict, **arrays: np.ndarray) -> None:
-    """Write arrays as data/<name>/<key>.npy and meta.json."""
+    """Write a prepared dataset's arrays and metadata to data/<name>/.
+
+    Args:
+        name: Dataset name; data/<name>/ must already exist.
+        meta: Metadata, written to meta.json.
+        **arrays: Arrays to write, each as <key>.npy.
+    """
     out = DATA / name
     for key, arr in arrays.items():
         np.save(out / f"{key}.npy", arr)
@@ -158,7 +240,19 @@ def save(name: str, meta: dict, **arrays: np.ndarray) -> None:
 
 
 def load(name: str) -> dict:
-    """Load a prepared dataset; base vectors are memory-mapped so builds never copy them whole."""
+    """Load a prepared dataset from data/<name>/.
+
+    Base vectors are memory-mapped, so builds never copy them whole.
+
+    Args:
+        name: Dataset name.
+
+    Returns:
+        For a vector dataset: meta, base, ids, queries, gt and, when it has labels, labels and
+        gt_filters (filter tag -> ground truth). For a text dataset: meta, corpus and queries_text
+        (lists of JSON rows), base (the MiniLM vectors, or None before embedding), ids (corpus
+        positions) and qrels.
+    """
     out = DATA / name
     meta = json.loads((out / "meta.json").read_text())
     if meta["kind"] == "text":
@@ -191,7 +285,15 @@ def load(name: str) -> dict:
 
 
 def _parquet_matrix(path: Path, col: str) -> tuple[np.ndarray, np.ndarray]:
-    """(ids, matrix) from a parquet file with an `id` column and a list column, sorted by id."""
+    """Read the ids and a list-valued column of a parquet file, sorted by id.
+
+    Args:
+        path: Parquet file with an `id` column.
+        col: List column holding one vector per row.
+
+    Returns:
+        The ids and a matrix with one row per id.
+    """
     import pyarrow.parquet as pq
 
     t = pq.read_table(path).sort_by("id")
@@ -200,8 +302,18 @@ def _parquet_matrix(path: Path, col: str) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _gt_matrix(path: Path, k: int = 100) -> np.ndarray:
-    """Top-k neighbor ids per query (sorted by query id) from a VDBB neighbors file; rows can be ragged
-    (filtered cases may list fewer neighbors), so short rows are padded with -1, which never matches a doc."""
+    """Read a VectorDBBench neighbors file as a top-k id matrix, sorted by query id.
+
+    Rows can be ragged (filtered cases may list fewer neighbors); short rows are padded with -1,
+    which never matches a doc.
+
+    Args:
+        path: Neighbors parquet file with `id` and `neighbors_id` columns.
+        k: Neighbors kept per query.
+
+    Returns:
+        Neighbor ids, shape (n_queries, k), int64.
+    """
     import pyarrow.parquet as pq
 
     rows = pq.read_table(path).sort_by("id").column("neighbors_id").to_pylist()
@@ -212,10 +324,14 @@ def _gt_matrix(path: Path, k: int = 100) -> np.ndarray:
 
 
 def prepare_vdbb(name: str) -> None:
-    """VectorDBBench Cohere case: unit vectors, top-100 GT, labels, and the four standard filter cases.
+    """Prepare a VectorDBBench Cohere case: unit vectors, top-100 GT, labels and filter cases.
 
-    Filter semantics follow VDBB backend/filter.py: IntFilter keeps id >= int(size * rate) (head_1p = rate 0.01,
-    tail_1p = rate 0.99); LabelFilter keeps labels == "label_<p>p".
+    The ground truth, plain and per filter case, is VectorDBBench's own. Filter semantics follow
+    VDBB backend/filter.py: IntFilter keeps id >= int(size * rate) (head_1p = rate 0.01, tail_1p =
+    rate 0.99); LabelFilter keeps labels == "label_<p>p".
+
+    Args:
+        name: Dataset name (cohere-100k or cohere-1m); reads data/<name>/raw/.
     """
     import pyarrow.parquet as pq
 
@@ -258,11 +374,15 @@ def prepare_vdbb(name: str) -> None:
 
 
 def prepare_dbpedia(name: str) -> None:
-    """DBpedia-OpenAI-1M with the ann-benchmarks split and exact top-100 GT (ids = HF row index).
+    """Prepare DBpedia-OpenAI-1M with the ann-benchmarks split and exact top-100 GT.
 
     ann-benchmarks dbpedia_entities_openai_1M calls train_test_split(embeddings, test_size=10_000,
-    random_state=42) on the HF rows in shard order; sklearn's shuffle depends only on (n, random_state),
-    so splitting np.arange(n) yields the same partition.
+    random_state=42) on the HF rows in shard order; sklearn's shuffle depends only on (n,
+    random_state), so splitting np.arange(n) yields the same partition. Doc ids are the HF row
+    indices.
+
+    Args:
+        name: Dataset name (dbpedia-openai-1m); reads the 26 shards in data/<name>/raw/.
     """
     import pyarrow.parquet as pq
     from sklearn.model_selection import train_test_split
@@ -299,7 +419,18 @@ def prepare_dbpedia(name: str) -> None:
 
 
 def prepare_arxiv(name: str) -> None:
-    """Qdrant arxiv-titles (all-MiniLM-L6-v2): exact top-100 GT, cross-checked against Qdrant's top-10."""
+    """Prepare Qdrant's arxiv-titles (all-MiniLM-L6-v2 vectors) with exact top-100 GT.
+
+    The tarball is extracted once. The computed top-10 is cross-checked against Qdrant's
+    closest_ids; doc ids are row positions.
+
+    Args:
+        name: Dataset name (arxiv-titles-2m); reads data/<name>/raw/.
+
+    Raises:
+        SystemExit: Top-10 agreement with Qdrant's closest_ids is below 0.99 (wrong id mapping or
+            metric).
+    """
     import tarfile
 
     raw = DATA / name / "raw"
@@ -341,11 +472,19 @@ def prepare_arxiv(name: str) -> None:
 
 
 def prepare_beir(name: str, beir_set: str = "hotpotqa", size: int = 1_000_000) -> None:
-    """BEIR `beir_set` (default HotpotQA) capped at `size` docs with VectorDBBench's qrel-preserving rule, then
-    MiniLM corpus vectors for non-Moss engines. Reads data/<name>/raw/<beir_set>.zip (test split qrels).
+    """Prepare a BEIR text dataset capped at `size` docs, with MiniLM vectors for other engines.
 
-    Doc text follows VDBB HotpotQATranslator: f"{title} {text}" with tabs/newlines replaced by spaces.
-    Docs get integer ids = position in corpus.jsonl; qrels are re-keyed to those positions.
+    Reads data/<name>/raw/<beir_set>.zip and keeps the test-split qrels with a grade above 0. The
+    corpus is capped with VectorDBBench's qrel-preserving rule (select_subset). Doc text follows
+    VDBB HotpotQATranslator: f"{title} {text}" with tabs/newlines replaced by spaces. Docs get
+    integer ids = position in corpus.jsonl and the qrels are re-keyed to those positions. Writes
+    corpus.jsonl, queries.jsonl (queries with qrels only), qrels.json and meta.json, then runs
+    embed_corpus().
+
+    Args:
+        name: Dataset name; output goes to data/<name>/.
+        beir_set: BEIR dataset name, the zip's top-level directory.
+        size: Maximum number of corpus docs.
     """
     import csv
     import io
@@ -403,7 +542,16 @@ def prepare_beir(name: str, beir_set: str = "hotpotqa", size: int = 1_000_000) -
 
 
 def embed_corpus(name: str, batch: int = 256) -> None:
-    """Embed corpus.jsonl with fastembed MiniLM into base_minilm.npy (non-Moss engines index these vectors)."""
+    """Embed corpus.jsonl with fastembed MiniLM into base_minilm.npy for the non-Moss engines.
+
+    Truncation is set to MINILM_MAX_TOKENS to match Moss's built-in moss-minilm. Vectors are
+    unit-normalized and written row by row to a memory-mapped file; the embedding time is added to
+    meta.json as corpus_embed_s.
+
+    Args:
+        name: Dataset name; reads and writes data/<name>/.
+        batch: Texts per fastembed batch.
+    """
     import time
 
     from fastembed import TextEmbedding

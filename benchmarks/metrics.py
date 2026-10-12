@@ -1,5 +1,7 @@
-"""Recall, nDCG, R-precision and latency metrics, matching VectorDBBench, BEIR and ann-benchmarks
-conventions (see README.md).
+"""Recall, nDCG, R-precision and latency metrics.
+
+The definitions match VectorDBBench, BEIR (trec_eval) and ann-benchmarks conventions (see
+README.md).
 """
 
 import math
@@ -9,22 +11,36 @@ import numpy as np
 
 
 def recall(got: Sequence[Sequence[int]], gt: np.ndarray, k: int) -> float:
-    """VectorDBBench calc_recall: |got[:k] ∩ gt[:k]| / k, averaged over queries."""
+    """Mean recall@k against exact ground truth (VectorDBBench calc_recall).
+
+    Per query, |got[:k] ∩ gt[:k]| / k, averaged over the queries.
+
+    Args:
+        got: Returned doc ids per query, best first; a list may be shorter than k.
+        gt: Exact neighbor ids per query, shape (n_queries, >= k), best first; -1 pads rows with
+            fewer neighbors and never matches a doc.
+        k: Cutoff for both the returned ids and the ground truth.
+
+    Returns:
+        Recall@k averaged over the queries, in [0, 1].
+    """
     return float(np.mean([len(set(g[:k]) & set(t[:k].tolist())) / k for g, t in zip(got, gt)]))
 
 
 def ndcg_gt(got: Sequence[Sequence[int]], gt: np.ndarray, k: int) -> float:
-    """VectorDBBench `calc_vector_metrics` nDCG.
+    """Mean nDCG@k graded by rank in the exact ground truth (VectorDBBench calc_vector_metrics).
 
-    Each unique hit adds `1/log2(gt_rank + 2)` over the ideal DCG.
+    Each unique returned id found in gt[:k] adds 1 / log2(gt_rank + 2), where gt_rank is its 0-based
+    position in the ground truth; the sum is divided by the ideal DCG of k hits. The order of the
+    returned ids does not change the score.
 
     Args:
-        got:
-        gt:
-        k:
+        got: Returned doc ids per query.
+        gt: Exact neighbor ids per query, shape (n_queries, >= k), best first.
+        k: Cutoff for both the returned ids and the ground truth.
 
     Returns:
-        float:
+        nDCG@k averaged over the queries, in [0, 1].
     """
     ideal = sum(1 / math.log2(i + 2) for i in range(k))
     scores = []
@@ -37,7 +53,20 @@ def ndcg_gt(got: Sequence[Sequence[int]], gt: np.ndarray, k: int) -> float:
 
 
 def ndcg_qrels(got: dict[str, list[str]], qrels: dict[str, dict[str, int]], k: int = 10) -> float:
-    """trec_eval ndcg_cut (linear gain): sum rel_i / log2(i + 1) over ranks 1..k, divided by the ideal ordering."""
+    """Mean nDCG@k against human relevance labels (trec_eval ndcg_cut, linear gain).
+
+    DCG sums rel_i / log2(i + 1) over result ranks i = 1..k, where rel_i is the result's grade (0 if
+    unlabelled); it is divided by the DCG of the query's grades in descending order. A query with no
+    results, or with an ideal DCG of 0, scores 0.
+
+    Args:
+        got: Returned doc ids (as strings) per query id, best first.
+        qrels: Relevance grade per doc id, per query id; every query in qrels is scored.
+        k: Rank cutoff.
+
+    Returns:
+        nDCG@k averaged over the queries in qrels.
+    """
     scores = []
     for q, rels in qrels.items():
         dcg = sum(rels.get(d, 0) / math.log2(i + 2) for i, d in enumerate(got.get(q, [])[:k]))
@@ -51,14 +80,37 @@ def ndcg_qrels(got: dict[str, list[str]], qrels: dict[str, dict[str, int]], k: i
 def recall_qrels(
     got: dict[str, list[str]], qrels: dict[str, dict[str, int]], k: int = 100
 ) -> float:
-    """BEIR recall@k: relevant docs retrieved in the top k, over all relevant docs, averaged over queries."""
+    """Mean recall@k against human relevance labels (BEIR).
+
+    Per query, the labelled docs found in the top k over all docs labelled for that query.
+
+    Args:
+        got: Returned doc ids (as strings) per query id, best first.
+        qrels: Relevance grade per doc id, per query id; every query in qrels is scored, and every
+            doc listed for a query counts as relevant.
+        k: Rank cutoff.
+
+    Returns:
+        Recall@k averaged over the queries in qrels.
+    """
     return float(
         np.mean([len(set(got.get(q, [])[:k]) & set(r)) / len(r) for q, r in qrels.items()])
     )
 
 
 def r_precision(got: dict[str, list[str]], qrels: dict[str, dict[str, int]]) -> float:
-    """trec_eval Rprec: relevant docs (grade > 0) in the top R over R, R = the query's relevant-doc count."""
+    """Mean R-precision against human relevance labels (trec_eval Rprec).
+
+    Per query, R is its number of relevant docs (grade > 0) and the score is the share of its top R
+    results that are relevant. A query with no relevant docs scores 0.
+
+    Args:
+        got: Returned doc ids (as strings) per query id, best first.
+        qrels: Relevance grade per doc id, per query id; every query in qrels is scored.
+
+    Returns:
+        R-precision averaged over the queries in qrels.
+    """
     scores = []
     for q, rels in qrels.items():
         rel = {d for d, g in rels.items() if g > 0}

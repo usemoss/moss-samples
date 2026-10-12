@@ -1,27 +1,27 @@
-"""Engine adapters: every engine runs off the shelf, with its library's default index and search
-settings.
+"""Engine adapters for the benchmark, each running its library off the shelf.
+
+Every engine uses its library's default index and search settings.
 
 Contract (used by run.py), identical for all engines:
   name: str              short identifier written into result files
   METRICS: dict          metric mode -> distance used: "default" = the library's default metric,
-                         "ip" = inner product
-                         (cosine where the engine has none); an engine whose default is already
-                         inner product has only "default"
+                         "ip" = inner product (cosine where the engine has none); an engine whose
+                         default is already inner product has only "default"
   metric: str            the distance this instance uses (METRICS[mode])
   sweep: list[dict]      search settings for the serial stage; {} = the library default, which
                          every sweep starts with ([{}] = exact engine, one point)
   build(ids, vectors, metadata) -> None     index all docs (ids int64, vectors (n, d) float32,
                                             metadata or None)
-  set_search(params) -> None                apply one sweep setting; {} restores the library default
+  set_search(params) -> None                apply one sweep setting; {} restores the library
+                                            default
   search(q, k, flt) -> list[int]            top-k doc ids for one query vector; flt is a neutral
                                             filter or None
   close() -> None                           free resources
 
-Moss's build/search/close are coroutines (its public API is async); the other engines are synchronous.
-Vectors are L2-normalized, so l2, inner product and cosine rank documents identically.
-Each search returns what the library returns by default (never vectors unless that is its default);
-SQL engines
-select id, labels and the distance where the index allows it.
+Moss's build/search/close are coroutines (its public API is async); the other engines are
+synchronous. Vectors are L2-normalized, so l2, inner product and cosine rank documents
+identically. Each search returns what the library returns by default (never vectors unless that is
+its default); SQL engines select id, labels and the distance where the index allows it.
 
 A neutral filter is {"field": "id", "op": "gte", "value": int} or {"field": "labels", "op": "eq",
 "value": str}. Metadata rows are {"id": int, "labels": str}.
@@ -43,25 +43,53 @@ FAISS_HNSW_M = 32  # faiss's C++ default; the Python constructor requires M
 
 
 def _sql_op(flt: dict) -> str:
-    """SQL comparison operator for a neutral filter."""
+    """Map a neutral filter's op to its SQL comparison operator.
+
+    Args:
+        flt: Neutral filter.
+
+    Returns:
+        ">=" for op "gte", "=" otherwise.
+    """
     return ">=" if flt["op"] == "gte" else "="
 
 
 class MossEngine:
-    """Moss through its public Python API: one uniquely named SessionIndex with custom vectors,
-    never pushed.
+    """Moss through its public Python API, with custom vectors.
+
+    One uniquely named SessionIndex per run, never pushed.
     """
 
     name, sweep, METRICS = "moss", [{}], {"default": "ip"}
 
     def __init__(self, mode: str = "default") -> None:
-        """Create the engine; the session opens in build()."""
+        """Set the metric; the session opens in build().
+
+        Args:
+            mode: Metric mode, a key of METRICS.
+
+        Raises:
+            KeyError: mode is not a key of METRICS.
+        """
         self.session, self.metric = None, self.METRICS[mode]
 
     async def build(
         self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None
     ) -> None:
-        """Open a custom-embedding session and add docs in batches of BATCH (keeps Python lists small)."""
+        """Open a custom-embedding Moss session and add every doc to it.
+
+        Credentials come from MOSS_PROJECT_ID / MOSS_PROJECT_KEY, first loaded from the file named
+        by MOSS_ENV_FILE when that is set. Docs are added BATCH per call (keeps the Python lists
+        small), with metadata values as strings.
+
+        Args:
+            ids: Doc ids, int64.
+            vectors: Unit doc vectors, shape (n, d), float32.
+            metadata: Metadata row per doc ({"id": int, "labels": str}), or None.
+
+        Raises:
+            KeyError: MOSS_PROJECT_ID or MOSS_PROJECT_KEY is not set.
+        """
         import os
 
         from dotenv import load_dotenv
@@ -87,8 +115,16 @@ class MossEngine:
         """Moss has no search parameters (exact search)."""
 
     async def search(self, q: np.ndarray, k: int, flt: dict | None = None) -> list[int]:
-        """Vector-only query (alpha=1.0, there is no query text); filters use Moss's string-valued, numeric-aware
-        operators."""
+        """Run a vector-only query (alpha=1.0; there is no query text).
+
+        Args:
+            q: Unit query vector.
+            k: Number of results.
+            flt: Neutral filter, mapped to Moss's string-valued, numeric-aware $gte / $eq, or None.
+
+        Returns:
+            Top-k doc ids, best first.
+        """
         from moss import QueryOptions
 
         f = (
@@ -107,20 +143,37 @@ class MossEngine:
 
 
 class ChromaEngine:
-    """Chroma in-process (PersistentClient in a temp dir) with its default HNSW index (l2 by default).
+    """Chroma in-process (PersistentClient in a temp dir) with its default HNSW index.
 
-    A persistent client is required for the ef sweep: chromadb 1.5.9 stores a modified ef_search but the loaded
-    index keeps the old value until the client is reopened (verified: recall unchanged on EphemeralClient).
+    The space is l2 by default. A persistent client is required for the ef sweep: chromadb 1.5.9
+    stores a modified ef_search but the loaded index keeps the old value until the client is
+    reopened (verified: recall unchanged on EphemeralClient).
     """
 
     name, sweep, METRICS = "chroma", EF_SWEEP, {"default": "l2", "ip": "ip"}
 
     def __init__(self, mode: str = "default") -> None:
-        """mode picks the metric (see METRICS)."""
+        """Set the metric; the collection is created in build().
+
+        Args:
+            mode: Metric mode, a key of METRICS.
+
+        Raises:
+            KeyError: mode is not a key of METRICS.
+        """
         self.metric = self.METRICS[mode]
 
     def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
-        """Create a collection (only the space is set, in "ip" mode) and add docs in the client's max batch size."""
+        """Create a collection in a new temp dir and add every doc, in the client's max batch size.
+
+        Only the space is configured, and only in "ip" mode. The default ef_search is kept for
+        set_search({}).
+
+        Args:
+            ids: Doc ids, int64.
+            vectors: Unit doc vectors, shape (n, d), float32.
+            metadata: Metadata row per doc ({"id": int, "labels": str}), or None.
+        """
         import chromadb
         from chromadb.config import Settings
 
@@ -140,7 +193,11 @@ class ChromaEngine:
             )
 
     def set_search(self, params: dict) -> None:
-        """Set HNSW ef_search (the default when params is {}), then reopen the client so the loaded index uses it."""
+        """Set HNSW ef_search, then reopen the client so the loaded index uses it.
+
+        Args:
+            params: Sweep setting, {"ef": int}; {} restores the default ef_search kept by build().
+        """
         import chromadb
         from chromadb.config import Settings
 
@@ -151,8 +208,16 @@ class ChromaEngine:
         self.col = chromadb.PersistentClient(str(self.dir), settings).get_collection("bench")
 
     def search(self, q: np.ndarray, k: int, flt: dict | None = None) -> list[int]:
-        """Query by embedding (default include: metadatas, documents, distances); neutral filters map to Chroma's
-        where clause ($gte / $eq)."""
+        """Query by embedding with Chroma's default include (metadatas, documents, distances).
+
+        Args:
+            q: Unit query vector.
+            k: Number of results.
+            flt: Neutral filter, mapped to a where clause ($gte / $eq), or None.
+
+        Returns:
+            Top-k doc ids, best first.
+        """
         where = {flt["field"]: {f"${flt['op']}": flt["value"]}} if flt else None
         return [
             int(x) for x in self.col.query(query_embeddings=[q], n_results=k, where=where)["ids"][0]
@@ -164,15 +229,27 @@ class ChromaEngine:
 
 
 class LanceEngine:
-    """LanceDB embedded. 'ivfpq' = `create_index()` with no config (IVF_PQ, the library default; sweep:
-    refine_factor, which re-ranks with full vectors), 'hnsw' = `IvfHnswSq()` defaults (the docs' "best
-    recall/latency for unfiltered search"; sweep: ef). Filters are where clauses, prefiltered by default.
+    """LanceDB embedded, with its default IVF_PQ index or IVF_HNSW_SQ.
+
+    'ivfpq' = `create_index()` with no config (IVF_PQ, the library default; sweep: refine_factor,
+    which re-ranks with full vectors), 'hnsw' = `IvfHnswSq()` defaults (the docs' "best
+    recall/latency for unfiltered search"; sweep: ef). Filters are where clauses, prefiltered by
+    default.
     """
 
     METRICS = {"default": "l2", "ip": "dot"}
 
     def __init__(self, kind: str, mode: str = "default") -> None:
-        """kind is 'ivfpq' or 'hnsw'; mode picks the metric (see METRICS)."""
+        """Set the index kind, metric, name and sweep.
+
+        Args:
+            kind: "ivfpq" (the default IVF_PQ index, named lancedb) or "hnsw" (IVF_HNSW_SQ, named
+                lancedb-hnsw).
+            mode: Metric mode, a key of METRICS.
+
+        Raises:
+            KeyError: mode is not a key of METRICS.
+        """
         self.kind, self.metric = kind, self.METRICS[mode]
         self.name = "lancedb" if kind == "ivfpq" else "lancedb-hnsw"
         self.sweep = (
@@ -183,8 +260,17 @@ class LanceEngine:
         self.params: dict = {}
 
     def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
-        """Write a Lance table in a temp dir (batches of 100k rows), then build the index (only the metric set, in
-        "ip" mode)."""
+        """Write a Lance table in a new temp dir, then build its vector index.
+
+        Rows (id, vector and, with metadata, labels) are written 100k at a time. The index config
+        sets only the metric: IVF_HNSW_SQ always, IVF_PQ only in "ip" mode (in "default" mode
+        create_index() gets no config).
+
+        Args:
+            ids: Doc ids, int64.
+            vectors: Unit doc vectors, shape (n, d), float32.
+            metadata: Metadata row per doc ({"id": int, "labels": str}), or None.
+        """
         import lancedb
         import pyarrow as pa
         from lancedb.index import IvfHnswSq, IvfPq
@@ -215,8 +301,18 @@ class LanceEngine:
         self.params = params
 
     def search(self, q: np.ndarray, k: int, flt: dict | None = None) -> list[int]:
-        """Vector search with the index's metric (default output: every column, vector included); neutral filters
-        become a where clause."""
+        """Vector search with the index's metric and the current sweep setting.
+
+        The default output has every column, vector included.
+
+        Args:
+            q: Unit query vector.
+            k: Number of results.
+            flt: Neutral filter, applied as a where clause, or None.
+
+        Returns:
+            Top-k doc ids, best first.
+        """
         s = self.table.search(q).distance_type(self.metric).limit(k)
         if "ef" in self.params:
             s = s.ef(self.params["ef"])
@@ -233,17 +329,34 @@ class LanceEngine:
 
 
 class QdrantLocalEngine:
-    """qdrant-client local mode (in-process, in-memory); exact, since local mode does not use HNSW. Qdrant has no
-    default distance (VectorParams requires one), so DOT is used in every mode."""
+    """qdrant-client local mode (in-process, in-memory); exact, since local mode does not use HNSW.
+
+    Qdrant has no default distance (VectorParams requires one), so DOT is used in every mode.
+    """
 
     name, sweep, METRICS = "qdrant-local", [{}], {"default": "dot"}
 
     def __init__(self, mode: str = "default") -> None:
-        """mode picks the metric (see METRICS)."""
+        """Set the metric; the client is created in build().
+
+        Args:
+            mode: Metric mode, a key of METRICS.
+
+        Raises:
+            KeyError: mode is not a key of METRICS.
+        """
         self.metric = self.METRICS[mode]
 
     def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
-        """Create a DOT collection and upsert points in batches; the payload holds id and labels."""
+        """Create an in-memory DOT collection and upsert every doc, BATCH points per call.
+
+        Point ids are the doc ids; the payload is the metadata row (id and labels).
+
+        Args:
+            ids: Doc ids, int64.
+            vectors: Unit doc vectors, shape (n, d), float32.
+            metadata: Metadata row per doc ({"id": int, "labels": str}), or None.
+        """
         from qdrant_client import QdrantClient
         from qdrant_client.models import Distance, PointStruct, VectorParams
 
@@ -269,7 +382,16 @@ class QdrantLocalEngine:
         """No search parameters in local mode."""
 
     def search(self, q: np.ndarray, k: int, flt: dict | None = None) -> list[int]:
-        """query_points (default: payload, no vectors) with an optional Range (gte) or MatchValue (eq) filter."""
+        """Run query_points (default output: payload, no vectors).
+
+        Args:
+            q: Unit query vector.
+            k: Number of results.
+            flt: Neutral filter, mapped to a Range (gte) or MatchValue (eq) condition, or None.
+
+        Returns:
+            Top-k doc ids, best first.
+        """
         from qdrant_client.models import FieldCondition, Filter, MatchValue, Range
 
         f = None
@@ -293,22 +415,40 @@ class QdrantLocalEngine:
 
 
 class FaissEngine:
-    """FAISS in-process: 'flat' = IndexFlatL2 / IndexFlatIP (exact baseline), 'hnsw' = IndexHNSWFlat with M=32 and
-    faiss's default efConstruction (40) and efSearch (16).
+    """FAISS in-process: 'flat' = IndexFlatL2 / IndexFlatIP (exact), 'hnsw' = IndexHNSWFlat.
 
-    Filters use an IDSelectorBatch over the row positions that satisfy the filter (built once per filter).
+    The flat index is the exact baseline. HNSW uses M=32 and faiss's default efConstruction (40) and
+    efSearch (16). Filters use an IDSelectorBatch over the row positions that satisfy the filter
+    (built once per filter).
     """
 
     METRICS = {"default": "l2", "ip": "ip"}
 
     def __init__(self, kind: str, mode: str = "default") -> None:
-        """kind is 'flat' or 'hnsw'; mode picks the metric (see METRICS)."""
+        """Set the index kind, metric, name and sweep.
+
+        Args:
+            kind: "flat" (exact, named faiss-flat) or "hnsw" (named faiss-hnsw, with an ef sweep).
+            mode: Metric mode, a key of METRICS.
+
+        Raises:
+            KeyError: mode is not a key of METRICS.
+        """
         self.kind, self.name, self.metric = kind, f"faiss-{kind}", self.METRICS[mode]
         self.sweep = EF_SWEEP if kind == "hnsw" else [{}]
         self.selectors = {}
 
     def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
-        """Add all vectors; FAISS ids are row positions and self.ids maps them back to doc ids."""
+        """Create the index and add every vector, 100k rows at a time.
+
+        FAISS ids are row positions: self.ids maps them back to doc ids and self.meta keeps the
+        metadata rows for label filters. HNSW keeps faiss's default efSearch for set_search({}).
+
+        Args:
+            ids: Doc ids, int64.
+            vectors: Unit doc vectors, shape (n, d), float32.
+            metadata: Metadata row per doc ({"id": int, "labels": str}), or None.
+        """
         import faiss
 
         d = vectors.shape[1]
@@ -328,7 +468,17 @@ class FaissEngine:
             self.index.hnsw.efSearch = params.get("ef", self.default_ef)
 
     def _selector(self, flt: dict) -> object:
-        """IDSelectorBatch of the row positions passing flt (cached per filter; the array is kept alive)."""
+        """Return the IDSelectorBatch of the row positions that pass a filter.
+
+        Built once per filter and cached with its position array, which must stay alive while the
+        selector is in use.
+
+        Args:
+            flt: Neutral filter; "gte" compares doc ids, "eq" compares a metadata field.
+
+        Returns:
+            The cached faiss.IDSelectorBatch.
+        """
         import faiss
 
         key = (flt["field"], flt["op"], flt["value"])
@@ -344,8 +494,19 @@ class FaissEngine:
         return self.selectors[key][0]
 
     def search(self, q: np.ndarray, k: int, flt: dict | None = None) -> list[int]:
-        """Single-query search (ids and distances); a filter passes a selector (HNSW: with the current efSearch);
-        -1 (fewer than k hits) is dropped."""
+        """Search one query (FAISS returns ids and distances).
+
+        A filter is passed as a selector (HNSW: with the current efSearch). Positions of -1 (fewer
+        than k hits) are dropped.
+
+        Args:
+            q: Unit query vector.
+            k: Number of results.
+            flt: Neutral filter, or None.
+
+        Returns:
+            Top-k doc ids, best first.
+        """
         import faiss
 
         params = None
@@ -370,12 +531,27 @@ class ZvecEngine:
     name, sweep, METRICS = "zvec", EF_SWEEP, {"default": "ip"}
 
     def __init__(self, mode: str = "default") -> None:
-        """mode picks the metric (see METRICS)."""
+        """Set the metric; the collection is created in build().
+
+        Args:
+            mode: Metric mode, a key of METRICS.
+
+        Raises:
+            KeyError: mode is not a key of METRICS.
+        """
         self.metric = self.METRICS[mode]
 
     def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
-        """Create the collection in a temp dir (default options), insert in batches, then optimize (builds the
-        index). id and labels get default inverted indexes so they can be filtered."""
+        """Create a temp-dir zvec collection, insert every doc, then optimize (builds the index).
+
+        The collection uses default options and a default HnswIndexParam; the id and labels fields
+        get default inverted indexes so they can be filtered. Docs are inserted BATCH per call.
+
+        Args:
+            ids: Doc ids, int64.
+            vectors: Unit doc vectors, shape (n, d), float32.
+            metadata: Metadata row per doc ({"id": int, "labels": str}), or None.
+        """
         import zvec
 
         zvec.init(log_level=zvec.LogLevel.WARN)
@@ -434,8 +610,16 @@ class ZvecEngine:
         self.param = zvec.HnswQueryParam(ef=params["ef"]) if params else None
 
     def search(self, q: np.ndarray, k: int, flt: dict | None = None) -> list[int]:
-        """Vector query (default output: all scalar fields) with an optional filter expression (`id >= v` /
-        `labels = 'v'`)."""
+        """Run a vector query (default output: all scalar fields).
+
+        Args:
+            q: Unit query vector.
+            k: Number of results.
+            flt: Neutral filter, as a filter expression (`id >= v` or `labels = 'v'`), or None.
+
+        Returns:
+            Top-k doc ids, best first.
+        """
         import zvec
 
         expr = None
@@ -456,17 +640,35 @@ class ZvecEngine:
 
 
 class SqliteVecEngine:
-    """sqlite-vec vec0 virtual table in a temp file (exact brute-force KNN, l2 by default, cosine in "ip" mode since
-    vec0 has no inner product) with metadata columns for filtering."""
+    """sqlite-vec vec0 virtual table in a temp file, with metadata columns for filtering.
+
+    Exact brute-force KNN: l2 by default, cosine in "ip" mode since vec0 has no inner product.
+    """
 
     name, sweep, METRICS = "sqlite-vec", [{}], {"default": "l2", "ip": "cosine"}
 
     def __init__(self, mode: str = "default") -> None:
-        """mode picks the metric (see METRICS)."""
+        """Set the metric; the database is created in build().
+
+        Args:
+            mode: Metric mode, a key of METRICS.
+
+        Raises:
+            KeyError: mode is not a key of METRICS.
+        """
         self.metric = self.METRICS[mode]
 
     def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
-        """Create a vec0 table with id/labels metadata columns and insert in batches."""
+        """Create a vec0 table (embedding plus id and labels metadata columns) and insert every doc.
+
+        Rows are inserted BATCH per executemany call and committed once; without metadata, labels is
+        "".
+
+        Args:
+            ids: Doc ids, int64.
+            vectors: Unit doc vectors, shape (n, d), float32.
+            metadata: Metadata row per doc ({"id": int, "labels": str}), or None.
+        """
         import sqlite_vec
 
         self.dir = Path(tempfile.mkdtemp(prefix="bench-sqlitevec-"))
@@ -495,7 +697,18 @@ class SqliteVecEngine:
         """No search parameters (exact)."""
 
     def search(self, q: np.ndarray, k: int, flt: dict | None = None) -> list[int]:
-        """KNN via `embedding match ? and k = ?`, plus a metadata constraint when filtered."""
+        """Run a KNN query (`embedding match ? and k = ?`) ordered by distance.
+
+        Selects id, labels and distance.
+
+        Args:
+            q: Unit query vector.
+            k: Number of results.
+            flt: Neutral filter, added as a constraint on its metadata column, or None.
+
+        Returns:
+            Top-k doc ids, best first.
+        """
         sql, args = (
             "select id, labels, distance from v where embedding match ? and k = ?",
             [np.asarray(q, dtype=np.float32).tobytes(), k],
@@ -512,16 +725,36 @@ class SqliteVecEngine:
 
 
 class DuckdbVssEngine:
-    """DuckDB in-memory table with the VSS extension's default HNSW index (l2sq by default, 'ip' in "ip" mode)."""
+    """DuckDB in-memory table with the VSS extension's default HNSW index.
+
+    The metric is l2sq by default and 'ip' in "ip" mode.
+    """
 
     name, sweep, METRICS = "duckdb-vss", EF_SWEEP, {"default": "l2sq", "ip": "ip"}
 
     def __init__(self, mode: str = "default") -> None:
-        """mode picks the metric (see METRICS)."""
+        """Set the metric; the database is created in build().
+
+        Args:
+            mode: Metric mode, a key of METRICS.
+
+        Raises:
+            KeyError: mode is not a key of METRICS.
+        """
         self.metric = self.METRICS[mode]
 
     def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
-        """Load rows through Arrow in batches, then CREATE INDEX ... USING HNSW (only the metric set, in "ip" mode)."""
+        """Load every doc into an in-memory table through Arrow, then create the HNSW index.
+
+        Rows go in 100k at a time. CREATE INDEX ... USING HNSW sets only the metric, and only in
+        "ip" mode. The ORDER BY distance function is chosen to match the index metric, since DuckDB
+        uses the index only then.
+
+        Args:
+            ids: Doc ids, int64.
+            vectors: Unit doc vectors, shape (n, d), float32.
+            metadata: Metadata row per doc ({"id": int, "labels": str}), or None.
+        """
         import duckdb
         import pyarrow as pa
 
@@ -555,10 +788,19 @@ class DuckdbVssEngine:
             self.con.execute("RESET hnsw_ef_search")
 
     def search(self, q: np.ndarray, k: int, flt: dict | None = None) -> list[int]:
-        """ORDER BY <metric distance> LIMIT k; a WHERE clause is added when filtered.
+        """Run ORDER BY <metric distance> LIMIT k, with a WHERE clause when filtered.
 
-        The query vector is inlined as a literal: binding a 768-float list as a prepared parameter costs about
-        35 ms per call in duckdb 1.5.6 (even for SELECT 1), against 2.9 ms for the whole query with a literal.
+        The query vector is inlined as a literal: binding a 768-float list as a prepared parameter
+        costs about 35 ms per call in duckdb 1.5.6 (even for SELECT 1), against 2.9 ms for the whole
+        query with a literal.
+
+        Args:
+            q: Unit query vector.
+            k: Number of results.
+            flt: Neutral filter, or None.
+
+        Returns:
+            Top-k doc ids, best first.
         """
         where, args = "", []
         if flt:
@@ -573,22 +815,41 @@ class DuckdbVssEngine:
 
 
 class MossTextEngine:
-    """Moss with its built-in moss-minilm model: builds from text and embeds each query inside search().
+    """Moss with its built-in moss-minilm model, indexing text and embedding queries in search().
 
-    The sweep is Moss's only query knob, alpha: {} = the SDK default (0.8, hybrid with keyword search), then 1.0
-    (vector only).
+    The sweep is Moss's only query knob, alpha: {} = the SDK default (0.8, hybrid with keyword
+    search), then 1.0 (vector only).
     """
 
     name, sweep, METRICS = "moss", [{}, {"alpha": 1.0}], {"default": "ip"}
 
     def __init__(self, mode: str = "default") -> None:
-        """Create the engine; the session opens in build()."""
+        """Set the metric; the session opens in build().
+
+        Args:
+            mode: Metric mode, a key of METRICS.
+
+        Raises:
+            KeyError: mode is not a key of METRICS.
+        """
         self.session, self.alpha, self.metric = None, None, self.METRICS[mode]
 
     async def build(
         self, ids: np.ndarray, texts: list[str], metadata: list[dict] | None = None
     ) -> None:
-        """Open a moss-minilm session and add text docs, 100 per call (built-in ingest memory grows per call)."""
+        """Open a moss-minilm session and add every text doc, 100 per call.
+
+        Small calls because built-in ingest memory grows per call. Credentials are loaded as in
+        MossEngine.build().
+
+        Args:
+            ids: Doc ids (corpus positions).
+            texts: Doc texts, in ids order.
+            metadata: Unused; accepted for the shared build() signature.
+
+        Raises:
+            KeyError: MOSS_PROJECT_ID or MOSS_PROJECT_KEY is not set.
+        """
         import os
 
         from dotenv import load_dotenv
@@ -611,7 +872,16 @@ class MossTextEngine:
         self.alpha = params.get("alpha")
 
     async def search(self, q: str, k: int, flt: dict | None = None) -> list[int]:
-        """Text query; Moss embeds it with the built-in model."""
+        """Run a text query; Moss embeds it with the built-in model.
+
+        Args:
+            q: Query text.
+            k: Number of results.
+            flt: Ignored (text datasets have no filters).
+
+        Returns:
+            Top-k doc ids, best first.
+        """
         from moss import QueryOptions
 
         r = await self.session.query(q, QueryOptions(top_k=k, alpha=self.alpha))
@@ -623,11 +893,22 @@ class MossTextEngine:
 
 
 class QueryEmbedder:
-    """Text mode for a vector engine: indexes precomputed MiniLM corpus vectors, embeds each query with fastembed
-    all-MiniLM-L6-v2 (the same weights as moss-minilm) inside search(), so latency is end to end."""
+    """Text mode for a vector engine: queries are embedded inside search().
+
+    It indexes precomputed MiniLM corpus vectors and embeds each query with fastembed
+    all-MiniLM-L6-v2 (the same weights as moss-minilm), so latency is end to end.
+    """
 
     def __init__(self, engine: object, cache_dir: str) -> None:
-        """Wrap `engine` and load the fastembed model once."""
+        """Wrap a vector engine and load the fastembed model once.
+
+        The wrapper copies the engine's name, sweep and metric; truncation is set to
+        MINILM_MAX_TOKENS to match moss-minilm.
+
+        Args:
+            engine: Vector engine adapter to wrap.
+            cache_dir: fastembed model cache directory.
+        """
         from fastembed import TextEmbedding
 
         from bench_data import MINILM, MINILM_MAX_TOKENS
@@ -642,7 +923,13 @@ class QueryEmbedder:
     def build(
         self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None = None
     ) -> None:
-        """Index the precomputed corpus vectors."""
+        """Index the precomputed corpus vectors in the wrapped engine.
+
+        Args:
+            ids: Doc ids (corpus positions).
+            vectors: Unit MiniLM corpus vectors (base_minilm.npy).
+            metadata: Metadata row per doc, or None (text datasets have none).
+        """
         self.engine.build(ids, vectors, metadata)
 
     def set_search(self, params: dict) -> None:
@@ -650,7 +937,16 @@ class QueryEmbedder:
         self.engine.set_search(params)
 
     def search(self, q: str, k: int, flt: dict | None = None) -> list[int]:
-        """Embed the query (unit-normalized), then search the wrapped engine."""
+        """Embed the query (unit-normalized), then search the wrapped engine.
+
+        Args:
+            q: Query text.
+            k: Number of results.
+            flt: Neutral filter, passed through, or None.
+
+        Returns:
+            Top-k doc ids, best first.
+        """
         v = next(iter(self.model.embed([q])))
         return self.engine.search(v / np.linalg.norm(v), k, flt)
 
@@ -660,22 +956,50 @@ class QueryEmbedder:
 
 
 def lancedb_ivfpq(mode: str = "default") -> LanceEngine:
-    """LanceDB with its default index (IVF_PQ)."""
+    """Create the LanceDB adapter with its default index (IVF_PQ).
+
+    Args:
+        mode: Metric mode, a key of LanceEngine.METRICS.
+
+    Returns:
+        The adapter.
+    """
     return LanceEngine("ivfpq", mode)
 
 
 def lancedb_hnsw(mode: str = "default") -> LanceEngine:
-    """LanceDB with IVF_HNSW_SQ defaults."""
+    """Create the LanceDB adapter with IVF_HNSW_SQ defaults.
+
+    Args:
+        mode: Metric mode, a key of LanceEngine.METRICS.
+
+    Returns:
+        The adapter.
+    """
     return LanceEngine("hnsw", mode)
 
 
 def faiss_flat(mode: str = "default") -> FaissEngine:
-    """FAISS exact baseline (IndexFlatL2 / IndexFlatIP)."""
+    """Create the FAISS exact baseline (IndexFlatL2 / IndexFlatIP).
+
+    Args:
+        mode: Metric mode, a key of FaissEngine.METRICS.
+
+    Returns:
+        The adapter.
+    """
     return FaissEngine("flat", mode)
 
 
 def faiss_hnsw(mode: str = "default") -> FaissEngine:
-    """FAISS HNSW (IndexHNSWFlat) with an efSearch sweep."""
+    """Create FAISS HNSW (IndexHNSWFlat) with an efSearch sweep.
+
+    Args:
+        mode: Metric mode, a key of FaissEngine.METRICS.
+
+    Returns:
+        The adapter.
+    """
     return FaissEngine("hnsw", mode)
 
 
@@ -694,8 +1018,23 @@ ENGINES = {
 
 
 def make_engine(name: str, text: bool, cache_dir: str, mode: str) -> object:
-    """Engine for a dataset kind and metric mode: on text datasets Moss uses its built-in model, the others wrap
-    QueryEmbedder. Raises KeyError when the engine has no such mode."""
+    """Create the adapter for an engine, dataset kind and metric mode.
+
+    On text datasets Moss uses its built-in model (MossTextEngine) and every other engine is wrapped
+    in QueryEmbedder.
+
+    Args:
+        name: Engine name, a key of ENGINES.
+        text: True for a text dataset.
+        cache_dir: fastembed model cache directory (used on text datasets).
+        mode: Metric mode, "default" or "ip".
+
+    Returns:
+        The engine adapter.
+
+    Raises:
+        KeyError: The engine has no such mode, or name is not a key of ENGINES.
+    """
     if text and name == "moss":
         return MossTextEngine(mode)
     eng = ENGINES[name](mode)

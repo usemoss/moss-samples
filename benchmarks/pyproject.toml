@@ -27,3 +27,9 @@ package = false
 [tool.ruff]
 line-length = 100
 indent-width = 4
+
+[tool.ruff.lint]
+extend-select = ["W"]
+
+[tool.ruff.lint.pycodestyle]
+max-doc-length = 100
