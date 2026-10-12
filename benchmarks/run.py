@@ -10,7 +10,9 @@ Every engine runs off the shelf: library-default index and search settings (see 
 --metric picks the library's default distance or inner product (cosine where an engine has none).
 
 Stages (VectorDBBench / qdrant / ann-benchmarks methodology, see README.md):
-  load        build the index: build seconds, docs/s, RSS before/after build, index size on disk
+  load        build the index: build seconds (ingest + index; library imports and the Moss session
+              are set up before the timer, the session time recorded as open_s), docs/s, RSS
+              before/after build, index size on disk
   serial      one client, every sweep setting x every --k: recall@k and nDCG@k vs exact top-k
               (vector), nDCG@10, recall@k and R-precision vs human labels (text, k >= 10),
               p50/p95/p99/p99.9/mean latency
@@ -297,7 +299,8 @@ def disk_mb(eng: object) -> float:
 async def main(a: argparse.Namespace) -> dict:
     """Run the selected stages for one engine on one dataset.
 
-    Loads the dataset (applying --docs / --queries) and builds the index (load stage). The serial
+    Loads the dataset (applying --docs / --queries), runs the engine's untimed open() (the Moss
+    session), reads the memory baseline and builds the index (load stage, timed). The serial
     stage runs every sweep setting at every k, after 100 unmeasured warm-up queries per setting. The
     operating point then gets 100 more warm-up queries (on text datasets, the top 5 of the first 10
     become example results), and the filter stage, when selected and the dataset has filters, runs
@@ -355,6 +358,11 @@ async def main(a: argparse.Namespace) -> dict:
         "filter": [],
     }
 
+    t_open = time.perf_counter()  # untimed for build_s: Moss session (auth, cloud lookup, model)
+    r = eng.open()
+    if inspect.isawaitable(r):
+        await r
+    open_s = time.perf_counter() - t_open
     mem: dict = {"baseline_footprint_mb": footprint_mb()[0], "peak_footprint_mb": {}}
     peaks = mem["peak_footprint_mb"]
     rss0, t0 = rss_mb(), time.perf_counter()
@@ -376,6 +384,7 @@ async def main(a: argparse.Namespace) -> dict:
     n = len(d["ids"])
     out["load"] = {
         "docs": n,
+        "open_s": open_s,
         "build_s": build_s,
         "docs_per_s": n / build_s,
         "rss_before_build_mb": rss0,

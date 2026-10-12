@@ -2,23 +2,25 @@
 
 Every engine uses its library's default index and search settings.
 
-Contract (used by run.py), identical for all engines:
+Contract (used by run.py), identical for all engines (shared parts in the Engine base class):
   name: str              short identifier written into result files
   METRICS: dict          metric mode -> distance used: "default" = the library's default metric,
                          "ip" = inner product (cosine where the engine has none); an engine whose
                          default is already inner product has only "default"
+  MODULES: tuple         libraries imported in __init__, outside the build timer
   metric: str            the distance this instance uses (METRICS[mode])
   sweep: list[dict]      search settings for the serial stage; {} = the library default, which
                          every sweep starts with ([{}] = exact engine, one point)
+  open() -> None                            untimed setup before build (Moss: its session)
   build(ids, vectors, metadata) -> None     index all docs (ids int64, vectors (n, d) float32,
-                                            metadata or None)
+                                            metadata or None); timed as build_s
   set_search(params) -> None                apply one sweep setting; {} restores the library
                                             default
   search(q, k, flt) -> list[int]            top-k doc ids for one query vector; flt is a neutral
                                             filter or None
   close() -> None                           free resources
 
-Moss's build/search/close are coroutines (its public API is async); the other engines are
+Moss's open/build/search/close are coroutines (its public API is async); the other engines are
 synchronous. Vectors are L2-normalized, so l2, inner product and cosine rank documents
 identically. Each search returns what the library returns by default (never vectors unless that is
 its default); SQL engines select id, labels and the distance where the index allows it.
@@ -27,6 +29,9 @@ A neutral filter is {"field": "id", "op": "gte", "value": int} or {"field": "lab
 "value": str}. Metadata rows are {"id": int, "labels": str}.
 """
 
+import functools
+import importlib
+import os
 import shutil
 import sqlite3
 import tempfile
@@ -54,16 +59,19 @@ def _sql_op(flt: dict) -> str:
     return ">=" if flt["op"] == "gte" else "="
 
 
-class MossEngine:
-    """Moss through its public Python API, with custom vectors.
+class Engine:
+    """Shared adapter behavior.
 
-    One uniquely named SessionIndex per run, never pushed.
+    Imports the adapter's libraries in __init__ (outside the build timer and before the memory
+    baseline), offers an untimed open() hook, a no-op set_search for engines without search
+    parameters, and a close() that deletes the adapter's temp dir.
     """
 
-    name, sweep, METRICS = "moss", [{}], {"default": "ip"}
+    sweep: list[dict] = [{}]
+    MODULES: tuple[str, ...] = ()
 
     def __init__(self, mode: str = "default") -> None:
-        """Set the metric; the session opens in build().
+        """Import MODULES and set the metric for a mode.
 
         Args:
             mode: Metric mode, a key of METRICS.
@@ -71,34 +79,75 @@ class MossEngine:
         Raises:
             KeyError: mode is not a key of METRICS.
         """
-        self.session, self.metric = None, self.METRICS[mode]
+        self.metric, self.dir = self.METRICS[mode], None
+        for m in self.MODULES:
+            importlib.import_module(m)
+
+    def open(self) -> None:
+        """Untimed setup before build(); none by default."""
+
+    def set_search(self, params: dict) -> None:
+        """No search parameters (exact search)."""
+
+    def close(self) -> None:
+        """Delete the adapter's temp dir, if it made one."""
+        if self.dir:
+            shutil.rmtree(self.dir, ignore_errors=True)
+
+
+async def moss_session(model_id: str) -> object:
+    """Open a uniquely named, never-pushed Moss session.
+
+    Credentials come from MOSS_PROJECT_ID / MOSS_PROJECT_KEY, first loaded from the file named by
+    MOSS_ENV_FILE when that is set. session() authenticates, looks up a same-named cloud index and,
+    for a built-in model, loads the model (moss 1.15.1), so the adapters call this from open(),
+    outside the build timer.
+
+    Args:
+        model_id: "custom" or a built-in model such as "moss-minilm".
+
+    Returns:
+        The SessionIndex.
+
+    Raises:
+        KeyError: MOSS_PROJECT_ID or MOSS_PROJECT_KEY is not set.
+    """
+    from dotenv import load_dotenv
+    from moss import MossClient
+
+    if "MOSS_ENV_FILE" in os.environ:
+        load_dotenv(os.environ["MOSS_ENV_FILE"], override=True)
+    client = MossClient(os.environ["MOSS_PROJECT_ID"], os.environ["MOSS_PROJECT_KEY"])
+    return await client.session(f"bench-{uuid.uuid4().hex[:8]}", model_id=model_id)
+
+
+class MossEngine(Engine):
+    """Moss through its public Python API, with custom vectors.
+
+    One uniquely named SessionIndex per run, never pushed.
+    """
+
+    name, METRICS, MODULES = "moss", {"default": "ip"}, ("dotenv", "moss")
+
+    async def open(self) -> None:
+        """Open the custom-embedding session (untimed; see moss_session)."""
+        self.session = await moss_session("custom")
 
     async def build(
         self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None
     ) -> None:
-        """Open a custom-embedding Moss session and add every doc to it.
+        """Add every doc to the session opened by open().
 
-        Credentials come from MOSS_PROJECT_ID / MOSS_PROJECT_KEY, first loaded from the file named
-        by MOSS_ENV_FILE when that is set. Docs are added BATCH per call (keeps the Python lists
-        small), with metadata values as strings.
+        Docs are added BATCH per call (keeps the Python lists small), with metadata values as
+        strings.
 
         Args:
             ids: Doc ids, int64.
             vectors: Unit doc vectors, shape (n, d), float32.
             metadata: Metadata row per doc ({"id": int, "labels": str}), or None.
-
-        Raises:
-            KeyError: MOSS_PROJECT_ID or MOSS_PROJECT_KEY is not set.
         """
-        import os
+        from moss import DocumentInfo
 
-        from dotenv import load_dotenv
-        from moss import DocumentInfo, MossClient
-
-        if "MOSS_ENV_FILE" in os.environ:
-            load_dotenv(os.environ["MOSS_ENV_FILE"], override=True)
-        client = MossClient(os.environ["MOSS_PROJECT_ID"], os.environ["MOSS_PROJECT_KEY"])
-        self.session = await client.session(f"bench-{uuid.uuid4().hex[:8]}", model_id="custom")
         for i in range(0, len(ids), BATCH):
             docs = [
                 DocumentInfo(
@@ -110,9 +159,6 @@ class MossEngine:
                 for j, row in enumerate(vectors[i : i + BATCH].tolist())
             ]
             await self.session.add_docs(docs)
-
-    def set_search(self, params: dict) -> None:
-        """Moss has no search parameters (exact search)."""
 
     async def search(self, q: np.ndarray, k: int, flt: dict | None = None) -> list[int]:
         """Run a vector-only query (alpha=1.0; there is no query text).
@@ -142,7 +188,7 @@ class MossEngine:
         await self.session.close()
 
 
-class ChromaEngine:
+class ChromaEngine(Engine):
     """Chroma in-process (PersistentClient in a temp dir) with its default HNSW index.
 
     The space is l2 by default. A persistent client is required for the ef sweep: chromadb 1.5.9
@@ -151,17 +197,7 @@ class ChromaEngine:
     """
 
     name, sweep, METRICS = "chroma", EF_SWEEP, {"default": "l2", "ip": "ip"}
-
-    def __init__(self, mode: str = "default") -> None:
-        """Set the metric; the collection is created in build().
-
-        Args:
-            mode: Metric mode, a key of METRICS.
-
-        Raises:
-            KeyError: mode is not a key of METRICS.
-        """
-        self.metric = self.METRICS[mode]
+    MODULES = ("chromadb", "chromadb.config")
 
     def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
         """Create a collection in a new temp dir and add every doc, in the client's max batch size.
@@ -223,12 +259,8 @@ class ChromaEngine:
             int(x) for x in self.col.query(query_embeddings=[q], n_results=k, where=where)["ids"][0]
         ]
 
-    def close(self) -> None:
-        """Delete the temp database directory."""
-        shutil.rmtree(self.dir, ignore_errors=True)
 
-
-class LanceEngine:
+class LanceEngine(Engine):
     """LanceDB embedded, with its default IVF_PQ index or IVF_HNSW_SQ.
 
     'ivfpq' = `create_index()` with no config (IVF_PQ, the library default; sweep: refine_factor,
@@ -238,6 +270,7 @@ class LanceEngine:
     """
 
     METRICS = {"default": "l2", "ip": "dot"}
+    MODULES = ("lancedb", "pyarrow", "lancedb.index")
 
     def __init__(self, kind: str, mode: str = "default") -> None:
         """Set the index kind, metric, name and sweep.
@@ -250,7 +283,8 @@ class LanceEngine:
         Raises:
             KeyError: mode is not a key of METRICS.
         """
-        self.kind, self.metric = kind, self.METRICS[mode]
+        super().__init__(mode)
+        self.kind = kind
         self.name = "lancedb" if kind == "ivfpq" else "lancedb-hnsw"
         self.sweep = (
             EF_SWEEP
@@ -323,29 +357,15 @@ class LanceEngine:
             s = s.where(f"{flt['field']} {_sql_op(flt)} {value}")
         return s.to_arrow().column("id").to_pylist()
 
-    def close(self) -> None:
-        """Delete the temp table directory."""
-        shutil.rmtree(self.dir, ignore_errors=True)
 
-
-class QdrantLocalEngine:
+class QdrantLocalEngine(Engine):
     """qdrant-client local mode (in-process, in-memory); exact, since local mode does not use HNSW.
 
     Qdrant has no default distance (VectorParams requires one), so DOT is used in every mode.
     """
 
-    name, sweep, METRICS = "qdrant-local", [{}], {"default": "dot"}
-
-    def __init__(self, mode: str = "default") -> None:
-        """Set the metric; the client is created in build().
-
-        Args:
-            mode: Metric mode, a key of METRICS.
-
-        Raises:
-            KeyError: mode is not a key of METRICS.
-        """
-        self.metric = self.METRICS[mode]
+    name, METRICS = "qdrant-local", {"default": "dot"}
+    MODULES = ("qdrant_client", "qdrant_client.models")
 
     def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
         """Create an in-memory DOT collection and upsert every doc, BATCH points per call.
@@ -377,9 +397,6 @@ class QdrantLocalEngine:
                     for j, v in enumerate(vectors[i : i + BATCH].tolist())
                 ],
             )
-
-    def set_search(self, params: dict) -> None:
-        """No search parameters in local mode."""
 
     def search(self, q: np.ndarray, k: int, flt: dict | None = None) -> list[int]:
         """Run query_points (default output: payload, no vectors).
@@ -414,7 +431,7 @@ class QdrantLocalEngine:
         self.client.close()
 
 
-class FaissEngine:
+class FaissEngine(Engine):
     """FAISS in-process: 'flat' = IndexFlatL2 / IndexFlatIP (exact), 'hnsw' = IndexHNSWFlat.
 
     The flat index is the exact baseline. HNSW uses M=32 and faiss's default efConstruction (40) and
@@ -422,7 +439,7 @@ class FaissEngine:
     (built once per filter).
     """
 
-    METRICS = {"default": "l2", "ip": "ip"}
+    METRICS, MODULES = {"default": "l2", "ip": "ip"}, ("faiss",)
 
     def __init__(self, kind: str, mode: str = "default") -> None:
         """Set the index kind, metric, name and sweep.
@@ -434,7 +451,8 @@ class FaissEngine:
         Raises:
             KeyError: mode is not a key of METRICS.
         """
-        self.kind, self.name, self.metric = kind, f"faiss-{kind}", self.METRICS[mode]
+        super().__init__(mode)
+        self.kind, self.name = kind, f"faiss-{kind}"
         self.sweep = EF_SWEEP if kind == "hnsw" else [{}]
         self.selectors = {}
 
@@ -525,21 +543,10 @@ class FaissEngine:
         self.index = None
 
 
-class ZvecEngine:
+class ZvecEngine(Engine):
     """zvec embedded collection (on disk) with its default HNSW index (inner product by default)."""
 
-    name, sweep, METRICS = "zvec", EF_SWEEP, {"default": "ip"}
-
-    def __init__(self, mode: str = "default") -> None:
-        """Set the metric; the collection is created in build().
-
-        Args:
-            mode: Metric mode, a key of METRICS.
-
-        Raises:
-            KeyError: mode is not a key of METRICS.
-        """
-        self.metric = self.METRICS[mode]
+    name, sweep, METRICS, MODULES = "zvec", EF_SWEEP, {"default": "ip"}, ("zvec",)
 
     def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
         """Create a temp-dir zvec collection, insert every doc, then optimize (builds the index).
@@ -636,27 +643,16 @@ class ZvecEngine:
     def close(self) -> None:
         """Destroy the collection and delete its directory."""
         self.col.destroy()
-        shutil.rmtree(self.dir, ignore_errors=True)
+        super().close()
 
 
-class SqliteVecEngine:
+class SqliteVecEngine(Engine):
     """sqlite-vec vec0 virtual table in a temp file, with metadata columns for filtering.
 
     Exact brute-force KNN: l2 by default, cosine in "ip" mode since vec0 has no inner product.
     """
 
-    name, sweep, METRICS = "sqlite-vec", [{}], {"default": "l2", "ip": "cosine"}
-
-    def __init__(self, mode: str = "default") -> None:
-        """Set the metric; the database is created in build().
-
-        Args:
-            mode: Metric mode, a key of METRICS.
-
-        Raises:
-            KeyError: mode is not a key of METRICS.
-        """
-        self.metric = self.METRICS[mode]
+    name, METRICS, MODULES = "sqlite-vec", {"default": "l2", "ip": "cosine"}, ("sqlite_vec",)
 
     def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
         """Create a vec0 table (embedding plus id and labels metadata columns) and insert every doc.
@@ -693,9 +689,6 @@ class SqliteVecEngine:
             )
         self.con.commit()
 
-    def set_search(self, params: dict) -> None:
-        """No search parameters (exact)."""
-
     def search(self, q: np.ndarray, k: int, flt: dict | None = None) -> list[int]:
         """Run a KNN query (`embedding match ? and k = ?`) ordered by distance.
 
@@ -721,27 +714,17 @@ class SqliteVecEngine:
     def close(self) -> None:
         """Close the connection and delete the database directory."""
         self.con.close()
-        shutil.rmtree(self.dir, ignore_errors=True)
+        super().close()
 
 
-class DuckdbVssEngine:
+class DuckdbVssEngine(Engine):
     """DuckDB in-memory table with the VSS extension's default HNSW index.
 
     The metric is l2sq by default and 'ip' in "ip" mode.
     """
 
     name, sweep, METRICS = "duckdb-vss", EF_SWEEP, {"default": "l2sq", "ip": "ip"}
-
-    def __init__(self, mode: str = "default") -> None:
-        """Set the metric; the database is created in build().
-
-        Args:
-            mode: Metric mode, a key of METRICS.
-
-        Raises:
-            KeyError: mode is not a key of METRICS.
-        """
-        self.metric = self.METRICS[mode]
+    MODULES = ("duckdb", "pyarrow")
 
     def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
         """Load every doc into an in-memory table through Arrow, then create the HNSW index.
@@ -814,7 +797,7 @@ class DuckdbVssEngine:
         self.con.close()
 
 
-class MossTextEngine:
+class MossTextEngine(Engine):
     """Moss with its built-in moss-minilm model, indexing text and embedding queries in search().
 
     The sweep is Moss's only query knob, alpha: {} = the SDK default (0.8, hybrid with keyword
@@ -822,43 +805,26 @@ class MossTextEngine:
     """
 
     name, sweep, METRICS = "moss", [{}, {"alpha": 1.0}], {"default": "ip"}
+    MODULES, alpha = ("dotenv", "moss"), None
 
-    def __init__(self, mode: str = "default") -> None:
-        """Set the metric; the session opens in build().
-
-        Args:
-            mode: Metric mode, a key of METRICS.
-
-        Raises:
-            KeyError: mode is not a key of METRICS.
-        """
-        self.session, self.alpha, self.metric = None, None, self.METRICS[mode]
+    async def open(self) -> None:
+        """Open the moss-minilm session; session() also loads the model (untimed)."""
+        self.session = await moss_session("moss-minilm")
 
     async def build(
         self, ids: np.ndarray, texts: list[str], metadata: list[dict] | None = None
     ) -> None:
-        """Open a moss-minilm session and add every text doc, 100 per call.
+        """Add every text doc to the session opened by open(), 100 per call.
 
-        Small calls because built-in ingest memory grows per call. Credentials are loaded as in
-        MossEngine.build().
+        Small calls because built-in ingest memory grows per call.
 
         Args:
             ids: Doc ids (corpus positions).
             texts: Doc texts, in ids order.
             metadata: Unused; accepted for the shared build() signature.
-
-        Raises:
-            KeyError: MOSS_PROJECT_ID or MOSS_PROJECT_KEY is not set.
         """
-        import os
+        from moss import DocumentInfo
 
-        from dotenv import load_dotenv
-        from moss import DocumentInfo, MossClient
-
-        if "MOSS_ENV_FILE" in os.environ:
-            load_dotenv(os.environ["MOSS_ENV_FILE"], override=True)
-        client = MossClient(os.environ["MOSS_PROJECT_ID"], os.environ["MOSS_PROJECT_KEY"])
-        self.session = await client.session(f"bench-{uuid.uuid4().hex[:8]}", model_id="moss-minilm")
         for i in range(0, len(ids), 100):
             await self.session.add_docs(
                 [
@@ -920,6 +886,14 @@ class QueryEmbedder:
             max_length=MINILM_MAX_TOKENS
         )  # match moss-minilm
 
+    def open(self) -> object:
+        """Forward the wrapped engine's untimed setup.
+
+        Returns:
+            Whatever the wrapped engine's open() returns (None for the synchronous engines).
+        """
+        return self.engine.open()
+
     def build(
         self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None = None
     ) -> None:
@@ -955,62 +929,14 @@ class QueryEmbedder:
         self.engine.close()
 
 
-def lancedb_ivfpq(mode: str = "default") -> LanceEngine:
-    """Create the LanceDB adapter with its default index (IVF_PQ).
-
-    Args:
-        mode: Metric mode, a key of LanceEngine.METRICS.
-
-    Returns:
-        The adapter.
-    """
-    return LanceEngine("ivfpq", mode)
-
-
-def lancedb_hnsw(mode: str = "default") -> LanceEngine:
-    """Create the LanceDB adapter with IVF_HNSW_SQ defaults.
-
-    Args:
-        mode: Metric mode, a key of LanceEngine.METRICS.
-
-    Returns:
-        The adapter.
-    """
-    return LanceEngine("hnsw", mode)
-
-
-def faiss_flat(mode: str = "default") -> FaissEngine:
-    """Create the FAISS exact baseline (IndexFlatL2 / IndexFlatIP).
-
-    Args:
-        mode: Metric mode, a key of FaissEngine.METRICS.
-
-    Returns:
-        The adapter.
-    """
-    return FaissEngine("flat", mode)
-
-
-def faiss_hnsw(mode: str = "default") -> FaissEngine:
-    """Create FAISS HNSW (IndexHNSWFlat) with an efSearch sweep.
-
-    Args:
-        mode: Metric mode, a key of FaissEngine.METRICS.
-
-    Returns:
-        The adapter.
-    """
-    return FaissEngine("hnsw", mode)
-
-
 ENGINES = {
     "moss": MossEngine,
     "chroma": ChromaEngine,
-    "lancedb": lancedb_ivfpq,
-    "lancedb-hnsw": lancedb_hnsw,
+    "lancedb": functools.partial(LanceEngine, "ivfpq"),  # default index: IVF_PQ
+    "lancedb-hnsw": functools.partial(LanceEngine, "hnsw"),  # IVF_HNSW_SQ defaults
     "qdrant-local": QdrantLocalEngine,
-    "faiss-flat": faiss_flat,
-    "faiss-hnsw": faiss_hnsw,
+    "faiss-flat": functools.partial(FaissEngine, "flat"),  # exact baseline
+    "faiss-hnsw": functools.partial(FaissEngine, "hnsw"),  # IndexHNSWFlat, efSearch sweep
     "zvec": ZvecEngine,
     "sqlite-vec": SqliteVecEngine,
     "duckdb-vss": DuckdbVssEngine,
