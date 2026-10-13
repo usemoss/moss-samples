@@ -214,13 +214,13 @@ class ChromaEngine(Engine):
         from chromadb.config import Settings
 
         self.dir = Path(tempfile.mkdtemp(prefix="bench-chroma-"))
-        client = chromadb.PersistentClient(str(self.dir), Settings(anonymized_telemetry=False))
-        self.col = client.create_collection(
+        self.client = chromadb.PersistentClient(str(self.dir), Settings(anonymized_telemetry=False))
+        self.col = self.client.create_collection(
             "bench",
             configuration={"hnsw": {"space": "ip"}} if self.metric == "ip" else None,
         )
         self.default_ef = self.col.configuration_json["hnsw"]["ef_search"]
-        step = client.get_max_batch_size()
+        step = self.client.get_max_batch_size()
         for i in range(0, len(ids), step):
             self.col.add(
                 ids=[str(x) for x in ids[i : i + step]],
@@ -229,7 +229,11 @@ class ChromaEngine(Engine):
             )
 
     def set_search(self, params: dict) -> None:
-        """Set HNSW ef_search, then reopen the client so the loaded index uses it.
+        """Set HNSW ef_search, then close and reopen the client so the loaded index uses it.
+
+        modify() alone does not change the loaded index. close() stops the client's system and
+        frees its loaded index; without it every reopen kept another copy of the index in memory
+        (about 340 MB per reopen at cohere-100k).
 
         Args:
             params: Sweep setting, {"ef": int}; {} restores the default ef_search kept by build().
@@ -237,11 +241,11 @@ class ChromaEngine(Engine):
         import chromadb
         from chromadb.config import Settings
 
-        settings = Settings(anonymized_telemetry=False)
         ef = params.get("ef", self.default_ef)
         self.col.modify(configuration={"hnsw": {"ef_search": ef}})
-        chromadb.PersistentClient(str(self.dir), settings).clear_system_cache()
-        self.col = chromadb.PersistentClient(str(self.dir), settings).get_collection("bench")
+        self.client.close()
+        self.client = chromadb.PersistentClient(str(self.dir), Settings(anonymized_telemetry=False))
+        self.col = self.client.get_collection("bench")
 
     def search(self, q: np.ndarray, k: int, flt: dict | None = None) -> list[int]:
         """Query by embedding with Chroma's default include (metadatas, documents, distances).
@@ -265,8 +269,9 @@ class LanceEngine(Engine):
 
     'ivfpq' = `create_index()` with no config (IVF_PQ, the library default; sweep: refine_factor,
     which re-ranks with full vectors), 'hnsw' = `IvfHnswSq()` defaults (the docs' "best
-    recall/latency for unfiltered search"; sweep: ef). Filters are where clauses, prefiltered by
-    default.
+    recall/latency for unfiltered search"; sweep: ef, then refine_factor 2 / 5 / 10 at the default
+    ef, since its scalar-quantized search alone levels off near 0.96 recall). Filters are where
+    clauses, prefiltered by default.
     """
 
     METRICS = {"default": "l2", "ip": "dot"}
@@ -286,8 +291,8 @@ class LanceEngine(Engine):
         super().__init__(mode)
         self.kind = kind
         self.name = "lancedb" if kind == "ivfpq" else "lancedb-hnsw"
-        self.sweep = (
-            EF_SWEEP
+        self.sweep = (  # refine_factor re-ranks k x refine_factor candidates with full vectors
+            EF_SWEEP + [{"refine_factor": r} for r in (2, 5, 10)]
             if kind == "hnsw"
             else [{}] + [{"refine_factor": r} for r in (2, 5, 10, 20, 50)]
         )
@@ -454,13 +459,13 @@ class FaissEngine(Engine):
         super().__init__(mode)
         self.kind, self.name = kind, f"faiss-{kind}"
         self.sweep = EF_SWEEP if kind == "hnsw" else [{}]
-        self.selectors = {}
 
     def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
         """Create the index and add every vector, 100k rows at a time.
 
-        FAISS ids are row positions: self.ids maps them back to doc ids and self.meta keeps the
-        metadata rows for label filters. HNSW keeps faiss's default efSearch for set_search({}).
+        FAISS ids are row positions: self.ids maps them back to doc ids and self.labels holds the
+        label of each row (a numpy array, the way a FAISS application keeps filterable metadata).
+        HNSW keeps faiss's default efSearch for set_search({}).
 
         Args:
             ids: Doc ids, int64.
@@ -478,38 +483,32 @@ class FaissEngine(Engine):
             self.default_ef = self.index.hnsw.efSearch
         for i in range(0, len(ids), 100_000):
             self.index.add(np.ascontiguousarray(vectors[i : i + 100_000], dtype=np.float32))
-        self.ids, self.meta = np.asarray(ids), metadata
+        self.ids = np.asarray(ids)
+        self.labels = np.array([m["labels"] for m in metadata]) if metadata else None
 
     def set_search(self, params: dict) -> None:
         """Set efSearch for HNSW queries ({} = faiss's default)."""
         if self.kind == "hnsw":
             self.index.hnsw.efSearch = params.get("ef", self.default_ef)
 
-    def _selector(self, flt: dict) -> object:
-        """Return the IDSelectorBatch of the row positions that pass a filter.
+    def _selector(self, flt: dict) -> tuple[object, np.ndarray]:
+        """Build the IDSelectorBitmap of the rows that pass a filter, for one query.
 
-        Built once per filter and cached with its position array, which must stay alive while the
-        selector is in use.
+        FAISS has no metadata filtering, so the application evaluates the predicate itself; it is
+        evaluated per query, inside the timed search, so FAISS pays for its filter as the databases
+        do.
 
         Args:
-            flt: Neutral filter; "gte" compares doc ids, "eq" compares a metadata field.
+            flt: Neutral filter; "gte" compares doc ids, "eq" compares the labels.
 
         Returns:
-            The cached faiss.IDSelectorBatch.
+            The selector and its bitmap, which must stay alive while the selector is in use.
         """
         import faiss
 
-        key = (flt["field"], flt["op"], flt["value"])
-        if key not in self.selectors:
-            if flt["op"] == "gte":
-                pos = np.nonzero(self.ids >= flt["value"])[0].astype(np.int64)
-            else:
-                pos = np.array(
-                    [i for i, m in enumerate(self.meta) if m[flt["field"]] == flt["value"]],
-                    dtype=np.int64,
-                )
-            self.selectors[key] = (faiss.IDSelectorBatch(pos), pos)
-        return self.selectors[key][0]
+        mask = self.ids >= flt["value"] if flt["op"] == "gte" else self.labels == flt["value"]
+        bits = np.packbits(mask, bitorder="little")  # faiss reads bit i of byte i >> 3
+        return faiss.IDSelectorBitmap(len(mask), faiss.swig_ptr(bits)), bits
 
     def search(self, q: np.ndarray, k: int, flt: dict | None = None) -> list[int]:
         """Search one query (FAISS returns ids and distances).
@@ -529,7 +528,7 @@ class FaissEngine(Engine):
 
         params = None
         if flt:
-            sel = self._selector(flt)
+            sel, _bits = self._selector(flt)
             params = (
                 faiss.SearchParametersHNSW(efSearch=self.index.hnsw.efSearch, sel=sel)
                 if self.kind == "hnsw"

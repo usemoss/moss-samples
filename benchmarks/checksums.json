@@ -33,5 +33,6 @@
  "dbpedia-openai-1m/train-00023-of-00026-2f7b85c21ea5f957.parquet": "d9a6345a34b72335f5594606d52e371e5e01e6eb7f7ac8df0de1eff041f2f0f4",
  "dbpedia-openai-1m/train-00024-of-00026-c8000d2c489222ab.parquet": "159b270917d06e458e48e6ce677d589f98ce2790682bb291ffa5df51e4b9b41a",
  "dbpedia-openai-1m/train-00025-of-00026-769064ea76815001.parquet": "22ffc66fa57d60f969aacdab45ed0ed60748ae0854d3044e95ebefc532d4ed61",
- "hotpotqa-1m/hotpotqa.zip": "c62459dbc91d31329584507b1fa564b3b1abcee58800967113054ee0f5a15c62"
+ "hotpotqa-1m/hotpotqa.zip": "c62459dbc91d31329584507b1fa564b3b1abcee58800967113054ee0f5a15c62",
+ "scifact/scifact.zip": "536e14446a0ba56ed1398ab1055f39fe852686ecad24a6306c80c490fa8e0165"
 }

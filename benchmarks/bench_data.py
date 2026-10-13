@@ -7,15 +7,16 @@ usage: bench_data.py fetch <name>      download the raw files (resumable, sha256
                                        (run_suite.sh runs it when needed)
        run each under the watchdog from benchmarks/, with the absolute interpreter:
        ./watchdog.sh results/logs/<step>-<name>-<stamp>.log $PWD/.venv/bin/python bench_data.py ...
-names: cohere-100k (smoke), cohere-1m, dbpedia-openai-1m, arxiv-titles-2m, hotpotqa-1m
+names: cohere-100k (smoke), cohere-1m, dbpedia-openai-1m, arxiv-titles-2m, hotpotqa-1m, scifact
 
 Prepared layout:
   vector datasets  base.npy (float32, unit rows), ids.npy (int64), queries.npy, gt.npy (int64
                    top-100 ids), optional labels.npy + gt_<filter>.npy, meta.json ("filters":
                    neutral filter specs)
   text dataset     corpus.jsonl ({"id": int position, "doc_id", "text"}), queries.jsonl,
-                   qrels.json (keys are int positions as strings), base_minilm.npy (fastembed
-                   vectors for non-Moss engines)
+                   qrels.json (keys are int positions as strings), warmup.jsonl (100 train-split
+                   queries, never measured), base_minilm.npy (fastembed vectors for non-Moss
+                   engines)
 """
 
 import hashlib
@@ -94,14 +95,17 @@ def arxiv_files() -> dict[str, str]:
     }
 
 
-def hotpotqa_files() -> dict[str, str]:
-    """Return the download URL of the BEIR HotpotQA zip.
+def beir_files(beir_set: str) -> dict[str, str]:
+    """Return the download URL of a BEIR dataset zip.
+
+    Args:
+        beir_set: BEIR dataset name, e.g. "hotpotqa" or "scifact".
 
     Returns:
         File name -> URL (one entry).
     """
     return {
-        "hotpotqa.zip": "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/hotpotqa.zip"
+        f"{beir_set}.zip": f"https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{beir_set}.zip"
     }
 
 
@@ -110,7 +114,8 @@ SOURCES: dict[str, Callable[[], dict[str, str]]] = {
     "cohere-1m": lambda: vdbb_files("cohere_medium_1m"),
     "dbpedia-openai-1m": dbpedia_files,
     "arxiv-titles-2m": arxiv_files,
-    "hotpotqa-1m": hotpotqa_files,
+    "hotpotqa-1m": lambda: beir_files("hotpotqa"),
+    "scifact": lambda: beir_files("scifact"),
 }
 
 
@@ -306,8 +311,8 @@ def load(name: str) -> dict:
     Returns:
         For a vector dataset: meta, base, ids, queries, gt and, when it has labels, labels and
         gt_filters (filter tag -> ground truth). For a text dataset: meta, corpus and queries_text
-        (lists of JSON rows), base (the MiniLM vectors, or None before embedding), ids (corpus
-        positions) and qrels.
+        (lists of JSON rows), warmup_text (warmup.jsonl rows, or None), base (the MiniLM vectors,
+        or None before embedding), ids (corpus positions) and qrels.
     """
     out = DATA / name
     meta = json.loads((out / "meta.json").read_text())
@@ -319,10 +324,12 @@ def load(name: str) -> dict:
             if (out / "base_minilm.npy").exists()
             else None
         )
+        warm = out / "warmup.jsonl"
         return {
             "meta": meta,
             "corpus": corpus,
             "queries_text": queries,
+            "warmup_text": [json.loads(line) for line in warm.open()] if warm.exists() else None,
             "base": vecs,
             "ids": np.arange(len(corpus), dtype=np.int64),
             "qrels": json.loads((out / "qrels.json").read_text()),
@@ -534,8 +541,8 @@ def prepare_beir(name: str, beir_set: str = "hotpotqa", size: int = 1_000_000) -
     corpus is capped with VectorDBBench's qrel-preserving rule (select_subset). Doc text follows
     VDBB HotpotQATranslator: f"{title} {text}" with tabs/newlines replaced by spaces. Docs get
     integer ids = position in corpus.jsonl and the qrels are re-keyed to those positions. Writes
-    corpus.jsonl, queries.jsonl (queries with qrels only), qrels.json and meta.json, then runs
-    embed_corpus().
+    corpus.jsonl, queries.jsonl (queries with qrels only), qrels.json, meta.json and warmup.jsonl
+    (write_warmup), then runs embed_corpus().
 
     Args:
         name: Dataset name; output goes to data/<name>/.
@@ -594,7 +601,45 @@ def prepare_beir(name: str, beir_set: str = "hotpotqa", size: int = 1_000_000) -
     }
     (out / "meta.json").write_text(json.dumps(meta, indent=1) + "\n")
     print(f"{name}: corpus {len(pos)}, queries {len(qrels)}, qrel docs {len(required)}")
+    write_warmup(name, beir_set)
     embed_corpus(name)
+
+
+def write_warmup(name: str, beir_set: str, n: int = 100) -> None:
+    """Write warmup.jsonl: the first n train-split queries that are not test queries.
+
+    run.py warms each engine up on these before measuring, so the warm-up queries come from the
+    same distribution as the measured (test) queries but are never measured themselves.
+
+    Args:
+        name: Dataset name; reads data/<name>/raw/<beir_set>.zip, writes data/<name>/warmup.jsonl.
+        beir_set: BEIR dataset name, the zip's top-level directory.
+        n: Number of warm-up queries.
+    """
+    import csv
+    import io
+    import zipfile
+
+    out = DATA / name
+    with zipfile.ZipFile(out / "raw" / f"{beir_set}.zip") as z:
+
+        def ids(split: str) -> set[str]:
+            with z.open(f"{beir_set}/qrels/{split}.tsv") as f:
+                return {
+                    row["query-id"] for row in csv.DictReader(io.TextIOWrapper(f), delimiter="\t")
+                }
+
+        train = ids("train") - ids("test")
+        rows = []
+        with z.open(f"{beir_set}/queries.jsonl") as f:
+            for line in f:
+                q = json.loads(line)
+                if q["_id"] in train and len(rows) < n:
+                    rows.append({"id": q["_id"], "text": q["text"]})
+    if len(rows) < n:
+        raise SystemExit(f"{name}: only {len(rows)} train queries for warm-up, need {n}")
+    (out / "warmup.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    print(f"{name}: wrote {n} train-split warm-up queries")
 
 
 def embed_corpus(name: str, batch: int = 256) -> None:
@@ -637,6 +682,7 @@ PREPARE: dict[str, Callable[[str], None]] = {
     "dbpedia-openai-1m": prepare_dbpedia,
     "arxiv-titles-2m": prepare_arxiv,
     "hotpotqa-1m": prepare_beir,  # defaults: BEIR hotpotqa, 1M docs
+    "scifact": lambda name: prepare_beir(name, "scifact", 10_000),  # all 5,183 docs
 }
 
 if __name__ == "__main__":

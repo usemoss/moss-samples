@@ -5,35 +5,34 @@ report.html holds interactive Plotly charts and tables; summary.md holds the tab
 usage: $PWD/.venv/bin/python report.py
        then open results/report.html in a browser (works offline; plotly.js is inlined)
 
-The page has a Charts tab and a Tables tab, and a dataset picker. Per dataset, using each run key's
-newest result:
-  sections  <dataset> · dataset metric (cosine ≡ inner product on unit vectors) (--metric ip runs,
-            plus the default run of each engine whose default metric is already inner product),
-            <dataset> · library default metric, and <dataset>-subsets (--docs runs)
-  charts    numbered cards, each with its description, separated by rules. Vector sections:
-            1 headline, latency at equal recall (cheapest setting reaching recall@k >= target;
-            opens at the largest k and 0.95), 2 recall vs latency (Pareto frontier per engine as in
-            ann-benchmarks, the library-default setting ringed), 3 latency at the operating point
-            at one k for every engine, 4 build cost, 5 memory, 6 filtered search (with an
-            unfiltered reference point). Text sections lead with nDCG@10 vs latency and stack the
-            corpus-embedding time (measured at prepare) on the non-Moss build bars. The -subsets
-            section has a scaling chart instead.
-  tables    operating point, equal recall (vector datasets), full serial sweep, filter cases (cold
-            and warm, with the unfiltered reference), memory, engines that did not finish (DNF).
-            Click a header to sort; per-column value filters (CSS, no JS: tick values to show only
-            them, nothing ticked = all, "clear filters" resets); the best value per column among
-            the shown rows is bold.
-Dropdowns list the mean first, then p50, p95, p99, p99.9. The operating point is the
-library-default search setting. Axes: linear from 0, except the trade-off chart's latency axis
-(log); one fixed range for every dropdown view of the same unit (switching mean / p50 ... p99.9
-never moves the axis); the recall axis of the trade-off chart keeps one range across k.
+The page has a Charts tab and a Tables tab, a dataset picker and a metric switch: "inner product†"
+(every engine in its inner-product mode, the datasets' cosine on unit vectors; --metric ip runs plus
+the default run of engines already on inner product) or "library default" (each engine's default
+metric). NOTES at the top explain the metric, the quality measures and how latency is measured.
+Per dataset and metric, using each run key's newest result:
+  sections  <dataset> · metric: <view> (full corpus) and <dataset> · corpus-size subsets (--docs)
+  charts    numbered cards "Chart N · <dataset> · <measure>" with a subtitle (metric and the chart's
+            specifics) and a description, all HTML so nothing is cut off. Vector datasets: latency
+            at equal recall (fastest setting reaching recall@k >= target), recall vs latency (every
+            sweep setting as a marker, Pareto line per engine as in ann-benchmarks, default ringed),
+            latency at default settings (one k for every engine), index build time, memory,
+            filtered search (with an unfiltered reference point). Text datasets: nDCG@10 vs latency
+            and latency at k = 10, the depth nDCG@10 scores; build bars stack the corpus-embedding
+            time (measured at prepare) on the non-Moss engines. Subsets: a scaling chart.
+  tables    default settings (every k), equal recall (vector datasets), full serial sweep, filter
+            cases (cold and warm, with the unfiltered reference), memory, example results (text),
+            engines that did not finish (DNF). Click a header to sort; per-column value filters
+            (CSS, no JS: tick values to show only them, nothing ticked = all, "clear filters"
+            resets); the best value per column among the shown rows is bold.
+Latency statistics: mean, p50, p95, p99 (p99.9 is left out: with at most 1,000 queries it is one of
+the two slowest samples). Every measure axis says whether higher or lower is better. Axes: linear
+from 0, except a recall vs latency latency axis whose values span more than LOG_SPAN x (log, titled
+"(log scale)"); one fixed range for every dropdown view of the same unit; the quality axis of the
+recall vs latency chart keeps one range across k.
 Refuses to write anything (exit 1, "STALE <log>: <last line>") when an engine's newest attempt
 failed but an older result for the same run would be shown.
 Every chart: hover shows exact values and parameters; click a legend entry to hide an engine,
 double-click to isolate it.
-Labels: recall@k is measured against the exact top-k; nDCG@10 and R-precision against human
-relevance labels. Text datasets add R-precision and recall@k (human labels) columns and example
-results (top 5 of 10 queries per engine, ✓ = labelled relevant).
 """
 
 import html
@@ -62,50 +61,79 @@ STYLE = {
     "sqlite-vec": ("#4a3aa7", "#9085e9", "triangle-left", "solid"),
     "duckdb-vss": ("#e34948", "#e66767", "triangle-right", "solid"),
 }
-LATENCY = {"mean": "mean", "p50": "p50", "p95": "p95", "p99": "p99", "p99.9": "p999"}
+# p99.9 is left out: with at most 1,000 queries per pass it is one of the two slowest samples
+LATENCY = {"mean": "mean", "p50": "p50", "p95": "p95", "p99": "p99"}
+LOG_SPAN = 20  # a latency axis whose values span more than this factor is drawn on a log scale
 MEMORY = ["index", "build peak", "search peak", "RSS increase over build", "on disk"]
 STAGES = ["build", "serial", "filter"]
 IP = {"ip", "dot"}  # metrics that are inner product (moss, zvec: ip; qdrant: dot)
-# One-paragraph description shown above each chart.
-ABOUT = {
-    "tradeoff": "Secondary headline. Search quality against latency for every search setting each engine was run "
-    "with (its sweep, e.g. "
-    "HNSW ef from 16 to 1024). A line keeps only the settings that no other setting of that engine beats on both "
-    "quality and latency (Pareto frontier); the ring marks the library default, the setting every other chart uses. "
-    "Exact engines have a single setting and draw a dotted line at its latency. Hovering a point shows that "
-    "setting's values, so only the ring matches the latency bars below. Dropdowns: latency statistic, k.",
-    "latency": "Search latency per engine at its library-default setting (the ring above, or an exact engine's line), "
-    "at the largest k, one query at a time over all queries. Dropdown: latency statistic.",
-    "equal": "Headline. Like-for-like speed: for each recall target, the mean latency of the cheapest setting in "
-    "the engine's sweep that reaches it (approximate engines tuned up, exact engines at their only setting), as public "
-    "benchmarks compare speed at a recall threshold (Qdrant, VIBE, big-ann). Opens at the largest k and 0.95. The bar "
-    "label names the setting; an engine with no bar never reached the target in its sweep. Dropdown: k and recall "
-    "target.",
-    "build": "Time to build each engine's index from the vectors (ingest + index; client and Moss session setup "
-    "excluded), or the docs indexed per second. Text datasets: Moss embeds the corpus inside its build with its "
-    "built-in model, while the other engines index vectors embedded once at prepare (fastembed, batch 256); that "
-    "embedding time is stacked on their bars, so every bar covers embedding + indexing. Dropdown: measure.",
-    "memory": "Memory each engine adds, in GB, as process footprint over the footprint after the dataset is "
-    "loaded: index (after build), build peak, search peak, RSS increase over the build, and index files on disk "
-    "(disk-backed engines keep part of their index in OS-cached files). Dropdown: measure.",
-    "filter": "Filtered search (VectorDBBench cases, from 99% of docs kept to 1%) at k = 100 and the library-default "
-    "setting, each case scored against its own ground truth. The first point, unfiltered, is the same engine's "
-    "serial result at k = 100 and the same setting (not re-measured), so the drop from it is what the filter costs. "
-    "Cold = the first pass over a filter, warm = the repeat pass; first-query = the cold pass's first query. "
-    "Dropdown: recall or latency statistic.",
-    "scaling": "How each engine changes with corpus size: its --docs runs plus the full run, at the library-default "
-    "setting and the largest k. One line per engine and metric mode (-ip = inner product). Dropdown: quality, "
-    "latency statistic, memory or build time.",
-}
-# Short chart names for the numbered chart cards, by ABOUT key.
-TITLES = {
-    "equal": "Headline: latency at equal recall",
-    "tradeoff": "Quality vs latency trade-off",
-    "latency": "Latency at the operating point",
-    "build": "Index build",
-    "memory": "Memory",
-    "filter": "Filtered search",
-    "scaling": "Scaling with corpus size",
+METRIC_VIEWS = {"ip": "inner product†", "default": "library default"}  # page metric switch
+# Chart key -> (measure, the title after the dataset; description shown under the subtitle).
+CHARTS = {
+    "equal": (
+        "Latency at equal recall",
+        "For each recall target, the mean latency of the fastest setting in the engine's sweep that "
+        "reaches it: approximate engines are tuned up to the target, exact engines have one setting. "
+        "Public benchmarks compare speed this way (Qdrant, VIBE, big-ann). recall@k ≥ 0.95 means the "
+        "engine returned, on average over the queries, at least 95% of the true k nearest documents "
+        "(found by exact search). The bar label names the setting used; an engine without a bar never "
+        "reached the target. Dropdown: recall@k target.",
+    ),
+    "tradeoff": (
+        "Recall vs latency",
+        "One marker per search setting each engine was run with (its sweep, e.g. HNSW ef from 16 to "
+        "1024). The line joins the settings that no other setting of the same engine beats on both "
+        "recall and latency (Pareto frontier, as in ann-benchmarks); the ring marks the library-default "
+        "setting. Exact engines have a single setting. Settings with ef below k are not run at that k, "
+        "so the marker count varies with k. Dropdowns: latency statistic, k.",
+    ),
+    "tradeoff-text": (
+        "nDCG@10 vs latency",
+        "One marker per search setting each engine was run with, at k = 10, the depth nDCG@10 scores. "
+        "The line joins the settings that no other setting of the same engine beats on both nDCG@10 "
+        "and latency (Pareto frontier); the ring marks the library-default setting. Latency is end to "
+        "end: it includes embedding the query. Dropdown: latency statistic.",
+    ),
+    "latency": (
+        "Latency at default settings",
+        "One bar per engine: its search latency with the library's default index and search "
+        "settings, one query at a time over all queries, at the same k for every engine. Dropdown: "
+        "latency statistic.",
+    ),
+    "build": (
+        "Index build time",
+        "Time to build each engine's index (ingest + index; client setup and Moss session setup "
+        "excluded), or the docs indexed per second. Dropdown: measure.",
+    ),
+    "build-text": (
+        "Index build time",
+        "Moss embeds the corpus inside its build with its built-in model; the other engines index "
+        "vectors embedded once at prepare (fastembed, batch 256), and that embedding time is stacked on "
+        "their bars, so every bar covers embedding + indexing. Client setup and Moss session setup are "
+        "excluded. Dropdown: measure.",
+    ),
+    "memory": (
+        "Memory",
+        "Memory each engine adds, in GB, as process footprint over the footprint after the dataset is "
+        "loaded: index (after build), build peak, search peak, RSS increase over the build, and index "
+        "files on disk (disk-backed engines keep part of their index in OS-cached files, which the "
+        "footprint does not count). Dropdown: measure.",
+    ),
+    "filter": (
+        "Filtered search",
+        "Filtered search (VectorDBBench cases, from 99% of docs kept to 1%) at k = 100 with "
+        "library-default settings, each case scored against its own exact ground truth. The first "
+        "point, unfiltered, is the same engine's unfiltered result at k = 100 (not re-measured), so the "
+        "drop from it is what the filter costs. Cold = the first pass over a filter, warm = the repeat "
+        "pass. FAISS has no metadata filter: it evaluates the predicate into an id bitmap inside every "
+        "query. Dropdown: recall or latency statistic.",
+    ),
+    "scaling": (
+        "Scaling with corpus size",
+        "How each engine changes with corpus size: its runs on the first 25k / 50k / 75k docs (exact "
+        "ground truth over those docs) plus the full run, with library-default settings at the largest "
+        "k. Dropdown: quality, latency statistic, memory or build time.",
+    ),
 }
 FILTER_COLS = {"engine", "metric", "setting", "k", "filter", "target"}  # get value filters
 TABLES = itertools.count()  # unique id per rendered table (scopes its filter CSS)
@@ -256,6 +284,22 @@ def single(r: dict) -> bool:
     return {json.dumps(row["params"]) for row in r["serial"]} == {"{}"}
 
 
+def label(r: dict, params: dict) -> str:
+    """Name a sweep setting of a run for display, naming Moss's text search modes.
+
+    Args:
+        r: Result document the setting belongs to.
+        params: Sweep setting of one of its serial rows.
+
+    Returns:
+        setting()'s name; on text datasets, Moss's default and alpha 1.0 say what they search with.
+    """
+    name = setting(params, single(r))
+    if r["engine"] == "moss" and r["dataset"]["kind"] == "text":
+        name += " (vector only)" if params.get("alpha") == 1.0 else " (hybrid: keyword + vector)"
+    return name
+
+
 def setting(params: dict, one: bool) -> str:
     """Name a sweep setting for display.
 
@@ -270,17 +314,15 @@ def setting(params: dict, one: bool) -> str:
     return "exact" if one else json.dumps(params) if params else "default"
 
 
-def frontier(
-    points: list[tuple[float, float, str, float]],
-) -> list[tuple[float, float, str, float]]:
-    """Keep the Pareto frontier of (quality, latency) points (ann-benchmarks create_pointset).
+def frontier(points: list[tuple[float, float, str]]) -> list[tuple[float, float, str]]:
+    """Keep the Pareto frontier of (quality, latency, ...) points (ann-benchmarks create_pointset).
 
     Points are scanned fastest first (equal latency: higher quality first); a point is kept when its
     quality is higher than every point kept before it, so at equal quality only the fastest stays.
     Unlike ann-benchmarks, zero-quality points are not skipped.
 
     Args:
-        points: (quality, latency, setting name, quality) tuples, as built in tradeoff().
+        points: (quality, latency, setting name) tuples, as built in tradeoff().
 
     Returns:
         The frontier points in ascending order (quality, then latency).
@@ -319,18 +361,19 @@ def yaxes(views: dict[str, list[float | None]], log: bool = False) -> dict[str, 
     """Build the y-axis relayout of each dropdown view.
 
     Views with the same unit (the title's text after its last ", ") share one fixed range, so
-    switching mean / p50 ... p99.9 never moves the axis. A linear axis runs from 0 to 5% above the
-    unit's largest value. A log axis spans the unit's positive values with a 30% margin, is titled
-    "(log scale)" and gets 1-2-5 ticks labelled in full (Plotly's own log ticks read "5" for both
-    0.5 and 50).
+    switching mean / p50 ... p99 never moves the axis. A linear axis runs from 0 to 5% above the
+    unit's largest value. With log=True, a unit whose positive values span more than LOG_SPAN x gets
+    a log axis instead: it spans those values with a 30% margin, its title ends in "(log scale)",
+    and it gets 1-2-5 ticks labelled in full (Plotly's own log ticks read "5" for both 0.5 and 50).
+    Narrower spans stay linear.
 
     Args:
         views: Axis title -> the values plotted in that view (None for a gap).
-        log: Use log axes; a view whose unit has no positive value stays linear.
+        log: Allow log axes.
 
     Returns:
-        Axis title -> relayout keys: "yaxis.title.text" and "yaxis.range", plus "yaxis.type",
-        "yaxis.tickvals" and "yaxis.ticktext" on a log axis.
+        Axis title -> relayout keys: "yaxis.title.text", "yaxis.range" and "yaxis.type", plus
+        "yaxis.tickvals" and "yaxis.ticktext" (None on a linear axis, which clears them).
     """
     unit = {v: v.rsplit(", ", 1)[-1] for v in views}
     vals: dict[str, list[float]] = {}
@@ -339,10 +382,16 @@ def yaxes(views: dict[str, list[float | None]], log: bool = False) -> dict[str, 
     out = {}
     for v in views:
         top, pos = max(vals[unit[v]], default=0), [x for x in vals[unit[v]] if x > 0]
-        out[v] = {"yaxis.title.text": v, "yaxis.range": [0, 1.05 * top or 1]}
-        if log and pos:
+        out[v] = {
+            "yaxis.title.text": v,
+            "yaxis.type": "linear",
+            "yaxis.range": [0, 1.05 * top or 1],
+            "yaxis.tickvals": None,
+            "yaxis.ticktext": None,
+        }
+        if log and pos and max(pos) / min(pos) > LOG_SPAN:
             lo, hi = min(pos) / 1.3, max(pos) * 1.3
-            ticks = [  # 1-2-5 ticks labelled in full (Plotly's own log ticks read "5" for both 0.5 and 50)
+            ticks = [
                 m * 10.0**e
                 for e in range(math.floor(math.log10(lo)), math.ceil(math.log10(hi)))
                 for m in (1, 2, 5)
@@ -358,12 +407,14 @@ def yaxes(views: dict[str, list[float | None]], log: bool = False) -> dict[str, 
     return out
 
 
-def layout(fig: go.Figure, title: str, x: str, y: dict) -> go.Figure:
-    """Apply the shared look: recessive grid, title above the dropdowns, legend on the right.
+def layout(fig: go.Figure, x: str, y: dict) -> go.Figure:
+    """Apply the shared look: recessive grid, dropdown row on top, legend on the right.
+
+    The chart's title, subtitle and description are HTML above the figure (see section()), where
+    they wrap instead of being cut off.
 
     Args:
         fig: Figure to style, in place.
-        title: Chart title.
         x: X-axis title.
         y: Y-axis relayout of the opening view, one value of yaxes().
 
@@ -374,16 +425,10 @@ def layout(fig: go.Figure, title: str, x: str, y: dict) -> go.Figure:
         template="plotly_white",
         paper_bgcolor="#fcfcfb",
         plot_bgcolor="#fcfcfb",
-        title={
-            "text": title,
-            "x": 0,
-            "y": 0.975,
-            "yanchor": "top",
-        },  # above the dropdown row
-        height=540,
+        height=500,
         hovermode="closest",
         legend={"title": {"text": "click / double-click"}},
-        margin={"t": 130, "r": 20},
+        margin={"t": 60, "r": 20},
         xaxis_title=x,
         font={"family": "system-ui, sans-serif", "size": 13},
     )
@@ -406,8 +451,8 @@ def menu(buttons: list[dict], x: float) -> dict:
         "buttons": buttons,
         "x": x,
         "xanchor": "left",
-        "y": 1.14,
-        "yanchor": "top",
+        "y": 1.02,
+        "yanchor": "bottom",
         "showactive": True,
         # explicit ink and fill: readable in both themes (the dark-mode relayout changes the global
         # font color)
@@ -417,48 +462,40 @@ def menu(buttons: list[dict], x: float) -> dict:
     }
 
 
-def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
-    """Plot quality vs latency: one Pareto line per (engine, k) over the engine's sweep.
+def tradeoff(runs: dict[str, dict], text: bool) -> tuple[go.Figure, str]:
+    """Plot quality vs latency: every sweep setting as a marker, plus each engine's Pareto line.
 
-    Quality is recall@k (vector) or nDCG@10 (text). An exact engine is a dotted line at its latency,
-    from the lowest quality any engine reached at that k to its single point; a swept engine's
-    library-default setting is ringed (it may sit off the frontier). Dropdowns pick the latency
-    statistic and k. The latency axis is log; the quality axis keeps one range across k.
+    Quality is recall@k (vector) or nDCG@10 (text). Each (engine, k) gets three traces: a marker per
+    setting (the count never changes with the latency statistic), a line through the Pareto
+    frontier of those settings (see frontier(); it depends on the statistic), and a ring on the
+    library-default setting (swept engines only). Dropdowns pick the latency statistic and, on
+    vector datasets, k (text datasets use k = 10, the depth nDCG@10 scores). The quality axis keeps
+    one range across k; the latency axis follows yaxes(log=True).
 
     Args:
-        name: Section title, used in the chart title.
         runs: Run key -> result document.
+        text: True for a text dataset.
 
     Returns:
-        The figure.
+        The figure and its subtitle.
     """
-    ks = sorted({row["k"] for r in runs.values() for row in r["serial"]})
-    lo = {
-        k: min(row["headline"] for r in runs.values() for row in r["serial"] if row["k"] == k)
-        for k in ks
-    }  # an exact engine's line starts at the lowest value any engine reached at that k
-    label = metric_of(next(iter(runs.values()))).split(" ")[0]  # recall@k or nDCG@10
+    ks = [10] if text else sorted({row["k"] for r in runs.values() for row in r["serial"]})
+    q = "nDCG@10" if text else "recall@k"
     fig, data = go.Figure(), {s: [] for s in LATENCY}
 
-    def pts(rows: list[dict], s: str, one: bool) -> list[tuple[float, float, str, float]]:
-        """Turn serial rows into frontier points for one latency statistic.
+    def pts(r: dict, rows: list[dict], s: str) -> list[tuple[float, float, str]]:
+        """Turn serial rows into (quality, latency, setting name) points for one statistic.
 
         Args:
+            r: Result document the rows belong to.
             rows: Serial rows of one engine at one k.
             s: Latency statistic, a key of LATENCY.
-            one: True for a one-point (exact) engine.
 
         Returns:
-            (headline, latency, setting name, headline) per row; the second headline feeds the hover
-            text.
+            One point per row.
         """
         return [
-            (
-                row["headline"],
-                row["latency_ms"][LATENCY[s]],
-                setting(row["params"], one),
-                row["headline"],
-            )
+            (row["headline"], row["latency_ms"][LATENCY[s]], label(r, row["params"]))
             for row in rows
         ]
 
@@ -469,51 +506,54 @@ def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
             trace: Scatter trace without x, y and customdata.
         """
         p = data["mean"][-1]
-        trace.update(
-            x=[q[0] for q in p],
-            y=[q[1] for q in p],
-            customdata=[[q[2], q[3]] for q in p],
-        )
+        trace.update(x=[a[0] for a in p], y=[a[1] for a in p], customdata=[a[2] for a in p])
         fig.add_trace(trace)
 
     for eng, r in runs.items():
-        one = single(r)
         for k in ks:
             rows = [row for row in r["serial"] if row["k"] == k]
             if not rows:
                 continue
-            line = one and lo[k] < rows[0]["headline"]  # exact: one point per k
-            for s in LATENCY:
-                p = frontier(pts(rows, s, one))
-                data[s].append([(lo[k], *p[0][1:]), p[0]] if line else p)
             style = trace_style(eng)
-            if line:
-                style["line"]["dash"], style["marker"]["size"] = "dot", [0, 9]
-            common = {
-                "legendgroup": eng,
-                "visible": k == ks[-1],
-                "meta": k,
-                "hovertemplate": f"<b>{eng}</b> k={k}<br>%{{customdata[0]}}<br>{label} %{{customdata[1]:.4f}}"
-                "<br>%{y:.3f} ms<extra></extra>",
-            }
+            common = {"legendgroup": eng, "visible": k == ks[-1], "meta": k}
+            hover = (
+                f"<b>{eng}</b> k={k}<br>%{{customdata}}<br>{q} %{{x:.4f}}<br>%{{y:.3f}} ms"
+                "<extra></extra>"
+            )
+            for s in LATENCY:
+                data[s].append(pts(r, rows, s))
             add(
                 go.Scatter(
-                    name=f"{eng} (exact)" if line else eng,
+                    name=eng,
                     showlegend=k == ks[-1],
-                    mode="lines+markers",
+                    mode="markers",
+                    marker=style["marker"],
+                    hovertemplate=hover,
                     **common,
-                    **style,
                 )
             )
-            if one:
+            for s in LATENCY:
+                data[s].append(frontier(pts(r, rows, s)))
+            add(
+                go.Scatter(
+                    name=f"{eng} frontier",
+                    showlegend=False,
+                    mode="lines",
+                    line=style["line"],
+                    hoverinfo="skip",
+                    **common,
+                )
+            )
+            if single(r):
                 continue
             for s in LATENCY:  # the ring: library-default setting
-                data[s].append(pts([row for row in rows if not row["params"]], s, one))
+                data[s].append(pts(r, [row for row in rows if not row["params"]], s))
             add(
                 go.Scatter(
                     name=f"{eng} default",
                     showlegend=False,
                     mode="markers",
+                    hovertemplate=hover,
                     marker={
                         "color": style["marker"]["color"],
                         "symbol": "circle-open",
@@ -531,71 +571,73 @@ def tradeoff(name: str, runs: dict[str, dict]) -> go.Figure:
                     f"{s} latency, ms (lower is better)": [p[1] for t in data[s] for p in t]
                     for s in LATENCY
                 },
-                log=True,  # latencies span 100x+ (0.1 ms HNSW to 40+ ms exact scans)
+                log=True,
             ).values(),
         )
     )
-    speed_buttons = [
-        {
-            "label": s,
-            "method": "update",
-            "args": [
+    menus = [
+        menu(
+            [
                 {
-                    "x": [[p[0] for p in t] for t in data[s]],
-                    "y": [[p[1] for p in t] for t in data[s]],
-                    "customdata": [[[p[2], p[3]] for p in t] for t in data[s]],
-                },
-                ytitle[s],
-            ],
-        }
-        for s in LATENCY
-    ]
-    k_buttons = [
-        {
-            "label": f"k = {k}",
-            "method": "restyle",
-            "args": [
-                {
-                    "visible": [tr.meta == k for tr in fig.data],
-                    "showlegend": [
-                        tr.meta == k and not tr.name.endswith(" default") for tr in fig.data
+                    "label": s,
+                    "method": "update",
+                    "args": [
+                        {
+                            "x": [[p[0] for p in t] for t in data[s]],
+                            "y": [[p[1] for p in t] for t in data[s]],
+                            "customdata": [[p[2] for p in t] for t in data[s]],
+                        },
+                        ytitle[s],
                     ],
                 }
+                for s in LATENCY
             ],
-        }
-        for k in reversed(ks)
+            0,
+        )
     ]
-    fig.update_layout(updatemenus=[menu(speed_buttons, 0), menu(k_buttons, 0.3)])
-    r0 = next(iter(runs.values()))
+    if len(ks) > 1:
+        legend = [tr.mode == "markers" and not tr.name.endswith(" default") for tr in fig.data]
+        menus.append(
+            menu(
+                [
+                    {
+                        "label": f"k = {k}",
+                        "method": "restyle",
+                        "args": [
+                            {
+                                "visible": [tr.meta == k for tr in fig.data],
+                                "showlegend": [
+                                    tr.meta == k and lg for tr, lg in zip(fig.data, legend)
+                                ],
+                            }
+                        ],
+                    }
+                    for k in reversed(ks)
+                ],
+                0.3,
+            )
+        )
+    fig.update_layout(updatemenus=menus)
     xs = [p[0] for t in data["mean"] for p in t]
     pad = max(0.01, (max(xs) - min(xs)) * 0.03)
-    fig = layout(
-        fig,
-        f"{name}: {metric_of(r0)} vs latency (Pareto frontier per engine; ring = library default)",
-        metric_of(r0),
-        ytitle["mean"],
+    quality = "nDCG@10 (human labels)" if text else "recall@k (vs exact search)"
+    fig = layout(fig, f"{quality} (higher is better)", ytitle["mean"])
+    fig.update_xaxes(range=[min(xs) - pad, max(xs) + pad])  # one range for every k
+    return fig, (
+        "every search setting · line = Pareto frontier · ring = library default · "
+        + ("k = 10" if text else "k from the dropdown")
     )
-    return fig.update_xaxes(range=[min(xs) - pad, max(xs) + pad])  # one range for every k
 
 
-def bars(
-    name: str,
-    title: str,
-    views: dict[str, list[float]],
-    engines: list[str],
-    unit: str,
-) -> go.Figure:
+def bars(views: dict[str, list[float]], engines: list[str]) -> go.Figure:
     """Plot one bar per engine in its color on a linear axis from 0, with a view dropdown.
 
     A bar's length is its value, so the axis is never log; views with the same unit share one range
     (see yaxes()). The first view opens.
 
     Args:
-        name: Section title, used in the chart title.
-        title: Chart title after the section title.
-        views: View label -> one value per engine.
+        views: Axis title (measure, unit and direction) -> one value per engine.
         engines: Engine names (x axis), in the order of each view's values.
-        unit: Unit added to the axis title and hover text ("" for none).
 
     Returns:
         The figure.
@@ -603,15 +645,15 @@ def bars(
     first = next(iter(views))
 
     def hover(v: str) -> str:
-        """Build the hover template of one view.
+        """Build the hover template of one view: engine, then the measure without its direction.
 
         Args:
-            v: View label.
+            v: Axis title of the view.
 
         Returns:
-            A Plotly hovertemplate showing the engine and the view's value with its unit.
+            A Plotly hovertemplate.
         """
-        return f"<b>%{{x}}</b><br>{v}: %{{y:.3f}} {unit}<extra></extra>"
+        return f"<b>%{{x}}</b><br>{v.split(' (')[0]}: %{{y:.3f}}<extra></extra>"
 
     fig = go.Figure(
         go.Bar(
@@ -624,14 +666,13 @@ def bars(
             hovertemplate=hover(first),
         )
     )
-    ax = yaxes({f"{v}, {unit}" if unit else v: vals for v, vals in views.items()})
-    ax = dict(zip(views, ax.values()))
+    ax = yaxes(views)
     fig.update_layout(
         updatemenus=[
             menu(
                 [
                     {
-                        "label": v,
+                        "label": short(v),
                         "method": "update",
                         "args": [{"y": [vals], "hovertemplate": hover(v)}, ax[v]],
                     }
@@ -641,41 +682,56 @@ def bars(
             )
         ]
     )
-    fig = layout(fig, f"{name}: {title}", "engine", ax[first])
+    fig = layout(fig, "engine", ax[first])
     fig.update_layout(showlegend=False)
     return fig
 
 
-def latency_bars(name: str, runs: dict[str, dict]) -> go.Figure:
-    """Plot serial latency at the operating point per engine, at one k for every engine.
-
-    The k is the largest one every run measured at its operating point, so the bars compare like
-    for like. If the runs share no k, each bar uses its engine's largest k and names it in its
-    label.
+def short(view: str) -> str:
+    """Dropdown label of a view: its axis title without unit and direction.
 
     Args:
-        name: Section title, used in the chart title.
-        runs: Run key -> result document.
+        view: Axis title, e.g. "p95 latency, ms (lower is better)".
 
     Returns:
-        Bar chart with a dropdown over mean, p50 ... p99.9.
+        The measure, e.g. "p95 latency".
+    """
+    return view.split(",")[0].split(" (")[0]
+
+
+def latency_bars(runs: dict[str, dict], text: bool) -> tuple[go.Figure, str]:
+    """Plot serial latency at the default settings per engine, at one k for every engine.
+
+    The k is 10 on text datasets (the depth nDCG@10 scores), else the largest one every run
+    measured at its default setting. If the runs share no such k, each bar uses its engine's
+    largest k and names it in its label.
+
+    Args:
+        runs: Run key -> result document.
+        text: True for a text dataset.
+
+    Returns:
+        Bar chart with a dropdown over mean, p50, p95, p99, and its subtitle.
     """
     common = set.intersection(*({row["k"] for row in at_op(r)} for r in runs.values()))
-    k = max(common, default=None)
+    k = (10 if 10 in common else None) if text else max(common, default=None)
     lat = {
         e: next(row for row in at_op(r) if row["k"] == k)
         if k
         else max(at_op(r), key=lambda row: row["k"])
         for e, r in runs.items()
     }
-    return bars(
-        name,
-        f"serial latency at the operating point (library default, k = {k} for every engine)"
-        if k
-        else "serial latency at the operating point (library default; k differs, see labels)",
-        {f"{s} latency": [lat[e]["latency_ms"][key] for e in runs] for s, key in LATENCY.items()},
+    fig = bars(
+        {
+            f"{s} latency, ms (lower is better)": [lat[e]["latency_ms"][key] for e in runs]
+            for s, key in LATENCY.items()
+        },
         list(runs) if k else [f"{e} (k={lat[e]['k']})" for e in runs],
-        "ms",
+    )
+    return fig, (
+        f"library-default index and search settings · k = {k} for every engine"
+        if k
+        else "library-default index and search settings · k differs, see the labels"
     )
 
 
@@ -698,7 +754,7 @@ def cheapest(r: dict, k: int, target: float) -> dict | None:
     return min(ok, key=lambda row: row["latency_ms"]["mean"], default=None)
 
 
-def equal_recall(name: str, runs: dict[str, dict]) -> go.Figure:
+def equal_recall(runs: dict[str, dict]) -> tuple[go.Figure, str]:
     """Plot each engine's mean latency at the cheapest setting reaching each recall@k target.
 
     Any setting of the engine's sweep counts, not only the default; an exact engine has only one. An
@@ -706,24 +762,23 @@ def equal_recall(name: str, runs: dict[str, dict]) -> go.Figure:
     (largest first) and target (TARGETS); every view shares one latency range.
 
     Args:
-        name: Section title, used in the chart title.
         runs: Run key -> result document.
 
     Returns:
-        The figure.
+        The figure and its subtitle.
     """
     ks = sorted({row["k"] for r in runs.values() for row in r["serial"]})
-    views = {f"recall@{k} >= {t}": (k, t) for k in reversed(ks) for t in TARGETS}
+    views = {f"recall@{k} ≥ {t}": (k, t) for k in reversed(ks) for t in TARGETS}
     rows = {v: [cheapest(r, k, t) for r in runs.values()] for v, (k, t) in views.items()}
     ys = {v: [row["latency_ms"]["mean"] if row else None for row in rows[v]] for v in views}
     text = {
         v: [
-            setting(row["params"], single(r)) if row else "not reached"
+            label(r, row["params"]) if row else "not reached"
             for r, row in zip(runs.values(), rows[v])
         ]
         for v in views
     }
-    ax = yaxes({f"mean latency at {v}, ms": ys[v] for v in views})
+    ax = yaxes({f"mean latency at {v}, ms (lower is better)": ys[v] for v in views})
     ax = dict(zip(views, ax.values()))
     first = next(iter(views))
     fig = go.Figure(
@@ -755,17 +810,12 @@ def equal_recall(name: str, runs: dict[str, dict]) -> go.Figure:
             )
         ]
     )
-    fig = layout(
-        fig,
-        f"{name}: headline: mean latency at equal recall (cheapest setting reaching recall@k >= target)",
-        "engine (bar label: the setting used)",
-        ax[first],
-    )
+    fig = layout(fig, "engine (bar label: the setting used)", ax[first])
     fig.update_layout(showlegend=False)
-    return fig
+    return fig, "fastest setting of each engine's sweep reaching the recall target (dropdown)"
 
 
-def build_bars(name: str, runs: dict[str, dict]) -> go.Figure:
+def build_bars(runs: dict[str, dict]) -> tuple[go.Figure, str]:
     """Plot index build cost per engine.
 
     On text datasets the non-Moss engines index vectors embedded once at prepare, so their bars
@@ -773,29 +823,28 @@ def build_bars(name: str, runs: dict[str, dict]) -> go.Figure:
     inside its build, so its bar is one piece.
 
     Args:
-        name: Section title, used in the chart title.
         runs: Run key -> result document.
 
     Returns:
-        Bar chart with a dropdown over build seconds and docs per second.
+        Bar chart with a dropdown over build seconds and docs per second, and its subtitle.
     """
     if next(iter(runs.values()))["dataset"]["kind"] != "text":
-        return bars(
-            name,
-            "index build",
+        fig = bars(
             {
-                "build time, s": [r["load"]["build_s"] for r in runs.values()],
-                "docs per second": [r["load"]["docs_per_s"] for r in runs.values()],
+                "build time, s (lower is better)": [r["load"]["build_s"] for r in runs.values()],
+                "docs indexed per second (higher is better)": [
+                    r["load"]["docs_per_s"] for r in runs.values()
+                ],
             },
             list(runs),
-            "",
         )
+        return fig, "ingest + index from vectors · client and Moss session setup excluded"
     idx = [r["load"]["build_s"] for r in runs.values()]
     emb = [embed_s(r) or 0.0 for r in runs.values()]
     docs = [r["load"]["docs"] for r in runs.values()]
     views = {
-        "build time incl. corpus embedding, s": (idx, emb),
-        "docs per second incl. corpus embedding": (
+        "build time incl. corpus embedding, s (lower is better)": (idx, emb),
+        "docs per second incl. corpus embedding (higher is better)": (
             [n / (a + b) for n, a, b in zip(docs, idx, emb)],
             [0.0] * len(idx),
         ),
@@ -806,7 +855,7 @@ def build_bars(name: str, runs: dict[str, dict]) -> go.Figure:
     fig = go.Figure(
         [
             go.Bar(
-                name="index build (Moss: embedding + index, built-in model)",
+                name="index build (bar in the engine color; Moss: embedding + index with its built-in model)",
                 x=names,
                 y=views[first][0],
                 marker={
@@ -833,14 +882,16 @@ def build_bars(name: str, runs: dict[str, dict]) -> go.Figure:
         updatemenus=[
             menu(
                 [
-                    {"label": v, "method": "update", "args": [{"y": [a, b]}, ax[v]]}
+                    {"label": short(v), "method": "update", "args": [{"y": [a, b]}, ax[v]]}
                     for v, (a, b) in views.items()
                 ],
                 0,
             )
         ],
     )
-    return layout(fig, f"{name}: index build incl. corpus embedding", "engine", ax[first])
+    fig = layout(fig, "engine", ax[first])
+    fig.update_layout(legend={"orientation": "h", "y": -0.25, "title": {"text": ""}})
+    return fig, "corpus embedding + ingest + index · client and Moss session setup excluded"
 
 
 def embed_s(r: dict) -> float | None:
@@ -858,23 +909,23 @@ def embed_s(r: dict) -> float | None:
     return r["dataset"].get("corpus_embed_s")
 
 
-def memory_bars(name: str, runs: dict[str, dict]) -> go.Figure:
+def memory_bars(runs: dict[str, dict]) -> tuple[go.Figure, str]:
     """Plot memory per engine in GB (see mem_gb()).
 
     Args:
-        name: Section title, used in the chart title.
         runs: Run key -> result document.
 
     Returns:
-        Bar chart with a dropdown over index, build peak, search peak, RSS increase and on disk.
+        Bar chart with a dropdown over index, build peak, search peak, RSS increase and on disk,
+        and its subtitle.
     """
     mem = {e: mem_gb(r) for e, r in runs.items()}
-    return bars(
-        name,
-        "memory (footprint over the post-load baseline; on disk = index files)",
-        {m: [mem[e][m] for e in runs] for m in MEMORY},
-        list(runs),
-        "GB",
+    fig = bars(
+        {f"{m}, GB (lower is better)": [mem[e][m] for e in runs] for m in MEMORY}, list(runs)
+    )
+    return (
+        fig,
+        "process footprint over the footprint after loading the dataset · on disk = index files",
     )
 
 
@@ -894,7 +945,7 @@ def kept(tag: str) -> float:
 
 
 def unfiltered(r: dict) -> dict | None:
-    """The serial row a filter case compares with: the operating point at k = 100.
+    """The serial row a filter case compares with: the default setting at k = 100.
 
     Args:
         r: Result document, as written by run.py.
@@ -905,20 +956,19 @@ def unfiltered(r: dict) -> dict | None:
     return next((row for row in at_op(r) if row["k"] == 100), None)
 
 
-def filter_lines(name: str, runs: dict[str, dict]) -> go.Figure | None:
+def filter_lines(runs: dict[str, dict]) -> tuple[go.Figure, str] | None:
     """Plot filtered search: one line per engine across the filter cases.
 
     Cases are ordered from most to fewest docs kept, after an "unfiltered" point: the same engine's
     serial result at k = 100 (see unfiltered()), not re-measured. Dropdown: warm recall@100, warm
-    then cold latency (mean, p50 ... p99.9), cold first-query latency. A case an engine did not run
+    then cold latency (mean, p50, p95, p99), cold first-query latency. A case an engine did not run
     (different --filters) is left as a gap.
 
     Args:
-        name: Section title, used in the chart title.
         runs: Run key -> result document; runs without filter rows are skipped.
 
     Returns:
-        The figure, or None when no run has filter rows.
+        The figure and its subtitle, or None when no run has filter rows.
     """
     runs = {e: r for e, r in runs.items() if r["filter"]}
     if not runs:
@@ -933,11 +983,18 @@ def filter_lines(name: str, runs: dict[str, dict]) -> go.Figure | None:
     xs = ["unfiltered (100% kept)"] + [f"{t} ({kept(t):g}% kept)" for t in tags[1:]]
     by = {e: {f["filter"]: f for f in r["filter"]} for e, r in runs.items()}
     views: dict[str, tuple[str, str, str | None]] = {
-        "warm recall@100": ("warm", "recall@100", None)
+        "warm recall@100 (higher is better)": ("warm", "recall@100", None)
     }
     for p in ("warm", "cold"):
-        views |= {f"{p} {lbl} latency, ms": (p, "latency_ms", key) for lbl, key in LATENCY.items()}
-    views["cold first-query latency, ms"] = ("cold", "first_ms", None)
+        views |= {
+            f"{p} {lbl} latency, ms (lower is better)": (p, "latency_ms", key)
+            for lbl, key in LATENCY.items()
+        }
+    views["cold first-query latency (one query per case), ms (lower is better)"] = (
+        "cold",
+        "first_ms",
+        None,
+    )
 
     def val(e: str, t: str, view: tuple[str, str, str | None]) -> float | None:
         """Look up one engine's value for a filter case and dropdown view.
@@ -961,9 +1018,10 @@ def filter_lines(name: str, runs: dict[str, dict]) -> go.Figure | None:
         x = by[e][t][view[0]][view[1]]
         return x[view[2]] if view[2] else x
 
+    first = next(iter(views))
     ys = {v: [[val(e, t, view) for t in tags] for e in runs] for v, view in views.items()}
     fig = go.Figure()
-    for e, y in zip(runs, ys["warm recall@100"]):
+    for e, y in zip(runs, ys[first]):
         fig.add_trace(
             go.Scatter(
                 x=xs,
@@ -978,46 +1036,44 @@ def filter_lines(name: str, runs: dict[str, dict]) -> go.Figure | None:
     fig.update_layout(
         updatemenus=[
             menu(
-                [{"label": v, "method": "update", "args": [{"y": ys[v]}, ax[v]]} for v in views],
+                [
+                    {"label": short(v), "method": "update", "args": [{"y": ys[v]}, ax[v]]}
+                    for v in views
+                ],
                 0,
             )
         ]
     )
-    return layout(
-        fig,
-        f"{name}: filtered search at the operating point (VectorDBBench int / label cases)",
-        "filter case (share of docs kept)",
-        ax["warm recall@100"],
-    )
+    fig = layout(fig, "filter case (share of docs kept)", ax[first])
+    return fig, "VectorDBBench int / label filter cases · library-default settings · k = 100"
 
 
-def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> go.Figure:
-    """Plot each measure against corpus size, one line per run key (engine and metric mode).
+def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> tuple[go.Figure, str]:
+    """Plot each measure against corpus size, one line per engine.
 
-    A line joins a run key's --docs runs and, if present, its full-corpus run, each at its operating
-    point and largest k. The dropdown picks the measure: quality, latency statistic, index or build
-    peak memory, build time (axes as in yaxes(); docs on a linear axis from 0). Hover shows docs,
-    queries used and the setting.
+    A line joins an engine's --docs runs and, if present, its full-corpus run, each at its default
+    setting and largest k. The dropdown picks the measure: quality, latency statistic, index or
+    build peak memory, build time (axes as in yaxes(); docs on a linear axis from 0). Hover shows
+    docs, queries used and the setting.
 
     Args:
-        name: Dataset name, used in the chart title.
-        full: Run key -> result of the full-corpus runs; only keys that also have --docs runs are
+        name: Dataset name.
+        full: Engine -> result of the full-corpus runs; only engines that also have --docs runs are
             drawn.
-        subs: Run key (ending in -docsN) -> result of the --docs runs.
+        subs: Run key (engine-docsN) -> result of the --docs runs.
 
     Returns:
-        The figure.
+        The figure and its subtitle.
     """
-    r0 = next(iter(subs.values()))
-    views = {metric_of(r0): lambda r, row: row["headline"]}
+    views = {"recall@k (vs exact search) (higher is better)": lambda r, row: row["headline"]}
     views |= {
-        f"{s} latency, ms": lambda r, row, key=key: row["latency_ms"][key]
+        f"{s} latency, ms (lower is better)": lambda r, row, key=key: row["latency_ms"][key]
         for s, key in LATENCY.items()
     }
     views |= {
-        "index memory, GB": lambda r, row: mem_gb(r)["index"],
-        "build peak memory, GB": lambda r, row: mem_gb(r)["build peak"],
-        "build time, s": lambda r, row: r["load"]["build_s"],
+        "index memory, GB (lower is better)": lambda r, row: mem_gb(r)["index"],
+        "build peak memory, GB (lower is better)": lambda r, row: mem_gb(r)["build peak"],
+        "build time, s (lower is better)": lambda r, row: r["load"]["build_s"],
     }
     bases = {k.split("-docs")[0] for k in subs}
     by: dict[str, list[tuple[dict, dict]]] = {}
@@ -1036,14 +1092,14 @@ def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> go.Figur
                 customdata=[
                     [
                         r["args"].get("queries") or r["dataset"]["n_queries"],
-                        setting(row["params"], single(r)),
+                        label(r, row["params"]),
                     ]
                     for r, row in pts
                 ],
                 name=eng,
                 mode="lines+markers",
-                hovertemplate=f"<b>{eng}</b><br>%{{x:,}} docs, %{{customdata[0]}} queries<br>%{{customdata[1]}}"
-                "<br>%{y:.4g}<extra></extra>",
+                hovertemplate=f"<b>{eng}</b><br>%{{x:,}} docs, %{{customdata[0]}} queries"
+                "<br>%{customdata[1]}<br>%{y:.4g}<extra></extra>",
                 **trace_style(eng),
             )
         )
@@ -1052,20 +1108,18 @@ def scaling(name: str, full: dict[str, dict], subs: dict[str, dict]) -> go.Figur
     fig.update_layout(
         updatemenus=[
             menu(
-                [{"label": v, "method": "update", "args": [{"y": ys[v]}, ax[v]]} for v in views],
+                [
+                    {"label": short(v), "method": "update", "args": [{"y": ys[v]}, ax[v]]}
+                    for v in views
+                ],
                 0,
             )
         ]
     )
-    fig = layout(
-        fig,
-        f"{name}: scaling with corpus size (operating point, largest k)",
-        "docs",
-        ax[first],
-    )
-    return fig.update_xaxes(range=[0, 1.05 * max(x for t in fig.data for x in t.x)])
-
-
+    fig = layout(fig, "docs in the index", ax[first])
+    fig.update_xaxes(range=[0, 1.05 * max(x for t in fig.data for x in t.x)])
+    k = max(row["k"] for r in subs.values() for row in at_op(r))
+    return fig, f"first N docs of {name} · library-default settings · k = {k}"
 def better(col: str) -> str:
     """Tell which way a table column improves, for bolding its best value.
 
@@ -1142,7 +1196,7 @@ def table(head: list[str], rows: list[list[str]]) -> tuple[list[str], str]:
 def examples(runs: dict[str, dict]) -> str:
     """Render each engine's example results as HTML (text datasets).
 
-    One collapsed block per query (the first 10) lists each engine's top 5 at its operating point; ✓
+    One collapsed block per query (the first 10) lists each engine's top 5 with default settings; ✓
     marks a result labelled relevant in the dataset.
 
     Args:
@@ -1155,7 +1209,7 @@ def examples(runs: dict[str, dict]) -> str:
     if not runs:
         return ""
     out = [
-        "<h3>Example results (top 5 at the operating point; ✓ = labelled relevant in the dataset)</h3>"
+        "<h3>Example results (top 5 with default settings; ✓ = labelled relevant in the dataset)</h3>"
     ]
     for i, ex in enumerate(next(iter(runs.values()))["examples"]):
         rows = "".join(
@@ -1174,22 +1228,27 @@ def examples(runs: dict[str, dict]) -> str:
 
 def section(
     title: str,
+    ds: str,
+    metric: str,
     runs: dict[str, dict],
-    figs: list[tuple[str, go.Figure]],
+    figs: list[tuple[str, go.Figure, str]],
     missing: list[str],
 ) -> tuple[list[str], list, list[str]]:
     """Render one report section as markdown, chart-tab parts and table-tab parts.
 
-    The intro gives docs, queries and the engines that did not finish. Tables: operating point,
-    equal recall (vector datasets), full serial sweep, filtered search (when any), memory, example
-    results (text datasets) and DNF. A section with only failed attempts gets its heading and the
-    DNF table.
+    The intro gives docs, queries, what the quality measure means (text datasets) and the engines
+    that did not finish. Each chart gets a numbered card: "Chart N · <dataset> · <measure>", a
+    subtitle (metric and the chart's specifics) and a description, all HTML so they wrap. Tables:
+    default settings, equal recall (vector datasets), full serial sweep, filtered search (when any),
+    memory, example results (text datasets) and DNF. A section with only failed attempts gets its
+    heading and the DNF table.
 
     Args:
         title: Section title.
+        ds: Dataset name.
+        metric: Metric view, a key of METRIC_VIEWS.
         runs: Run key -> result document of this section.
-        figs: (ABOUT / TITLES key, figure) pairs in display order; each figure gets a numbered card
-            with its title and description above it.
+        figs: (CHARTS key, figure, subtitle) in display order.
         missing: "<run key>: DNF, <last log line>" for each run that did not finish.
 
     Returns:
@@ -1209,32 +1268,44 @@ def section(
     text = r0["dataset"]["kind"] == "text"
     n = sorted({row["latency_ms"]["n"] for r in runs.values() for row in r["serial"]})
     queries = f"{n[0]:,}" if len(n) == 1 else f"{n[0]:,} to {n[-1]:,} (differs by engine)"
-    kmax = max(row["k"] for r in runs.values() for row in r["serial"])
-    intro = (
-        "Runs on the first N docs (--docs, exact ground truth over those docs); the scaling chart adds the full run "
-        "when it exists."
-        if title.endswith("-subsets")
-        else f"{r0['dataset']['n_base']:,} docs, {queries} queries. Every engine runs with its library's default "
-        "index and search settings; the operating point is the default search setting. "
-        + (
-            "Headline (chart 1): nDCG@10 against end-to-end mean latency (query embedding included)."
-            if text
-            else f"Headline (chart 1): mean serial latency of each engine's cheapest setting reaching recall@{kmax} "
-            ">= 0.95, the like-for-like comparison public benchmarks use (speed at a recall threshold: Qdrant, VIBE, "
-            "big-ann); chart 2 is the full recall-vs-latency trade-off."
+    if "-docs" in next(iter(runs)):
+        intro = (
+            f"Each engine on the first N docs of {ds}, with exact ground truth over those docs; the "
+            "scaling chart adds the full run when it exists."
         )
-    )
+    elif text:
+        intro = (
+            f"{r0['dataset'].get('source', ds)}: {r0['dataset']['n_base']:,} documents, {queries} "
+            "queries with human relevance labels. Quality is nDCG@10: it scores the first 10 results "
+            "against the labels, each labelled-relevant result weighted by 1 / log2(rank + 1), divided "
+            "by the score of a perfect ranking, so 1.0 means every labelled-relevant document is ranked "
+            "first. Moss embeds text with its built-in model and by default blends keyword and vector "
+            "scores (alpha 0.8); its alpha 1.0 setting is vector only, like the other engines, which "
+            "search fastembed all-MiniLM-L6-v2 vectors. Charts use k = 10; the tables list every k."
+        )
+    else:
+        intro = (
+            f"{r0['dataset']['n_base']:,} docs, {queries} queries. Every engine uses its library's "
+            "default index and search settings; the recall vs latency chart adds the other search "
+            "settings each engine was swept over."
+        )
     if missing:
         intro += f" Did not finish: {', '.join(m.split(':')[0] for m in missing)}."
     md = [f"## {title}", "", intro, ""]
     charts = [f"{head}<p>{html.escape(intro)}</p>"]
-    for i, (key, fig) in enumerate(figs, 1):
+    md += ["Charts (in report.html):", ""] if figs else []
+    for i, (key, fig, sub) in enumerate(figs, 1):
+        measure, about = CHARTS[key]
+        sub = f"metric: {METRIC_VIEWS[metric]} · {sub}"
+        md += [f"- Chart {i} · {ds} · {measure} ({sub})"]
         charts += [
-            f"<hr><figure class='chart'><figcaption><h3>Chart {i} · {html.escape(TITLES[key])}</h3>"
-            f"<p class='about'>{html.escape(ABOUT[key])}</p></figcaption>",
+            f"<hr><figure class='chart'><figcaption><h3>Chart {i} · {html.escape(ds)} · "
+            f"{html.escape(measure)}</h3><p class='sub'>{html.escape(sub)}</p>"
+            f"<p class='about'>{html.escape(about)}</p></figcaption>",
             fig,
             "</figure>",
         ]
+    md += [""] if figs else []
     tables = [f"{head}<p>{html.escape(intro)}</p>"]
 
     def add(name: str, cols: list[str], rows: list[list[str]]) -> None:
@@ -1278,7 +1349,7 @@ def section(
                 [
                     e,
                     r.get("metric", "-"),
-                    setting(row["params"], single(r)),
+                    label(r, row["params"]),
                     str(row["k"]),
                     *quality(row),
                     *(f"{row['latency_ms'][key]:.3f}" for key in LATENCY.values()),
@@ -1290,7 +1361,7 @@ def section(
                 ]
             )
     add(
-        "Operating point (library default)",
+        "Default settings (library-default index and search settings, every k)",
         [
             "engine",
             "metric",
@@ -1315,7 +1386,7 @@ def section(
                     e,
                     str(k),
                     f"{t}",
-                    setting(row["params"], single(r)) if row else "not reached",
+                    label(r, row["params"]) if row else "not reached",
                     f"{row['headline']:.4f}" if row else "-",
                     *(f"{row['latency_ms'][key]:.3f}" if row else "-" for key in LATENCY.values()),
                 ]
@@ -1331,7 +1402,7 @@ def section(
         [
             [
                 e,
-                setting(row["params"], single(r)),
+                label(r, row["params"]),
                 str(row["k"]),
                 *quality(row),
                 *(f"{row['latency_ms'][key]:.3f}" for key in LATENCY.values()),
@@ -1361,7 +1432,7 @@ def section(
     ]
     if filt:
         add(
-            "Filtered search (k=100 at the operating point; cold = first use of the filter, warm = second pass)",
+            "Filtered search (k = 100, default settings; cold = first pass over a filter, warm = second pass)",
             [
                 "engine",
                 "filter",
@@ -1410,6 +1481,29 @@ def section(
     return md + [""], charts, tables
 
 
+NOTES = [
+    "† Metric. Every document and query vector is scaled to unit length when the dataset is prepared. "
+    "For unit vectors, cosine similarity equals the inner product and squared L2 distance equals "
+    "2 − 2 × inner product, so all three rank documents identically and give the same recall. The "
+    "datasets are defined with cosine similarity, so the inner-product view (the default) runs every "
+    "engine in its inner-product mode (cosine where an engine has no inner product), and every engine "
+    "computes the same similarity. The library-default view runs each engine with its library's "
+    "default metric (L2 for most), which can change speed but not the ranking. Moss, zvec and Qdrant "
+    "use inner product by default and appear unchanged in both views.",
+    "Quality. recall@k is the share of the true k nearest documents (found by exact search) that an "
+    "engine returns in its top k, averaged over the queries: recall@100 ≥ 0.95 means at least 95 of "
+    "the true 100 on average, and 1.0 means the same results as exact search. Text datasets are "
+    "scored with nDCG@10 against human relevance labels; their section explains it.",
+    "Latency. Wall-clock time per query, one query at a time, over every measured query, after 100 "
+    "unmeasured warm-up queries per setting. Statistics: mean, p50, p95, p99; p99.9 is left out "
+    "because with at most 1,000 queries it is one of the two slowest samples. Each configuration "
+    "was measured in one run, without repeats. Engines differ in how many CPU cores one query uses; "
+    "CPU time is not measured. Each engine returns its library's default result payload (e.g. "
+    "Chroma: ids, metadata, documents and distances; LanceDB: every column, the vector included; "
+    "FAISS: ids and distances), and a larger payload costs more as k grows.",
+]
+
+
 PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Moss vector benchmark</title><style>
 :root{--surface:#fcfcfb;--ink:#0b0b0b;--muted:#52514e;--rule:#e4e3df;--best:#e3eefb}
@@ -1429,10 +1523,13 @@ th:first-child,td:first-child{text-align:left}table.sortable th{cursor:pointer;u
 th[data-dir=asc]::after{content:" ▲"}th[data-dir=desc]::after{content:" ▼"}td.best{font-weight:700;background:var(--best)}
 td.snip{white-space:normal;text-align:left;min-width:320px}summary{cursor:pointer;margin:6px 0}
 figure.chart{margin:0;border:1px solid var(--rule);border-radius:8px;padding:12px 16px}figure.chart h3{margin:0 0 4px}
-p.about{margin:0;max-width:900px}hr{border:0;border-top:2px solid var(--rule);margin:32px 0}
+p.about{margin:0;max-width:900px}p.sub{margin:0 0 6px;color:var(--ink)}
+.notes p{max-width:1000px;margin:6px 0}hr{border:0;border-top:2px solid var(--rule);margin:32px 0}
 </style></head><body><h1>Moss vector benchmark</h1><p>__ENV__</p>
 <nav><button data-tab="charts" aria-pressed="true">Charts</button><button data-tab="tables" aria-pressed="false">Tables</button>
-<label>dataset <select id="ds">__OPTIONS__</select></label></nav>
+<label>dataset <select id="ds">__OPTIONS__</select></label>
+<label>metric <select id="metric">__METRICS__</select></label></nav>
+<div class="notes">__NOTES__</div>
 <p>Charts: hover any point or bar for exact values; click a legend entry to hide an engine, double-click to isolate it;
 dropdowns above each chart switch the measure. Tables: click a header to sort; open a column's value list and tick values
 to show only those rows (nothing ticked = all rows; "clear filters" unticks everything); the best value per column among
@@ -1453,14 +1550,14 @@ if (matchMedia("(prefers-color-scheme: dark)").matches) {
 // Tabs and dataset picker: show one tab's sections for one dataset; resize the charts that just became visible.
 let tab = "charts";
 const show = () => {
-  const ds = document.getElementById("ds").value;
+  const ds = document.getElementById("ds").value, metric = document.getElementById("metric").value;
   for (const s of document.querySelectorAll("section"))
-    s.hidden = s.dataset.tab !== tab || s.dataset.ds !== ds;
+    s.hidden = s.dataset.tab !== tab || s.dataset.ds !== ds || s.dataset.metric !== metric;
   for (const b of document.querySelectorAll("nav button")) b.setAttribute("aria-pressed", b.dataset.tab === tab);
   for (const el of document.querySelectorAll("section:not([hidden]) .js-plotly-plot")) Plotly.Plots.resize(el);
 };
 for (const b of document.querySelectorAll("nav button")) b.onclick = () => { tab = b.dataset.tab; show(); };
-document.getElementById("ds").onchange = show;
+document.getElementById("ds").onchange = document.getElementById("metric").onchange = show;
 show();
 // Tables: sort on header click, bold the best value per column among the shown rows (value filters are CSS).
 const num = td => { const v = parseFloat(td.textContent); return isNaN(v) ? null : v; };
@@ -1499,9 +1596,11 @@ for (const t of document.querySelectorAll("table.sortable")) {
 def main() -> None:
     """Write results/report.html and results/summary.md for every dataset with results.
 
-    Each dataset gets up to three sections (library-default metric, inner product, --docs subsets),
-    each with its charts and tables; a dataset with only failed attempts gets DNF sections.
-    plotly.js is inlined once, so the page works offline.
+    Each dataset gets one view per metric (METRIC_VIEWS, switched on the page; both in the
+    markdown), each with a full-corpus section and, when there are --docs runs, a subsets section,
+    with their charts and tables. The inner-product view takes every --metric ip run plus the
+    default run of each engine whose default metric is already inner product. A dataset with only
+    failed attempts gets DNF sections. plotly.js is inlined once, so the page works offline.
 
     Raises:
         SystemExit: There are no results, or a run's newest attempt failed while an older result
@@ -1531,85 +1630,75 @@ def main() -> None:
         f"Hardware: {env['cpu']}, {env['cores']} cores, {env['ram_gb']} GB, {env['os']}. "
         "Versions: " + ", ".join(p + " " + " / ".join(sorted(v)) for p, v in versions.items()) + "."
     )
-    md = [
-        "# Benchmark results",
-        "",
-        env_line,
-        "",
-        "Interactive charts: report.html",
-        "",
-    ]
-    body: list[tuple[str, str, object]] = []  # (dataset, tab, HTML fragment or figure)
+    md = ["# Benchmark results", "", env_line, "", "Interactive charts: report.html", ""]
+    md += [x for n in NOTES for x in (n, "")]
+    body: list[tuple[str, str, str, object]] = []  # (dataset, tab, metric, HTML fragment or figure)
     names = sorted(set(runs) | {ds for ds, _, ok, _, _ in att if not ok})
     for name in names:
         have = runs.get(name, {})
         dnfs = [(key, last) for ds, key, ok, last, _ in att if ds == name and not ok]
-        full = {k: r for k, r in have.items() if not re.search(r"-ip|-docs", k)}
-        ip = {k[:-3]: r for k, r in have.items() if k.endswith("-ip")}
-        if ip:  # engines without an ip mode: their default run already ranks by inner product
-            ip |= {k: r for k, r in full.items() if r.get("metric") in IP and k not in ip}
-        groups = [  # the dataset-metric section first: cosine datasets, unit vectors
-            (
-                f"{name} · dataset metric (cosine ≡ inner product on unit vectors)",
-                ip,
-                lambda k: k.endswith("-ip"),
-            ),
-            (f"{name} · library default metric", full, lambda k: not re.search(r"-ip|-docs", k)),
-            (
-                f"{name}-subsets",
-                {k: r for k, r in have.items() if "-docs" in k},
-                lambda k: "-docs" in k,
-            ),
-        ]
-        for title, rs, mine in groups:
-            missing = [f"{k}: DNF, {last}" for k, last in dnfs if mine(k)]
-            if not rs and not missing:
-                continue
-            figs = []
-            if rs and title.endswith("-subsets"):
-                figs = [
-                    (
-                        "scaling",
-                        scaling(
-                            name,
-                            {k: r for k, r in have.items() if "-docs" not in k},
-                            rs,
-                        ),
-                    )
-                ]
-            elif rs:
-                vector = next(iter(rs.values()))["dataset"]["kind"] != "text"
-                figs = [  # headline first: equal recall (vector) or the trade-off (text)
-                    *([("equal", equal_recall(title, rs))] if vector else []),
-                    ("tradeoff", tradeoff(title, rs)),
-                    ("latency", latency_bars(title, rs)),
-                    ("build", build_bars(title, rs)),
-                    ("memory", memory_bars(title, rs)),
-                ]
-                if fb := filter_lines(title, rs):
-                    figs.append(("filter", fb))
-            m, charts, tables = section(title, rs, figs, missing)
-            md += m
-            body += [(name, "charts", p) for p in charts]
-            body += [(name, "tables", p) for p in tables]
+        for metric, view in METRIC_VIEWS.items():
+            if metric == "ip":  # --metric ip runs, else the default run of an engine that is ip already
+                pick = {
+                    re.sub(r"-ip(?=$|-docs)", "", k): r for k, r in have.items() if "-ip" in k
+                }
+                pick |= {
+                    k: r
+                    for k, r in have.items()
+                    if "-ip" not in k and r.get("metric") in IP and k not in pick
+                }
+                dnf = [(re.sub(r"-ip(?=$|-docs)", "", k), last) for k, last in dnfs if "-ip" in k]
+            else:
+                pick = {k: r for k, r in have.items() if "-ip" not in k}
+                dnf = [(k, last) for k, last in dnfs if "-ip" not in k]
+            full = {k: pick[k] for k in sorted(pick) if "-docs" not in k}
+            subs = {k: pick[k] for k in sorted(pick) if "-docs" in k}
+            for title, rs, sub in (
+                (f"{name} · metric: {view}", full, False),
+                (f"{name} · corpus-size subsets · metric: {view}", subs, True),
+            ):
+                missing = [f"{k}: DNF, {last}" for k, last in dnf if ("-docs" in k) == sub]
+                if not rs and not missing:
+                    continue
+                figs: list = []
+                if rs and sub:
+                    figs = [("scaling", *scaling(name, full, rs))]
+                elif rs:
+                    text = next(iter(rs.values()))["dataset"]["kind"] == "text"
+                    figs = [
+                        *([] if text else [("equal", *equal_recall(rs))]),
+                        ("tradeoff-text" if text else "tradeoff", *tradeoff(rs, text)),
+                        ("latency", *latency_bars(rs, text)),
+                        ("build-text" if text else "build", *build_bars(rs)),
+                        ("memory", *memory_bars(rs)),
+                    ]
+                    if fb := filter_lines(rs):
+                        figs.append(("filter", *fb))
+                m, charts, tables = section(title, name, metric, rs, figs, missing)
+                md += m
+                body += [(name, "charts", metric, p) for p in charts]
+                body += [(name, "tables", metric, p) for p in tables]
     parts, first, i = [], True, 0
     for ds in names:
-        for tab in ("charts", "tables"):
-            parts.append(f"<section data-tab='{tab}' data-ds='{html.escape(ds)}'>")
-            for p in (p for d, t, p in body if (d, t) == (ds, tab)):
-                if isinstance(p, go.Figure):
-                    parts.append(
-                        p.to_html(
-                            full_html=False,
-                            include_plotlyjs=first,
-                            div_id=f"fig{i}",
-                            config={"displaylogo": False, "responsive": True},
+        for metric in METRIC_VIEWS:
+            for tab in ("charts", "tables"):
+                parts.append(
+                    f"<section data-tab='{tab}' data-ds='{html.escape(ds)}' data-metric='{metric}'>"
+                )
+                for p in (p for d, t, m, p in body if (d, t, m) == (ds, tab, metric)):
+                    if isinstance(p, go.Figure):
+                        parts.append(
+                            p.to_html(
+                                full_html=False,
+                                include_plotlyjs=first,
+                                div_id=f"fig{i}",
+                                config={"displaylogo": False, "responsive": True},
+                            )
                         )
-                    )
-                    first, i = False, i + 1
-                else:
-                    parts.append(p)
-            parts.append("</section>")
+                        first, i = False, i + 1
+                    else:
+                        parts.append(p)
+                parts.append("</section>")
     dark = json.dumps(
         {light: dark for light, dark, _, _ in STYLE.values()}
         | {"#fcfcfb": "#1a1a19", "#52514e": "#c3c2b7"}
@@ -1617,6 +1706,11 @@ def main() -> None:
     page = (
         PAGE.replace("__ENV__", html.escape(env_line))
         .replace("__OPTIONS__", "".join(f"<option>{html.escape(n)}</option>" for n in names))
+        .replace(
+            "__METRICS__",
+            "".join(f"<option value='{m}'>{html.escape(v)}</option>" for m, v in METRIC_VIEWS.items()),
+        )
+        .replace("__NOTES__", "".join(f"<p>{html.escape(n)}</p>" for n in NOTES))
         .replace("__BODY__", "\n".join(parts))
         .replace("__DARK__", dark)
     )

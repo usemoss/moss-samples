@@ -303,7 +303,10 @@ def warmup_set(d: dict, all_q: object, measured: int, text: bool) -> tuple[list,
 
     Warming up on measured queries made those queries faster in their measured pass (zvec 5-9%,
     chroma about 6% on cohere-100k), so the warm-up uses the queries after the measured ones when
-    at least 100 exist (--queries below the total), else 100 indexed docs as queries.
+    at least 100 exist (--queries below the total). Otherwise a text dataset uses its train-split
+    warm-up queries (warmup.jsonl; warming up on corpus texts left Chroma and LanceDB's first
+    measured pass on scifact 1.3-1.6x slower in mean latency), and a vector dataset uses 100
+    indexed docs as queries.
 
     Args:
         d: Dataset after subsetting.
@@ -312,11 +315,14 @@ def warmup_set(d: dict, all_q: object, measured: int, text: bool) -> tuple[list,
         text: True for a text dataset.
 
     Returns:
-        The warm-up queries and their source: "queries", "doc vectors" or "corpus texts".
+        The warm-up queries and their source: "queries", "train queries", "doc vectors" or
+        "corpus texts".
     """
     spare = all_q[measured : measured + 100]
     if len(spare) == 100:
         return ([q["text"] for q in spare] if text else list(spare)), "queries"
+    if text and d.get("warmup_text"):
+        return [q["text"] for q in d["warmup_text"]], "train queries"
     if text:
         return [c["text"] for c in d["corpus"][:100]], "corpus texts"
     return list(np.asarray(d["base"][:100])), "doc vectors"
