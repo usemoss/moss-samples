@@ -1,0 +1,12 @@
+# Vendored native libmoss C SDK (downloaded on demand by scripts/validate.rb)
+.libmoss/
+
+# Ruby / Bundler artifacts
+*.gem
+.bundle/
+vendor/bundle/
+Gemfile.lock
+coverage/
+.yardoc/
+doc/
+.rspec_status

@@ -1,0 +1,9 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+gemspec
+
+# During in-repo development the native bindings are resolved from the sibling
+# directory rather than RubyGems.
+gem "moss-core", path: "../bindings"

@@ -1,0 +1,69 @@
+# Shared RuboCop configuration for the Moss Ruby SDK (both the `moss` gem in
+# sdk/ and the `moss-core` bindings in bindings/). Each gem has a thin
+# .rubocop.yml that inherits from this file.
+
+AllCops:
+  TargetRubyVersion: 3.0
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - ".libmoss/**/*"
+    - "**/vendor/**/*"
+
+# Documentation is provided as prose (README) plus inline comments; per-class
+# doc comments are not required.
+Style/Documentation:
+  Enabled: false
+
+# This SDK standardises on double-quoted strings.
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+Style/StringLiteralsInInterpolation:
+  EnforcedStyle: double_quotes
+
+# has_index? mirrors the native API name; delete_index/create_index are actions,
+# not predicates — the newer predicate-naming cops produce false positives here.
+Naming/PredicatePrefix:
+  Enabled: false
+Naming/PredicateMethod:
+  Enabled: false
+
+# The validation harness is a linear script, not library code.
+Metrics/MethodLength:
+  Max: 45
+  Exclude:
+    - "**/scripts/**/*"
+Metrics/AbcSize:
+  Max: 45
+  Exclude:
+    - "**/scripts/**/*"
+Metrics/CyclomaticComplexity:
+  Max: 12
+Metrics/PerceivedComplexity:
+  Max: 12
+Metrics/ClassLength:
+  Max: 400
+Metrics/ModuleLength:
+  Max: 250
+Metrics/BlockLength:
+  Max: 30
+  Exclude:
+    - "**/test/**/*"
+    - "**/*.gemspec"
+
+# Test files naturally group several small support classes together.
+Style/OneClassPerFile:
+  Enabled: false
+
+# Development dependencies are declared in the gemspec (versioned with the gem),
+# which is a valid and common convention.
+Gemspec/DevelopmentDependencies:
+  Enabled: false
+Metrics/ParameterLists:
+  Max: 8
+  CountKeywordArgs: false
+
+Layout/LineLength:
+  Max: 120
+  Exclude:
+    - "**/test/**/*"

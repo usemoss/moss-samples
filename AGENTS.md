@@ -15,6 +15,8 @@ sdks/
   python/sdk/      — Python SDK (PyPI: moss), Python 3.10+
   javascript/sdk/  — JS/TS SDK (npm: @moss-dev/moss), ESM-only
   elixir/sdk/      — Elixir SDK (Hex: moss)
+  go/sdk/          — Go SDK (module: github.com/usemoss/moss/sdks/go/sdk)
+  ruby/sdk/        — Ruby SDK (RubyGems: moss), Ruby 3.0+
 examples/
   python/          — Standalone Python usage examples
   javascript/      — Standalone TS usage examples
@@ -225,6 +227,29 @@ mix deps.get
 mix test
 ```
 
+### Ruby SDK (`sdks/ruby/sdk/`)
+
+```bash
+cd sdks/ruby/sdk
+bundle install
+bundle exec rake test          # unit tests (native/E2E tests auto-skip)
+bundle exec rubocop            # lint (shared config in sdks/ruby/.rubocop.yml)
+
+# Local search + E2E need the native libmoss runtime (download the c-sdk
+# release) and credentials:
+#   MOSS_LIB_DIR=/path/to/libmoss/lib MOSS_PROJECT_ID=... MOSS_PROJECT_KEY=...
+#
+# End-to-end validation harness (reads creds from a repo-root .env, auto-fetches
+# libmoss):
+ruby sdks/ruby/sdk/scripts/validate.rb
+```
+
+The Ruby SDK is two gems: `sdks/ruby/sdk/` (`moss`, high-level client) over
+`sdks/ruby/bindings/` (`moss-core`, FFI bindings over `libmoss`). Like the Go
+SDK it links the prebuilt `libmoss` C SDK rather than a per-language native
+package, and degrades to a cloud-query fallback / `BindingsUnavailableError`
+when `libmoss` is absent.
+
 ## Architecture: Two-Layer Design
 
 Every SDK has the same two-layer structure:
@@ -238,10 +263,12 @@ SDK layer (pure language, open source)
    ↓
 Native bindings (Rust, pre-compiled, published as separate package)
    └─ ManageClient / IndexManager — handles embedding, indexing, local search
-   └─ Imported as: moss-core (Python), @moss-dev/moss-core (JS), moss_core (Elixir)
+   └─ Imported as: moss-core (Python), @moss-dev/moss-core (JS), moss_core (Elixir),
+      moss-core (Ruby, FFI over libmoss). The Go and Ruby SDKs link the prebuilt
+      `libmoss` C SDK directly instead of a per-language Rust package.
 ```
 
-The Python `MossClient` in [sdks/python/sdk/src/moss/client/moss_client.py](sdks/python/sdk/src/moss/client/moss_client.py) re-exports types from `moss_core` and wraps `ManageClient` + `IndexManager` from the native layer. The JS SDK follows the same pattern in [sdks/javascript/sdk/src/client/](sdks/javascript/sdk/src/client/).
+The Python `MossClient` in [sdks/python/sdk/src/moss/client/moss_client.py](sdks/python/sdk/src/moss/client/moss_client.py) re-exports types from `moss_core` and wraps `ManageClient` + `IndexManager` from the native layer. The JS SDK follows the same pattern in [sdks/javascript/sdk/src/client/](sdks/javascript/sdk/src/client/). The Ruby `Moss::Client` in [sdks/ruby/sdk/lib/moss/client.rb](sdks/ruby/sdk/lib/moss/client.rb) wraps `Moss::Core::ManageClient` + `Moss::Core::IndexManager` from the `moss-core` FFI bindings.
 
 **Key invariant:** Mutations (create/add/delete) go to the cloud via `ManageClient`. Queries use the local `IndexManager` when an index is loaded; otherwise fall back to the cloud query API.
 
