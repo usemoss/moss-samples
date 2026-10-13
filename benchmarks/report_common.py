@@ -12,12 +12,15 @@ import html
 import itertools
 import json
 import math
+import os
 import re
 from pathlib import Path
 
 import plotly.graph_objects as go
 
-RESULTS = Path(__file__).parent / "results"
+RESULTS = Path(
+    os.environ.get("BENCH_RESULTS") or Path(__file__).parent / "results"
+)  # BENCH_RESULTS: preview another dir
 # Fixed engine -> (light hue, dark hue, marker, dash); validated categorical palette (8 hues, light
 # and dark steps). Color follows the engine, never its rank. Two setups of one library share a hue
 # and differ by dash and marker.
@@ -41,7 +44,7 @@ METRIC_VIEWS = {"ip": "inner product†", "default": "library default"}
 FILTER_COLS = {"engine", "metric", "setting", "knob", "k", "filter", "target"}  # get value filters
 TABLES = itertools.count()  # unique id per rendered table (scopes its filter CSS)
 NOTES = {
-    "metric": "† Metric. Every document and query vector is scaled to unit length when the dataset "
+    "metric": "Every document and query vector is scaled to unit length when the dataset "
     "is prepared. For unit vectors, cosine similarity equals the inner product and squared L2 distance "
     "equals 2 − 2 × inner product, so all three rank documents identically and give the same recall. "
     "The datasets are defined with cosine similarity, so the inner-product view (the default) runs every "
@@ -49,11 +52,11 @@ NOTES = {
     "computes the same similarity. The library-default view runs each engine with its library's default "
     "metric (L2 for most), which can change speed but not the ranking. Moss, zvec and Qdrant use inner "
     "product by default and appear unchanged in both views.",
-    "quality": "Quality. recall@k is the share of the true k nearest documents (found by exact search) "
+    "quality": "recall@k is the share of the true k nearest documents (found by exact search) "
     "that an engine returns in its top k, averaged over the queries: recall@100 ≥ 0.95 means at least "
     "95 of the true 100 on average, and 1.0 means the same results as exact search. Text datasets are "
     "scored with nDCG@10 against human relevance labels; their section explains it.",
-    "latency": "Latency. Wall-clock time per query, one query at a time, over every measured query, "
+    "latency": "Wall-clock time per query, one query at a time, over every measured query, "
     "after 100 unmeasured warm-up queries. Statistics: mean, p50, p95, p99; p99.9 is left out because "
     "with at most 1,000 queries it is one of the two slowest samples. Each configuration was measured "
     "in one run, without repeats. Engines differ in how many CPU cores one query uses; CPU time is not "
@@ -61,6 +64,47 @@ NOTES = {
     "documents and distances; LanceDB: every column, the vector included; FAISS: ids and distances), "
     "and a larger payload costs more as k grows.",
 }
+# Subsection heading of each note; the "metric" note only shows in the inner-product view.
+NOTE_HEADINGS = {
+    "metric": "† Inner product metric",
+    "quality": "Quality measures: recall@k and nDCG@10",
+    "latency": "How latency is measured",
+}
+NOTES_HEADING = "About these results"
+
+
+def notes_html(keys: list[str]) -> str:
+    """Render the notes as a headed section, one subsection per note.
+
+    The metric note is marked note-ip so the page script shows it only in the inner-product view.
+
+    Args:
+        keys: Keys of NOTES, in display order.
+
+    Returns:
+        The HTML.
+    """
+    return f"<h2>{NOTES_HEADING}</h2>" + "".join(
+        f"<div{' class=note-ip' if k == 'metric' else ''}><h3>{html.escape(NOTE_HEADINGS[k])}</h3>"
+        f"<p>{html.escape(NOTES[k])}</p></div>"
+        for k in keys
+    )
+
+
+def notes_md(keys: list[str]) -> list[str]:
+    """Render the notes as markdown: a section heading, then one subsection per note.
+
+    Args:
+        keys: Keys of NOTES, in display order.
+
+    Returns:
+        Markdown lines.
+    """
+    return [f"## {NOTES_HEADING}", ""] + [
+        x for k in keys for x in (f"### {NOTE_HEADINGS[k]}", "", NOTES[k], "")
+    ]
+
+
 TEXT_INTRO = (
     "Quality is nDCG@10: it scores the first 10 results against human relevance labels, each "
     "labelled-relevant result weighted by 1 / log2(rank + 1), divided by the score of a perfect "
@@ -583,7 +627,7 @@ th[data-dir=asc]::after{content:" ▲"}th[data-dir=desc]::after{content:" ▼"}t
 td.snip{white-space:normal;text-align:left;min-width:320px}summary{cursor:pointer;margin:6px 0}
 figure.chart{margin:0;border:1px solid var(--rule);border-radius:8px;padding:12px 16px}figure.chart h3{margin:0 0 4px}
 p.about{margin:0;max-width:900px}p.sub{margin:0 0 6px;color:var(--ink)}hr{border:0;border-top:2px solid var(--rule);margin:32px 0}
-.notes p{max-width:1000px;margin:6px 0}
+.notes p{max-width:1000px;margin:4px 0 12px}.notes h3{margin:12px 0 0}
 </style></head><body><p><a href="index.html">← all benchmarks</a></p><h1>__TITLE__</h1><p>__LEAD__</p><p>__ENV__</p>
 <nav><label>dataset <select id="ds">__OPTIONS__</select></label>
 <label>metric <select id="metric">__METRICS__</select></label></nav>
@@ -610,6 +654,7 @@ if (matchMedia("(prefers-color-scheme: dark)").matches) {
 const show = () => {
   const ds = document.getElementById("ds").value, metric = document.getElementById("metric").value;
   for (const s of document.querySelectorAll("section")) s.hidden = s.dataset.ds !== ds || s.dataset.metric !== metric;
+  for (const n of document.querySelectorAll(".note-ip")) n.hidden = metric !== "ip";  // the † note explains this view
   for (const el of document.querySelectorAll("section:not([hidden]) .js-plotly-plot")) Plotly.Plots.resize(el);
 };
 document.getElementById("ds").onchange = document.getElementById("metric").onchange = show;
@@ -724,12 +769,12 @@ def write_page(
                 f"<option value='{m}'>{html.escape(v)}</option>" for m, v in METRIC_VIEWS.items()
             ),
         )
-        .replace("__NOTES__", "".join(f"<p>{html.escape(NOTES[n])}</p>" for n in notes))
+        .replace("__NOTES__", notes_html(notes))
         .replace("__BODY__", "\n".join(parts) if parts else "<p>No results yet.</p>")
         .replace("__DARK__", dark)
     )
     (RESULTS / f"{name}.html").write_text(page)
-    md = [f"# {title}", "", lead, "", env, "", *[x for n in notes for x in (NOTES[n], "")]]
+    md = [f"# {title}", "", lead, "", env, "", *notes_md(notes)]
     md += [x for s in sections for x in s.md + [""]]
     (RESULTS / f"{name}.md").write_text("\n".join(md) + "\n")
     print(f"wrote {RESULTS / name}.html and .md")

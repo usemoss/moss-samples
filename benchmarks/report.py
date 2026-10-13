@@ -14,7 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from report_common import NOTES, RESULTS
+from report_common import NOTES, RESULTS, notes_html, notes_md
 
 HERE = Path(__file__).parent
 PAGES = {  # module -> (page, title, what it shows)
@@ -68,7 +68,7 @@ def main() -> None:
             + ("" if ok else " (not built: " + " / ".join(err) + ")")
         )
         print(f"{mod}: {'ok' if ok else 'FAILED'}" + ("" if ok else "\n  " + "\n  ".join(err)))
-    notes = "".join(f"<p>{html.escape(n)}</p>" for n in NOTES.values())
+    notes = notes_html(list(NOTES))
     (RESULTS / "index.html").write_text(
         "<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' "
         "content='width=device-width,initial-scale=1'><title>Moss vector benchmark</title><style>"
@@ -79,7 +79,7 @@ def main() -> None:
         "<p>Moss and nine local vector-search engine setups on public datasets. Each benchmark has its own page, "
         "built from its own runs.</p><ul>" + "".join(rows) + "</ul>" + notes + "</body></html>"
     )
-    (RESULTS / "index.md").write_text("\n".join(md + ["", *NOTES.values()]) + "\n")
+    (RESULTS / "index.md").write_text("\n".join(md + ["", *notes_md(list(NOTES))]) + "\n")
     print(f"wrote {RESULTS / 'index.html'}")
     if failed:
         raise SystemExit(1)

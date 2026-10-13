@@ -89,7 +89,11 @@ def k_menu(fig: go.Figure, ks: list[int]) -> None:
 def frontier_chart(
     tun: dict[str, dict], exact: dict[str, dict], ks: list[int], text: bool
 ) -> go.Figure:
-    """Plot each engine's Pareto frontier of its primary knob (mean latency); exact: one point.
+    """Plot each engine's Pareto frontier of its primary knob (mean latency).
+
+    An exact engine has one setting: it is drawn as a dotted horizontal line at its latency, from
+    the lowest quality any engine reached at that k to its own point, so every faster setting of
+    another engine sits below the line. Hover shows the real quality at both ends.
 
     Args:
         tun: Engine -> tuning result.
@@ -101,7 +105,7 @@ def frontier_chart(
         The figure; the largest k opens.
     """
     q = "nDCG@10" if text else "recall@k"
-    fig = go.Figure()
+    pts: dict[tuple[str, int], list[tuple[float, float, str]]] = {}
     for eng, r in sorted({**tun, **exact}.items()):
         for k in ks:
             rows = [
@@ -109,30 +113,41 @@ def frontier_chart(
                 for row in r["rows"]
                 if row["k"] == k and row.get("knob", "primary") == "primary"
             ]
-            if not rows:
-                continue
-            p = (
-                [(a, b, "exact") for a, b, _ in points(rows, r)]
-                if eng in exact
-                else frontier(points(rows, r))
-            )
-            st = trace_style(eng)
-            fig.add_trace(
-                go.Scatter(
-                    x=[a[0] for a in p],
-                    y=[a[1] for a in p],
-                    customdata=[a[2] for a in p],
-                    name=f"{eng} (exact)" if eng in exact else eng,
-                    mode="lines+markers",
-                    line=st["line"],
-                    marker=st["marker"],
-                    meta=k,
-                    visible=k == ks[-1],
-                    showlegend=k == ks[-1],
-                    hovertemplate=f"<b>{eng}</b> k={k}<br>%{{customdata}}<br>{q} %{{x:.4f}}<br>mean %{{y:.3f}} ms"
-                    "<extra></extra>",
+            if rows:
+                pts[eng, k] = (
+                    [(a, b, "exact") for a, b, _ in points(rows, r)]
+                    if eng in exact
+                    else frontier(points(rows, r))
                 )
+    lo = {
+        k: min(p[0] for (_, kk), ps in pts.items() if kk == k for p in ps)
+        for k in ks
+        if any(kk == k for _, kk in pts)
+    }
+    fig = go.Figure()
+    for (eng, k), p in pts.items():
+        st = trace_style(eng)
+        custom = [[a[2], a[0]] for a in p]
+        if eng in exact and lo[k] < p[0][0]:  # dotted reference line ending at the exact point
+            p = [(lo[k], p[0][1], "exact"), p[0]]
+            custom = [custom[0], custom[0]]
+            st["line"]["dash"], st["marker"]["size"] = "dot", [0, 9]
+        fig.add_trace(
+            go.Scatter(
+                x=[a[0] for a in p],
+                y=[a[1] for a in p],
+                customdata=custom,
+                name=f"{eng} (exact)" if eng in exact else eng,
+                mode="lines+markers",
+                line=st["line"],
+                marker=st["marker"],
+                meta=k,
+                visible=k == ks[-1],
+                showlegend=k == ks[-1],
+                hovertemplate=f"<b>{eng}</b> k={k}<br>%{{customdata[0]}}<br>{q} %{{customdata[1]:.4f}}"
+                "<br>mean %{y:.3f} ms<extra></extra>",
             )
+        )
     ax = yaxes({"mean latency, ms (lower is better)": [y for t in fig.data for y in t.y]}, log=True)
     fig = layout(
         fig,
@@ -322,7 +337,8 @@ def section(
         + ("k = 10" if text else "k from the dropdown"),
         "For each engine, only its best settings of its primary search knob: those that no other setting of the same "
         "engine beats on both quality and mean latency (Pareto frontier, as in ann-benchmarks). A setting that is "
-        "slower without being better is left out. Exact engines are one point. "
+        "slower without being better is left out. An exact engine has one setting: a dotted horizontal line at its "
+        "latency, ending at its point, so another engine's settings below the line are faster than it. "
         + ("" if text else "Settings with ef below k are not run at that k. ")
         + "Every measured setting is in the table below.",
         frontier_chart(tun, exact, ks, text),
