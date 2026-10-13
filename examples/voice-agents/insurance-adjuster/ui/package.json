@@ -23,7 +23,8 @@
     "tailwind-merge": "^3.3.0"
   },
   "overrides": {
-    "postcss": "8.5.19"
+    "postcss": "8.5.19",
+    "js-yaml": "^4.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

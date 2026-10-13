@@ -37,7 +37,8 @@
   },
   "overrides": {
     "postcss": "8.5.19",
-    "fast-uri": "4.1.1"
+    "fast-uri": "4.1.1",
+    "gray-matter": "npm:@gr2m/gray-matter@4.0.3-with-pr-137"
   },
   "devDependencies": {
     "@mastra/core": "1.26.0",

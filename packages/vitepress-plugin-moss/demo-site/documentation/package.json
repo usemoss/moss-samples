@@ -13,10 +13,11 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "overrides": {
-    "postcss": "8.5.19"
-  },
   "devDependencies": {
     "vitepress": "^2.0.0-alpha.12"
+  },
+  "overrides": {
+    "postcss": "8.5.19",
+    "vite": "~8.1.5"
   }
 }

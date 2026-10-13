@@ -1,6 +1,8 @@
 allowBuilds:
   esbuild: true
 overrides:
-  esbuild: "^0.25.0"
+  esbuild: "^0.25.12"
   postcss: "^8.5.19"
-  vite: "^6.4.2"
+  undici: "^7.28.0"
+  vite: "^6.4.3"
+  gray-matter: "npm:@gr2m/gray-matter@4.0.3-with-pr-137"

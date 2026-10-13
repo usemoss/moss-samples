@@ -21,6 +21,8 @@
   },
   "overrides": {
     "uuid": "^14.0.0",
-    "fast-uri": "4.1.1"
+    "fast-uri": "4.1.1",
+    "esbuild": "^0.28.1",
+    "gray-matter": "npm:@gr2m/gray-matter@4.0.3-with-pr-137"
   }
 }

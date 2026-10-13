@@ -55,5 +55,8 @@
     "@napi-rs/cli": "^3.2.0",
     "@oxc-node/core": "^0.0.35",
     "typescript": "^5.9.2"
+  },
+  "overrides": {
+    "js-yaml": "^4.3.0"
   }
 }

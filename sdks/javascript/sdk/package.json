@@ -47,7 +47,8 @@
     "@moss-dev/moss-core": "^0.8.7"
   },
   "overrides": {
-    "postcss": "8.5.19"
+    "postcss": "8.5.19",
+    "js-yaml": "^4.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.24.0",

@@ -14,9 +14,6 @@
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.17.0"
   },
-  "overrides": {
-    "postcss": "8.5.19"
-  },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
     "@types/react": "^19.0.10",
@@ -28,6 +25,11 @@
     "globals": "^16.0.0",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.26.1",
-    "vite": "^8.1.4"
+    "vite": "^8.1.5"
+  },
+  "overrides": {
+    "postcss": "8.5.19",
+    "vite": "$vite",
+    "js-yaml": "^4.3.0"
   }
 }

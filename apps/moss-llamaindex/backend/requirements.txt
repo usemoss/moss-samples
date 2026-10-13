@@ -2,6 +2,6 @@ fastapi
 uvicorn
 moss
 python-dotenv
-python-multipart
+python-multipart>=0.0.32
 liteparse
-nltk
+nltk>=3.10.0
