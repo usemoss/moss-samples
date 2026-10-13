@@ -274,8 +274,11 @@ def section(
         else f"{r0['dataset']['n_base']:,} docs, {r0['dataset']['n_queries']:,} queries."
     )
     intro += (
-        " Each tunable engine was measured at every setting of its search knob (HNSW ef from 16 to 1024, "
-        "LanceDB IVF-PQ refine_factor); exact engines have one setting and come from the default-settings runs."
+        " Each tunable engine was measured at every setting of its search knob (HNSW ef from 16 to 1024, LanceDB IVF-PQ "
+        "refine_factor, Moss alpha on text datasets); exact engines have one setting and come from the default-settings "
+        "runs. Each benchmark builds its own index, and the Chroma, DuckDB-VSS and LanceDB builds are not reproducible "
+        "(identical runs gave slightly different recall), so their default setting here can differ slightly from the "
+        "default-settings page."
     )
     if missing:
         intro += f" Did not finish: {', '.join(m.split(':')[0] for m in missing)}."
