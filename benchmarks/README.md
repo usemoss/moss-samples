@@ -2,24 +2,29 @@
 
 Compares Moss with nine local in-process engine setups on standard public datasets, using the methodology of VectorDBBench, qdrant's vector-db-benchmark and ann-benchmarks. Every engine runs **off the shelf**: its library's default index and search settings, so the comparison is what a user gets without tuning. Every run writes an interactive Plotly report and Markdown tables.
 
+## Benchmarks
+
+The suite is modular: each benchmark has its own runner, result files and report page, and a page reads only the results it names, so a change to one benchmark cannot break another. Shared code is small: `bench_data.py` (datasets), `engines.py` (engine adapters), `metrics.py` (quality and latency statistics), `harness.py` (load, build, timing, memory, result files) and `report_common.py` (page shell, chart and table helpers).
+
+| Benchmark | Runner (`./run_suite.sh <suite> ...`) | Measures (one process per dataset x engine x metric) | Page |
+|---|---|---|---|
+| Default settings | `defaults` (`suite_defaults.py`) | build (time, docs/s, memory, disk); at the library-default search setting, one pass per k: latency and quality; search-stage memory peak; text datasets: example results | `defaults.html` |
+| Tuning | `tuning` (`suite_tuning.py`) | every setting of an engine's primary search knob (`engine.sweep`, e.g. HNSW ef) and secondary knob (`engine.extra`, e.g. LanceDB-HNSW refine_factor), each at every k: latency and quality. Exact engines (one setting) are not run; their page uses their defaults runs | `tuning.html` |
+| Filtered search | `filter` (`suite_filter.py`) | at default settings, k = 100: an unfiltered pass (the reference), then each VectorDBBench filter case cold and warm, against the case's own exact ground truth | `filter.html` |
+| Scaling | `defaults` with `--docs N` | the default-settings measurements on the first N docs | `scaling.html` |
+
+`report.py` builds each page in its own process (`report_defaults.py`, `report_tuning.py`, `report_filter.py`, `report_scaling.py`) and writes `results/index.html`, which links the pages and shows any page that failed to build with its error.
+
 ## What it measures
-
-Three stages per (dataset, engine), run by `run.py`:
-
-| Stage | What | Metrics |
-|---|---|---|
-| `load` | build the index | build seconds (ingest + index only), session setup seconds (`open_s`), docs/s, RSS before/after, memory footprint (baseline, after build, build peak), index size on disk |
-| `serial` | one client, every sweep setting x every k (default 1, 10, 50, 100) | vector: recall@k and nDCG@k vs the exact top-k; text (k >= 10): nDCG@10, recall@k and R-precision vs human labels; mean/p50/p95/p99/p99.9 latency (ms); the report shows mean to p99 (with at most 1,000 queries, p99.9 is one of the two slowest samples) |
-| `filter` | VectorDBBench filter cases at k=100 with the default search setting, each scored against its own ground truth: a cold pass (first use of the filter) then a warm pass | recall@100, latency and first-query latency, per pass |
 
 - **Recall@k** = `|got[:k] ∩ gt[:k]| / k` against the exact brute-force top-k. Both lists have k items, so it also equals precision@k, and an exact engine scores 1.0 by definition: it measures how closely an index matches exact search, not whether a person would find the results relevant. **nDCG@k** weights each hit by its ground-truth rank. Text datasets are scored against BEIR's human relevance labels: nDCG@10, recall@k and **R-precision** (relevant docs in the top R over R, R = that query's relevant-doc count; on hotpotqa every query has 2, so it is precision@2).
 - **Latency** is per query in milliseconds. Percentiles are `numpy.percentile` (linear interpolation). Throughput is not reported: local Moss serves one user, and serial throughput is just 1 / mean latency.
 - **Memory** is the physical footprint (Activity Monitor's "Memory"; it excludes clean file-backed pages such as the memory-mapped dataset), read with macOS `proc_pid_rusage`. Each stage's peak comes from `proc_reset_footprint_interval` (a private macOS API; no sampling thread, so latencies are untouched). The report shows values over the footprint after the dataset loads: index (after build), build peak, search peak. Disk-backed engines (chroma, lancedb, zvec, sqlite-vec) keep part of their index in files that the OS caches outside the process, so their index size on disk is shown too, plus the RSS increase over the build.
-- **Sweep and default settings.** Every sweep starts with the library-default search setting (`{}`, shown as "default"), followed by the tuning knob's values, so the recall vs latency chart shows both what you get out of the box and what tuning buys. The latency-at-default-settings chart and the filter stage use the library default (stored as `operating_point` in each result). After it is restored, 100 unmeasured warm-up queries run.
-- **Warm-up** (100 queries before each sweep setting and before the default-setting filter stage) never uses a measured query: it takes the queries after the measured ones when at least 100 exist (`--queries` below the total), else, on text datasets, 100 train-split queries (`warmup.jsonl`, written at prepare; they never overlap the measured test queries), else 100 indexed doc vectors. With corpus texts as the warm-up instead, Chroma's and LanceDB's first measured pass on scifact was 1.3-1.6x slower in mean latency than their next pass. Warming up on measured queries made those queries 5-9% faster for zvec and about 6% for chroma (cohere-100k). Each result records its warm-up source.
+- **Default settings** means no `set_search()` call after the build: the engine searches exactly as the library ships it (`defaults` and `filter` suites). The `tuning` suite applies each setting with `set_search()`; `{}` restores the library default, so its first row is the default again.
+- **Warm-up** (100 queries before the measured passes of each run, and before each tuning setting) never uses a measured query: it takes the queries after the measured ones when at least 100 exist (`--queries` below the total), else, on text datasets, 100 train-split queries (`warmup.jsonl`, written at prepare; they never overlap the measured test queries), else 100 indexed doc vectors. With corpus texts as the warm-up instead, Chroma's and LanceDB's first measured pass on scifact was 1.3-1.6x slower in mean latency than their next pass. Warming up on measured queries made those queries 5-9% faster for zvec and about 6% for chroma (cohere-100k). Each result records its warm-up source.
 - **Build time** covers ingest and index build only. Each engine's library is imported before the timer (imports took 0.02-0.39 s), and Moss's session is opened before it: `session()` authenticates, looks up a same-named cloud index and, for built-in models, loads the model (0.71 s with custom vectors, 0.99 s with moss-minilm, median on the M5 Max). That time is recorded as `open_s`.
 - **Metric.** Vectors are L2-normalized, so l2, inner product and cosine rank documents identically; the distance setting still changes speed (faiss-flat's inner-product scan took 1.26 ms against 2.44 ms with l2 at k = 100 on cohere-100k, 2026-10-13). `--metric ip` sets inner product (cosine for sqlite-vec, which has none): this is the **dataset metric** (the datasets are cosine), which is how public benchmarks configure engines (ann-benchmarks' FAISS wrapper and VectorDBBench's Milvus GPU, Doris and Aliyun clients normalize, then use inner product or l2), and it is the report's default view. `--metric default` keeps each library's default distance (the off-the-shelf view, the report's other metric view). Engines whose default is already inner product (moss, qdrant-local, zvec) have no separate ip run; the report shows their default run in both views.
-- **Hardware and library versions** are recorded in every result file.
+- **Hardware, library versions, the git commit and whether the code had uncommitted changes** are recorded in every result file; pages print them.
 
 Metric sources:
 
@@ -68,7 +73,7 @@ Versions come from `uv.lock`. Known behaviors:
 | `hotpotqa-1m` | BEIR HotpotQA, VectorDBBench subset rule (qrel docs + corpus-order fill to 1M) | 1M / 7,405 | text (nDCG@10, Recall@100, R-precision) | CC BY-SA 4.0 | 654 MB + about 1.5 GB of vectors |
 | `scifact` | BEIR SciFact, test split, all docs | 5,183 / 300 (about 1.1 relevant docs per query) | text (nDCG@10, Recall@k, R-precision) | claims CC BY 4.0, abstracts ODC-By 1.0 ([allenai/scifact](https://github.com/allenai/scifact/blob/master/LICENSE.md)) | 2.7 MB |
 
-Ground truth is exact brute force (cohere sets ship VectorDBBench's; our float32 brute force matches it as a set at k ≤ 10 and on 99.997% of the top-100 ids at cohere-100k, the rest being near-ties at rank 100, so exact engines can score just under 1.0 recall@100). `--docs N` runs use the exact ground truth over the first N docs, `data/<name>/gt_docs<N>.npy`, which `run_suite.sh` creates with `bench_data.py subset-gt <name> <N>` in its own process (log `results/logs/subset-gt-<name>-<N>-<stamp>.log`); computing it inside the benchmark process inflated its memory baseline by up to 440 MB. `run.py` refuses a missing cache or one older than the dataset's `base.npy`. MS MARCO is excluded (non-commercial terms). Moss indexes the text datasets with its built-in embedder; other engines use fastembed MiniLM at 512 tokens.
+Ground truth is exact brute force (cohere sets ship VectorDBBench's; our float32 brute force matches it as a set at k ≤ 10 and on 99.997% of the top-100 ids at cohere-100k, the rest being near-ties at rank 100, so exact engines can score just under 1.0 recall@100). `--docs N` runs use the exact ground truth over the first N docs, `data/<name>/gt_docs<N>.npy`, which `run_suite.sh` creates with `bench_data.py subset-gt <name> <N>` in its own process (log `results/logs/subset-gt-<name>-<N>-<stamp>.log`); computing it inside the benchmark process inflated its memory baseline by up to 440 MB. The defaults runner refuses a missing cache or one older than the dataset's `base.npy`. MS MARCO is excluded (non-commercial terms). Moss indexes the text datasets with its built-in embedder; other engines use fastembed MiniLM at 512 tokens.
 
 ```bash
 mkdir -p results/logs
@@ -92,67 +97,56 @@ export MOSS_ENV_FILE=/path/to/.env
 mkdir -p results/logs
 ./watchdog.sh results/logs/fetch-cohere-100k-$(date +%Y%m%dT%H%M%S).log $PWD/.venv/bin/python bench_data.py fetch cohere-100k
 ./watchdog.sh results/logs/prepare-cohere-100k-$(date +%Y%m%dT%H%M%S).log $PWD/.venv/bin/python bench_data.py prepare cohere-100k
-./run_suite.sh cohere-100k all --queries 200
-./run_suite.sh cohere-100k all --queries 200 --metric ip
-open results/report.html
+for s in defaults tuning filter; do
+  ./run_suite.sh $s cohere-100k all --queries 200 --metric ip
+done
+open results/index.html
 ```
 
 - The watchdog prints `pid=... log=...` and a final `watchdog: rc=0 peak_rss_mb=... elapsed=...s` line. `cat` the log to see the command's output. It kills the job on memory pressure, RSS > 85% of RAM, or `WATCHDOG_MAX_S`.
-- Every run gets its own log, never overwritten: `results/logs/<dataset>-<engine>[-ip][-docs<N>]-<stamp>.log`, and its result has the same name and stamp, `results/<dataset>/<engine>[-ip][-docs<N>]-<stamp>.json`. The newest stamp per run is the attempt the report checks. Fetch, prepare and subset ground-truth logs use a prefix (`fetch-`, `prepare-`, `subset-gt-`) plus a stamp, so the report ignores them.
-- `run_suite.sh` first upgrades `moss` to the latest release, then runs one watchdogged process per (dataset, engine), then rebuilds the report. A failed or killed run prints `DNF <dataset> <engine>` and appears under DNF in the report.
+- Every run gets its own log, never overwritten: `results/logs/<suite>-<dataset>-<engine>[-ip][-docs<N>]-<stamp>.log`, and its result has the same name and stamp, `results/<suite>/<dataset>/<engine>[-ip][-docs<N>]-<stamp>.json`. The newest stamp per run is the attempt the report checks. Fetch, prepare and subset ground-truth logs use a prefix (`fetch-`, `prepare-`, `subset-gt-`) plus a stamp, so the report ignores them.
+- `run_suite.sh` first upgrades `moss` to the latest release, then runs one watchdogged process per (dataset, engine), skipping pairs that do not apply with the reason (`harness.applies`: no ip mode, an exact engine in `tuning`, no filter cases, `--docs` outside `defaults`), then rebuilds the pages. A failed or killed run prints `DNF <suite> <dataset> <engine>` and appears under DNF on its page.
 - Launch python as `$PWD/.venv/bin/python` from `benchmarks/` under the watchdog, never `uv run`: the watchdog then measures the benchmark's RSS, and the stop pattern below matches it.
 - Runaway job: `pkill -9 -f run_suite.sh; pkill -9 -f 'benchmarks/\.venv/bin/python'` (the loop first, or it logs a DNF and starts the next pair). The second pattern kills every benchmark python, so check `pgrep -fl 'benchmarks/\.venv/bin/python'` first. The watchdog is killed too, so the log ends without a `watchdog: rc=` line.
 
-Results: `results/<dataset>/<engine>[-ip][-docs<N>]-<stamp>.json`, `results/summary.md`, `results/report.html` (works offline).
+Results: `results/<suite>/<dataset>/<engine>[-ip][-docs<N>]-<stamp>.json`; pages `results/index.html` and `results/<page>.html` / `.md` (work offline).
 
-## Subsets
+## Options
 
-`run_suite.sh "<datasets>" "<engines>|all" [run.py options]`. Datasets and engines are space-separated lists. Run a single pair the same way, `./run_suite.sh <dataset> <engine> [options]`, so its log and result share a stamp. Write `--docs N` and `--metric ip`, not `--flag=value` (the log name needs them).
+`./run_suite.sh <suite> "<datasets>" "<engines>|all" [options]`. Datasets and engines are space-separated lists; run a single pair the same way, so its log and result share a stamp. Write `--docs N` and `--metric ip`, not `--flag=value` (the log name needs them).
 
-| Flag | Example | Effect |
-|---|---|---|
-| `--queries N` | `--queries 200` | first N queries |
-| `--docs N` | `--docs 20000` | index the first N docs (1 to n_base - 1), exact ground truth over them (vector datasets; not with the filter stage on datasets that have filters) |
-| `--stages` | `--stages serial` | `load` and `serial` always run; this selects `filter` |
-| `--k` | `--k 10` | k values (default `1,10,50,100`; text datasets use those >= 10) |
-| `--metric` | `--metric ip` | `default` (each library's default distance) or `ip` (inner product, cosine for sqlite-vec); `run_suite.sh` skips engines that have no ip mode |
-| `--filters` | `--filters int_1p,label_50p` | filter cases (default `int_1p,int_99p,label_1p,label_50p`) |
+| Flag | Suites | Example | Effect |
+|---|---|---|---|
+| `--queries N` | all | `--queries 200` | first N queries |
+| `--k` | defaults, tuning | `--k 10,100` | k values (default `1,10,50,100`; text datasets use those >= 10); the filter suite uses k = 100 |
+| `--metric` | all | `--metric ip` | `default` (each library's default distance) or `ip` (inner product, cosine for sqlite-vec) |
+| `--docs N` | defaults | `--docs 25000` | index the first N docs (1 to n_base - 1) of a vector dataset, exact ground truth over them; feeds the scaling page |
+| `--filters` | filter | `--filters int_1p,label_50p` | filter cases (default `int_1p,int_99p,label_1p,label_50p`) |
 
 Examples:
 
 ```bash
-./run_suite.sh cohere-100k "moss faiss-hnsw zvec" --stages serial --k 10
-./run_suite.sh cohere-100k "faiss-flat sqlite-vec" --docs 20000 --stages serial
-for n in 100000 250000 500000; do ./run_suite.sh cohere-1m all --docs $n --stages serial --queries 1000 || break; done
+./run_suite.sh tuning cohere-100k "faiss-hnsw zvec" --metric ip --k 10
+./run_suite.sh defaults cohere-100k "faiss-flat sqlite-vec" --docs 25000 --metric ip
+./run_suite.sh filter cohere-100k "moss chroma"
 ```
-
-`--docs` runs get their own corpus-size subsets section per metric view, which opens with the scaling chart.
 
 ## Reading the report
 
-`results/report.html` has a **Charts** tab and a **Tables** tab, a dataset picker and a **metric switch**:
+`results/index.html` links one page per benchmark. Every page has a dataset picker and a **metric switch**:
 - **inner product†** (opens first): every engine in its inner-product mode (cosine for sqlite-vec), i.e. the datasets' cosine on unit vectors: `--metric ip` runs, plus the default runs of engines whose default is already inner product;
 - **library default**: each library's default distance.
 
-Notes at the top of the page explain the metric (†), recall@k and how latency is measured. Each dataset and metric has a full-corpus section and, with `--docs` runs, a corpus-size subsets section. Every chart sits in a numbered card titled `Chart N · <dataset> · <measure>`, with a subtitle (metric, k and other specifics) and a description; cards are separated by a horizontal rule. Every measure axis says whether higher or lower is better.
+Notes at the top explain the metric (†), recall@k and how latency is measured. Every chart sits in a numbered card titled `Chart N · <dataset> · <measure>` with a subtitle (metric, k and other specifics) and a description; every measure axis says whether higher or lower is better; a latency axis is log (titled "(log scale)") only when its values span more than 20x. Dropdown views of one unit share one fixed axis range.
 
-- **Latency at equal recall** (vector datasets, chart 1): the mean latency of each engine's fastest setting that reaches recall@k ≥ 0.95 or 0.99 (dropdown: k and target; opens at the largest k and 0.95). Public benchmarks compare speed at a recall threshold (Qdrant, VIBE: QPS at recall@100 ≥ 0.95, big-ann: recall@10 ≥ 0.9) rather than at library defaults. The bar label names the setting; a missing bar means the sweep never reached the target.
-- **Recall vs latency** (vector) / **nDCG@10 vs latency** (text): one marker per sweep setting, so the marker count never changes with the latency statistic; a line through each engine's Pareto frontier (as in ann-benchmarks' `create_pointset`: settings scanned fastest first, a point kept only when its quality beats every faster one); a ring on each swept engine's library-default setting. Dropdowns: latency statistic (mean, p50, p95, p99) and, on vector datasets, k. Text datasets use k = 10, the depth nDCG@10 scores, and end-to-end latency (query embedding included); Moss's settings are labelled hybrid (default, alpha 0.8) or vector only (alpha 1.0).
-- **Latency at default settings:** one bar per engine with library-default index and search settings, at one k for every engine (the largest k all runs share; k = 10 on text datasets). Dropdown: mean, p50, p95, p99.
-- **Index build time** (time, docs/s). On text datasets, Moss embeds the corpus inside its build with its built-in model, while the other engines index vectors embedded once at prepare (fastembed all-MiniLM-L6-v2 at 512 tokens). That embedding time (`corpus_embed_s` in the dataset meta, measured at batch 256, not per run) is stacked on their bars, so every bar covers embedding plus indexing. The text default-settings table has a `corpus embed s` column.
-- **Memory** (dropdown: index, build peak, search peak, RSS increase over the build, on disk): one bar per engine.
-- **Filtered search:** one line per engine across the filter cases, from most to fewest docs kept, starting at an **unfiltered** point: the same engine's serial result at k = 100 and the same setting (not re-measured), so the drop from it is what the filter costs. Dropdown: warm recall, warm then cold latency, cold first-query latency (one query per case). The filter table shows the same reference as `unfiltered recall@100` and `unfiltered mean ms`.
-- **Scaling** (subsets section, from `--docs` runs): one line per engine over corpus size, including the full run when it exists; the dropdown picks recall, latency, memory or build time.
-- **Axes:** linear from 0, except a recall vs latency latency axis whose values span more than 20x (log, titled "(log scale)"). Dropdown views with the same unit share one fixed range, so switching mean / p50 / p95 / p99 never moves the axis, and the recall vs latency chart keeps one recall range across k.
-- **Tables:** default settings (every k), equal recall, full serial sweep, filter cases, memory, DNF.
-  - Click a header to sort.
-  - Each categorical column (engine, metric, setting, k, filter, target) has a value list above the table. Tick values to show only those rows: nothing ticked shows every row; values in one column are OR-ed and columns are AND-ed. "clear filters" unticks everything. The filtering is plain CSS, with no script.
-  - The best value of each column among the shown rows is bold.
-- **Example results** (text datasets, Tables tab): for 10 queries, each engine's top 5 with default settings (from an unmeasured pass), with ✓ on documents the dataset labels relevant, so a person can judge the results directly.
+- **Default settings** (`defaults.html`): latency (dropdown: mean, p50, p95, p99) and quality at one k for every engine (the largest k all runs share; k = 10 on text datasets, the depth nDCG@10 scores); index build time (text datasets stack the corpus-embedding time, measured once at prepare, on the non-Moss engines, which index vectors embedded by fastembed; Moss embeds inside its build); memory (index, build peak, search peak, RSS increase, on disk). Tables: every k, build and memory, example results (text: each engine's top 5 for 10 queries, ✓ = labelled relevant), DNFs.
+- **Tuning** (`tuning.html`): latency at equal recall (vector datasets: the mean latency of each engine's fastest setting reaching recall@k ≥ 0.95 / 0.99, any knob, bar label = the setting; exact engines at their one setting; public benchmarks compare speed this way: Qdrant, VIBE, big-ann); quality vs latency showing only each engine's best settings of its primary knob (the Pareto frontier at mean latency, as in ann-benchmarks' `create_pointset`: a setting slower without being better is left out), exact engines as one point, k from a dropdown (text: k = 10); one chart per engine with a secondary knob (LanceDB-HNSW refine_factor) against that engine's default. Tables: every measured setting, equal recall.
+- **Filtered search** (`filter.html`): one card per engine with recall@100 and mean latency (warm solid, cold dotted) per filter case, from most to fewest docs kept, after the engine's own unfiltered pass from the same run. Table: every case, cold and warm.
+- **Scaling** (`scaling.html`): each engine over corpus size (its `--docs` runs plus the full run), dropdown: recall, latency statistic, index or build peak memory, build time.
+- **Tables:** click a header to sort; each categorical column (engine, metric, knob, setting, k, filter, target) has a value list (tick values to show only those rows; nothing ticked = all rows; "clear filters" unticks everything; plain CSS, no script); the best value per column among the shown rows is bold.
 - Hover for exact values and parameters; click a legend entry to hide an engine; double-click to isolate it.
-- **DNF** = a run's newest log has no `wrote` line and no result exists for that run (killed by the watchdog, out of memory, or crashed). The table shows the log's last line.
-- **STALE:** if an engine's newest attempt failed but an older result for the same run exists, `report.py` prints `STALE <log>: <last line>`, exits 1 and writes nothing, so an old number never stands in for a failed rerun. Read the log, fix the cause and rerun (or move the old result out of `results/` on purpose). Running `report.py` while a run is in progress stops here too.
-- **Limits:** each configuration is measured in one run (no repeats or confidence intervals); latency is single-client wall time, and CPU time per query is not measured (engines differ in how many cores one query uses); each engine returns its library's default result payload (see Engines), which costs more as k grows for engines that return more.
+- **DNF** = a run's newest log has no `wrote` line and no result exists for that run. **STALE:** if a run's newest attempt failed but an older result exists, that page's builder exits without writing (the index shows the error), so an old number never stands in for a failed rerun.
+- **Limits:** each configuration is measured in one run (no repeats or confidence intervals); latency is single-client wall time, and CPU time per query is not measured (engines differ in how many cores one query uses); each engine returns its library's default result payload (see Engines), which costs more as k grows for engines that return more; the k passes of a run reuse the same queries, so later passes can find them cached.
 
 ## Moss notes
 
@@ -161,7 +155,7 @@ Notes at the top of the page explain the metric (†), recall@k and how latency 
 - **Concurrency is not benchmarked** (local Moss serves one user). Calls serialize per session: an earlier cohere-100k run (Apple M5 Max, moss 1.15.1) measured 586 / 611 / 613 QPS at 1 / 4 / 16 clients while p99 grew 2.14 / 7.79 / 28.76 ms. One query already used about 12 cores from 5k docs up (CPU time over wall time, `moss_core` 0.28.1, 2026-10-07); this benchmark does not measure CPU time.
 - **Every run rebuilds the index** (the build is what is measured) and consumes metered session minutes (about 2.5x query time, 0.8x build time, measured 2026-09-24).
 - **Session setup is not build time.** `client.session()` authenticates, looks up a same-named cloud index and, for built-in models, loads the model, so a local session is not free of a cloud round trip on the public API. It runs in the adapter's `open()`, before the build timer, and is recorded as `open_s` (0.71 s custom, 0.99 s moss-minilm, median of 5 on the M5 Max).
-- **Latest Moss is enforced.** `moss` is unpinned; `run_suite.sh` runs `uv lock --upgrade-package moss`, and `run.py` exits unless the installed version equals the newest PyPI release. Commit `uv.lock` when it changes.
+- **Latest Moss is enforced.** `moss` is unpinned; `run_suite.sh` runs `uv lock --upgrade-package moss`, and every runner exits unless the installed version equals the newest PyPI release. Commit `uv.lock` when it changes.
 - Credentials: `MOSS_ENV_FILE` (a dotenv file) or `MOSS_PROJECT_ID` / `MOSS_PROJECT_KEY`.
 
 ## Hardware

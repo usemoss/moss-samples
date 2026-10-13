@@ -2,15 +2,18 @@
 
 Every engine uses its library's default index and search settings.
 
-Contract (used by run.py), identical for all engines (shared parts in the Engine base class):
+Contract (used by harness.py and the suite_*.py runners), identical for all engines (shared
+parts in the Engine base class):
   name: str              short identifier written into result files
   METRICS: dict          metric mode -> distance used: "default" = the library's default metric,
                          "ip" = inner product (cosine where the engine has none); an engine whose
                          default is already inner product has only "default"
   MODULES: tuple         libraries imported in __init__, outside the build timer
   metric: str            the distance this instance uses (METRICS[mode])
-  sweep: list[dict]      search settings for the serial stage; {} = the library default, which
-                         every sweep starts with ([{}] = exact engine, one point)
+  sweep: list[dict]      the primary search knob's settings (suite_tuning.py); {} = the library
+                         default, which every sweep starts with ([{}] = exact engine, one point)
+  extra: list[dict]      secondary-knob settings, measured by suite_tuning.py and reported apart
+                         from the primary sweep ([] for most engines)
   open() -> None                            untimed setup before build (Moss: its session)
   build(ids, vectors, metadata) -> None     index all docs (ids int64, vectors (n, d) float32,
                                             metadata or None); timed as build_s
@@ -68,6 +71,7 @@ class Engine:
     """
 
     sweep: list[dict] = [{}]
+    extra: list[dict] = []
     MODULES: tuple[str, ...] = ()
 
     def __init__(self, mode: str = "default") -> None:
@@ -269,7 +273,7 @@ class LanceEngine(Engine):
 
     'ivfpq' = `create_index()` with no config (IVF_PQ, the library default; sweep: refine_factor,
     which re-ranks with full vectors), 'hnsw' = `IvfHnswSq()` defaults (the docs' "best
-    recall/latency for unfiltered search"; sweep: ef, then refine_factor 2 / 5 / 10 at the default
+    recall/latency for unfiltered search"; sweep: ef; extra: refine_factor 2 / 5 / 10 at the default
     ef, since its scalar-quantized search alone levels off near 0.96 recall). Filters are where
     clauses, prefiltered by default.
     """
@@ -291,11 +295,11 @@ class LanceEngine(Engine):
         super().__init__(mode)
         self.kind = kind
         self.name = "lancedb" if kind == "ivfpq" else "lancedb-hnsw"
-        self.sweep = (  # refine_factor re-ranks k x refine_factor candidates with full vectors
-            EF_SWEEP + [{"refine_factor": r} for r in (2, 5, 10)]
-            if kind == "hnsw"
-            else [{}] + [{"refine_factor": r} for r in (2, 5, 10, 20, 50)]
+        self.sweep = (
+            EF_SWEEP if kind == "hnsw" else [{}] + [{"refine_factor": r} for r in (2, 5, 10, 20, 50)]
         )
+        if kind == "hnsw":  # refine_factor re-ranks k x refine_factor candidates with full vectors
+            self.extra = [{"refine_factor": r} for r in (2, 5, 10)]
         self.params: dict = {}
 
     def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
@@ -867,7 +871,7 @@ class QueryEmbedder:
     def __init__(self, engine: object, cache_dir: str) -> None:
         """Wrap a vector engine and load the fastembed model once.
 
-        The wrapper copies the engine's name, sweep and metric; truncation is set to
+        The wrapper copies the engine's name, sweep, extra and metric; truncation is set to
         MINILM_MAX_TOKENS to match moss-minilm.
 
         Args:
@@ -878,7 +882,7 @@ class QueryEmbedder:
 
         from bench_data import MINILM, MINILM_MAX_TOKENS
 
-        self.engine, self.name, self.sweep = engine, engine.name, engine.sweep
+        self.engine, self.name, self.sweep, self.extra = engine, engine.name, engine.sweep, engine.extra
         self.METRICS, self.metric = engine.METRICS, engine.metric
         self.model = TextEmbedding(MINILM, cache_dir=cache_dir)
         self.model.model.tokenizer.enable_truncation(

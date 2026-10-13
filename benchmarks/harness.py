@@ -1,30 +1,17 @@
-"""Benchmark one engine on one prepared dataset and write the result as JSON.
+"""Shared measurement harness for the suite_*.py runners (one engine, one dataset, one process).
 
-The result goes to results/<dataset>/<engine>[-ip][-docs<N>]-<stamp>.json.
+Each runner (suite_defaults.py, suite_tuning.py, suite_filter.py) calls cli() with its own measure
+coroutine. cli() parses the common arguments, prints "args: {...}" as the first log line, checks the
+Moss version, loads the dataset (--docs / --queries applied), creates the engine, runs its untimed
+open() (the Moss session) and the timed build (with memory readings), picks the 100 unmeasured
+warm-up queries, then awaits measure(run) and writes the result to
+results/<suite>/<dataset>/<engine>[-ip][-docs<N>]-<stamp>.json. run_suite.sh passes the stamp of
+the log, results/logs/<suite>-<dataset>-<engine>[-ip][-docs<N>]-<stamp>.log.
 
-usage: ./run_suite.sh <dataset> <engine> [options]   (one watchdogged run.py per pair; its log is
-       results/logs/<dataset>-<engine>[-ip][-docs<N>]-<stamp>.log with the same --stamp as the
-       result; engines: see engines.ENGINES; the first output line is "args: {...}")
-
-Every engine runs off the shelf: library-default index and search settings (see engines.py).
---metric picks the library's default distance or inner product (cosine where an engine has none).
-
-Stages (VectorDBBench / qdrant / ann-benchmarks methodology, see README.md):
-  load        build the index: build seconds (ingest + index; library imports and the Moss session
-              are set up before the timer, the session time recorded as open_s), docs/s, RSS
-              before/after build, index size on disk
-  serial      one client, every sweep setting x every --k: recall@k and nDCG@k vs exact top-k
-              (vector), nDCG@10, recall@k and R-precision vs human labels (text, k >= 10),
-              p50/p95/p99/p99.9/mean latency
-  filter      VectorDBBench filter cases (k = 100), scored against each case's own ground truth;
-              per case a cold pass (first use of that filter) then a warm pass, both measured
-The operating point is the library-default search setting ({}, the first point of every sweep);
-the filter stage runs there, after 100 unmeasured warm-up queries. Warm-up queries are never
-measured: the queries after the measured ones when at least 100 exist (--queries below the total),
-else 100 indexed docs (vectors, or corpus texts on text datasets). Text datasets keep the top 5 of
-the first 10 queries, from an unmeasured pass after the filter stage, as example results.
-Memory: physical footprint (macOS proc_pid_rusage) after the dataset loads and after build, plus the
-peak of every stage, in the result's "memory" block.
+Shared pieces a runner uses: timed() (one client, one query at a time, perf_counter around each
+search call), measure_pass() (timed + quality: recall@k and nDCG@k vs the exact top-k on vector
+datasets; nDCG@10, recall@k and R-precision vs human labels on text datasets), footprint_mb() /
+reset_peak() (macOS physical footprint and its interval peak), warm_up().
 """
 
 import argparse
@@ -38,21 +25,16 @@ import resource
 import subprocess
 import time
 import urllib.request
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
 from importlib.metadata import version
 from pathlib import Path
 
 import numpy as np
 
 from bench_data import DATA, check_docs, load, subset_gt_path
-from engines import ENGINES, MossTextEngine, make_engine
-from metrics import (
-    latency_summary,
-    ndcg_gt,
-    ndcg_qrels,
-    r_precision,
-    recall,
-    recall_qrels,
-)
+from engines import MossTextEngine, make_engine
+from metrics import latency_summary, ndcg_gt, ndcg_qrels, r_precision, recall, recall_qrels
 
 HERE = Path(__file__).parent
 RESULTS = HERE / "results"
@@ -74,7 +56,7 @@ PACKAGES = [
 def ensure_latest_moss() -> None:
     """Exit unless the installed moss package is the newest release on PyPI.
 
-    The suite always benchmarks the latest Moss; run.py checks this before every Moss run.
+    The suite always benchmarks the latest Moss; cli() checks this before every Moss run.
 
     Raises:
         SystemExit: The installed version is not PyPI's latest; the message gives the upgrade
@@ -133,7 +115,7 @@ async def timed(
     return got, lat
 
 
-def subset(d: dict, docs: int | None, queries: int | None, stages: list[str]) -> dict:
+def subset(d: dict, docs: int | None, queries: int | None) -> dict:
     """Limit a vector dataset to its first docs and/or first queries.
 
     Fewer queries also cut their ground truth (plain and per filter). A doc subset gets its labels
@@ -145,15 +127,13 @@ def subset(d: dict, docs: int | None, queries: int | None, stages: list[str]) ->
         d: Dataset as returned by bench_data.load().
         docs: Keep only this many docs; None or 0 keeps all.
         queries: Keep only this many queries; None or 0 keeps all.
-        stages: Stages of this run; a doc subset cannot run the filter stage.
 
     Returns:
         A shallow copy of d with the subset applied and meta's n_base / n_queries updated.
 
     Raises:
-        SystemExit: docs is set and: the stages include "filter" on a dataset with filter ground
-            truth (it covers the full set), docs is outside 1..n_base - 1, or the cached ground
-            truth is missing or older than the prepared base vectors.
+        SystemExit: docs is set and outside 1..n_base - 1, or its cached ground truth is missing
+            or older than the prepared base vectors.
     """
     d = dict(d, meta=dict(d["meta"]))
     if queries:
@@ -161,10 +141,6 @@ def subset(d: dict, docs: int | None, queries: int | None, stages: list[str]) ->
         d["gt_filters"] = {t: g[:queries] for t, g in d.get("gt_filters", {}).items()}
         d["meta"]["n_queries"] = len(d["queries"])
     if docs:
-        if "filter" in stages and d.get("gt_filters"):
-            raise SystemExit(
-                "--docs cannot be combined with the filter stage (filter ground truth covers the full set)"
-            )
         name = d["meta"]["name"]
         check_docs(docs, d["meta"]["n_base"])
         path = subset_gt_path(name, docs)
@@ -185,8 +161,9 @@ def env() -> dict:
     """Collect the hardware and software versions recorded in every result file.
 
     Returns:
-        CPU brand, core count, RAM in GB, OS, Python version, the short git commit and the installed
-        version of every package in PACKAGES.
+        CPU brand, core count, RAM in GB, OS, Python version, the short git commit, whether
+        benchmarks/ has uncommitted changes to tracked files, and the installed version of every
+        package in PACKAGES.
     """
 
     def sh(*cmd: str) -> str:
@@ -207,6 +184,7 @@ def env() -> dict:
         "os": platform.platform(),
         "python": platform.python_version(),
         "git": sh("git", "rev-parse", "--short", "HEAD"),
+        "git_dirty": bool(sh("git", "status", "--porcelain", "--untracked-files=no", ".")),
         "versions": {p: version(p) for p in PACKAGES},
     }
 
@@ -328,36 +306,111 @@ def warmup_set(d: dict, all_q: object, measured: int, text: bool) -> tuple[list,
     return list(np.asarray(d["base"][:100])), "doc vectors"
 
 
-async def main(a: argparse.Namespace) -> dict:
-    """Run the selected stages for one engine on one dataset.
+@dataclass
+class Run:
+    """One engine on one dataset, built and ready to search; what a suite's measure() receives.
 
-    Loads the dataset (applying --docs / --queries), runs the engine's untimed open() (the Moss
-    session), reads the memory baseline and builds the index (load stage, timed). The serial
-    stage runs every sweep setting at every k, after 100 unmeasured warm-up queries per setting
-    (see warmup_set). The operating point then gets the same warm-up, and the filter stage, when
-    selected and the dataset has filters, runs each case cold then warm; text datasets then take
-    their example results from an unmeasured pass over the first 10 queries. Memory is read after
-    load, after build and as the peak of each stage.
+    Attributes:
+        a: Parsed arguments.
+        d: Dataset after --docs / --queries.
+        eng: Built engine adapter, at its library-default search setting.
+        text: True for a text dataset.
+        qs: Measured queries (vectors, or texts on text datasets), in order.
+        ks: k values to measure (text datasets: those >= 10).
+        warm_qs: 100 unmeasured warm-up queries (see warmup_set).
+        memory: Memory block of the result; measure() may add stage peaks to its
+            "peak_footprint_mb".
+    """
+
+    a: argparse.Namespace
+    d: dict
+    eng: object
+    text: bool
+    qs: list
+    ks: list[int]
+    warm_qs: list
+    memory: dict = field(default_factory=dict)
+
+
+async def warm_up(run: Run, k: int) -> None:
+    """Run the 100 warm-up queries once, unmeasured.
 
     Args:
-        a: Parsed command-line arguments (see the parser at the bottom of this module).
+        run: The run.
+        k: Number of results per query.
+    """
+    await timed(run.eng, run.warm_qs, k)
+
+
+async def measure_pass(
+    run: Run, k: int, flt: dict | None = None, gt: np.ndarray | None = None
+) -> dict:
+    """Time one pass over every measured query and score it.
+
+    Args:
+        run: The run.
+        k: Number of results per query.
+        flt: Neutral filter applied to every query, or None.
+        gt: Ground truth for a filtered pass (vector datasets); None uses the dataset's.
 
     Returns:
-        The result document: dataset meta, engine, metric, env, args, and the load, serial, filter,
-        operating_point and memory blocks (text datasets add examples).
+        {"k", "latency_ms" (latency_summary), "first_ms" (the first query's latency), "quality"
+        (nDCG@10 on text datasets, recall@k on vector datasets)} plus the measures behind it:
+        recall@k and nDCG@k (vector) or nDCG@10, recall@k and R-precision (text).
+    """
+    got, lat = await timed(run.eng, run.qs, k, flt)
+    row = {"k": k, "latency_ms": latency_summary(lat), "first_ms": lat[0] * 1000}
+    if run.text:
+        by_q = {q["id"]: [str(x) for x in g] for q, g in zip(run.d["queries_text"], got)}
+        qrels = {q["id"]: run.d["qrels"][q["id"]] for q in run.d["queries_text"]}
+        row |= {
+            "ndcg@10": ndcg_qrels(by_q, qrels, 10),
+            f"recall@{k}": recall_qrels(by_q, qrels, k),
+            "r_precision": r_precision(by_q, qrels),
+        }
+        row["quality"] = row["ndcg@10"]
+    else:
+        g = run.d["gt"] if gt is None else gt
+        row |= {f"recall@{k}": recall(got, g, k), f"ndcg@{k}": ndcg_gt(got, g, k)}
+        row["quality"] = row[f"recall@{k}"]
+    return row
+
+
+async def call(x: object) -> object:
+    """Await x if it is awaitable (Moss adapters are async), else return it."""
+    return await x if inspect.isawaitable(x) else x
+
+
+async def build(a: argparse.Namespace, measure: Callable[[Run], Awaitable[dict]]) -> dict:
+    """Load, open, build, then run a suite's measure() and assemble its result document.
+
+    Loads the dataset (applying --docs / --queries), creates the engine for --metric, runs its
+    untimed open() (recorded as open_s), reads the memory baseline, builds the index (timed as
+    build_s, with the build-stage footprint peak) and picks the warm-up queries. measure() then
+    runs on the built engine; the engine is closed afterwards.
+
+    Args:
+        a: Parsed arguments (see cli()).
+        measure: The suite's coroutine; returns its result blocks.
+
+    Returns:
+        {"suite", "dataset" (meta), "engine", "metric", "env", "args", "warmup" (source),
+        "tunable" (more than one search setting), "load", "memory"} plus measure()'s blocks.
 
     Raises:
-        SystemExit: The arguments do not fit the dataset (--docs on a text dataset, no --k of at
-            least 10 on a text dataset, a k above the ground-truth width, unknown stages or filters)
-            or the engine has no such --metric mode.
+        SystemExit: The arguments do not fit the dataset (--docs on a text dataset, no k of at
+            least 10 on a text dataset, a k above the ground-truth width) or the engine has no
+            such --metric mode.
     """
-    stages, ks = a.stages.split(","), [int(x) for x in a.k.split(",")]
+    ks = [int(x) for x in a.k.split(",")]
     d = load(a.dataset)
     text = d["meta"]["kind"] == "text"
     all_q = d["queries_text"] if text else d["queries"]  # before --queries: spares warm up
-    if text and a.docs:
-        raise SystemExit("--docs is not supported for text datasets (it would drop qrel documents)")
     if text:
+        if getattr(a, "docs", None):
+            raise SystemExit(
+                "--docs is not supported for text datasets (it would drop qrel documents)"
+            )
         ks = [k for k in ks if k >= 10]  # nDCG@10 needs 10 results
         if not ks:
             raise SystemExit("text datasets need a --k of at least 10")
@@ -365,40 +418,19 @@ async def main(a: argparse.Namespace) -> dict:
             d["queries_text"] = d["queries_text"][: a.queries]
         d["meta"] = dict(d["meta"], n_queries=len(d["queries_text"]))
     else:
-        d = subset(d, a.docs, a.queries, stages)
+        d = subset(d, getattr(a, "docs", None), a.queries)
         if max(ks) > d["gt"].shape[1]:  # recall@k needs k ground-truth neighbours
             raise SystemExit(f"--k up to {d['gt'].shape[1]} (ground truth width)")
-    if bad := set(stages) - {"load", "serial", "filter"}:
-        raise SystemExit(f"unknown --stages {sorted(bad)}")
-    if (  # datasets without filter ground truth skip the filter stage (see below)
-        "filter" in stages
-        and d.get("gt_filters")
-        and (bad := set(a.filters.split(",")) - set(d["gt_filters"]))
-    ):
-        raise SystemExit(f"unknown --filters {sorted(bad)} for {a.dataset}")
     try:
         eng = make_engine(a.engine, text, str(DATA / ".fastembed"), a.metric)
     except KeyError:
         raise SystemExit(
             f"{a.engine} already ranks by inner product by default; its default run serves --metric ip too"
         ) from None
-    out: dict = {
-        "dataset": d["meta"],
-        "engine": a.engine,
-        "metric": eng.metric,
-        "env": env(),
-        "args": vars(a),
-        "serial": [],
-        "filter": [],
-    }
-
-    t_open = time.perf_counter()  # untimed for build_s: Moss session (auth, cloud lookup, model)
-    r = eng.open()
-    if inspect.isawaitable(r):
-        await r
+    t_open = time.perf_counter()  # outside build_s: Moss session (auth, cloud lookup, model)
+    await call(eng.open())
     open_s = time.perf_counter() - t_open
     mem: dict = {"baseline_footprint_mb": footprint_mb()[0], "peak_footprint_mb": {}}
-    peaks = mem["peak_footprint_mb"]
     rss0, t0 = rss_mb(), time.perf_counter()
     reset_peak()
     if isinstance(eng, MossTextEngine):
@@ -410,13 +442,11 @@ async def main(a: argparse.Namespace) -> dict:
             if labels is not None
             else None
         )
-        r = eng.build(d["ids"], d["base"], meta)
-        if inspect.isawaitable(r):
-            await r
+        await call(eng.build(d["ids"], d["base"], meta))
     build_s = time.perf_counter() - t0
-    peaks["build"] = footprint_mb()[1]
+    mem["peak_footprint_mb"]["build"] = footprint_mb()[1]
     n = len(d["ids"])
-    out["load"] = {
+    load_block = {
         "docs": n,
         "open_s": open_s,
         "build_s": build_s,
@@ -426,113 +456,77 @@ async def main(a: argparse.Namespace) -> dict:
     }
     mem |= {
         "footprint_after_build_mb": footprint_mb()[0],
-        "rss_after_build_mb": out["load"]["rss_after_build_mb"],
+        "rss_after_build_mb": load_block["rss_after_build_mb"],
         "disk_mb": disk_mb(eng),
     }
-    print(json.dumps(out["load"] | mem), flush=True)
-
+    print(json.dumps(load_block | mem), flush=True)
     qs = [q["text"] for q in d["queries_text"]] if text else list(d["queries"])
-    warm_qs, out["warmup"] = warmup_set(d, all_q, len(qs), text)
-    reset_peak()
-    for params in eng.sweep:
-        eng.set_search(params)
-        todo = [k for k in ks if params.get("ef", k) >= k]  # HNSW needs ef >= k
-        if not todo:
-            continue
-        await timed(eng, warm_qs, min(todo))  # warm-up for this setting, unmeasured
-        for k in todo:
-            got, lat = await timed(eng, qs, k)
-            row = {
-                "params": params,
-                "k": k,
-                "latency_ms": latency_summary(lat),
-            }
-            if text:
-                by_q = {q["id"]: [str(x) for x in g] for q, g in zip(d["queries_text"], got)}
-                qrels = {q["id"]: d["qrels"][q["id"]] for q in d["queries_text"]}
-                row |= {
-                    "ndcg@10": ndcg_qrels(by_q, qrels, 10),
-                    f"recall@{k}": recall_qrels(by_q, qrels, k),
-                    "r_precision": r_precision(by_q, qrels),
-                }
-            else:
-                row |= {
-                    f"recall@{k}": recall(got, d["gt"], k),
-                    f"ndcg@{k}": ndcg_gt(got, d["gt"], k),
-                }
-            row["headline"] = (
-                row["ndcg@10"] if text else row[f"recall@{k}"]
-            )  # nDCG@10 (text) or recall@k vs exact top-k
-            out["serial"].append(row)
-            print(json.dumps(row), flush=True)
-
-    peaks["serial"] = footprint_mb()[1]
-    out["operating_point"] = {}  # the library default
-    eng.set_search({})
-    await timed(eng, warm_qs, max(ks))  # unmeasured warm-up (Chroma reopens its client)
-    if "filter" in stages and d.get("gt_filters"):
-        reset_peak()
-        for tag in a.filters.split(","):
-            row: dict = {"filter": tag, "k": 100}
-            for p in (
-                "cold",
-                "warm",
-            ):  # cold: first use of this filter in the process; warm: the same pass again
-                got, lat = await timed(eng, qs, 100, d["meta"]["filters"][tag])
-                row[p] = {
-                    "recall@100": recall(got, d["gt_filters"][tag], 100),
-                    "latency_ms": latency_summary(lat),
-                    "first_ms": lat[0] * 1000,
-                }
-            out["filter"].append(row)
-            print(json.dumps(row), flush=True)
-        peaks["filter"] = footprint_mb()[1]
-    if text:  # top 5 of the first 10 queries for the report's example results; corpus position = id
-        ex, _ = await timed(eng, qs[:10], max(ks))  # unmeasured, after every measured pass
-        out["examples"] = [
-            {
-                "query": q["text"],
-                "results": [
-                    {
-                        "text": d["corpus"][i]["text"][:240],
-                        "relevant": str(i) in d["qrels"][q["id"]],
-                    }
-                    for i in g[:5]
-                ],
-            }
-            for q, g in zip(d["queries_text"][:10], ex)
-        ]
-    r = eng.close()
-    if inspect.isawaitable(r):
-        await r
-    out["load"]["peak_rss_mb"] = (
+    warm_qs, warm_src = warmup_set(d, all_q, len(qs), text)
+    run = Run(a, d, eng, text, qs, ks, warm_qs, mem)
+    blocks = await measure(run)
+    await call(eng.close())
+    load_block["peak_rss_mb"] = (
         resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 2**20
     )  # bytes on macOS
-    out["memory"] = mem
-    return out
+    return {
+        "suite": a.suite,
+        "dataset": d["meta"],
+        "engine": a.engine,
+        "metric": eng.metric,
+        "env": env(),
+        "args": vars(a),
+        "warmup": warm_src,
+        "tunable": len(eng.sweep) > 1 or bool(eng.extra),  # False: exact, one search setting
+        "load": load_block,
+        "memory": mem,
+    } | blocks
 
 
-if __name__ == "__main__":
+def run_key(engine: str, metric: str, docs: int | None) -> str:
+    """Name a run as run_suite.sh names its log and result: engine[-ip][-docsN].
+
+    Args:
+        engine: Engine name.
+        metric: Metric mode, "default" or "ip".
+        docs: --docs value, or None.
+
+    Returns:
+        The run key, e.g. "faiss-hnsw-ip" or "moss-docs25000".
+    """
+    return engine + ("-ip" if metric == "ip" else "") + (f"-docs{docs}" if docs else "")
+
+
+def cli(
+    suite: str,
+    doc: str,
+    measure: Callable[[Run], Awaitable[dict]],
+    docs: bool = False,
+    k: str = "1,10,50,100",
+    more: Callable[[argparse.ArgumentParser], None] | None = None,
+) -> None:
+    """Parse the common arguments, run one suite measurement and write its result file.
+
+    Args:
+        suite: Suite name; results go to results/<suite>/<dataset>/.
+        doc: The runner's module docstring (the --help text).
+        measure: The suite's coroutine (see build()).
+        docs: Offer --docs (index only the first N docs of a vector dataset).
+        k: Default --k list.
+        more: Adds the runner's own arguments to the parser.
+    """
+    from engines import ENGINES
+
     p = argparse.ArgumentParser(
-        description=__doc__,
+        description=doc,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        allow_abbrev=False,  # run_suite.sh names the log from the exact --docs flag
+        allow_abbrev=False,  # run_suite.sh names the log from the exact flags
     )
     p.add_argument("dataset")
     p.add_argument("engine", choices=list(ENGINES))
-    p.add_argument(
-        "--stages",
-        default="serial,filter",
-        help="load and serial always run; this selects filter",
-    )
-    p.add_argument("--k", default="1,10,50,100", help="text datasets use the values >= 10")
+    p.add_argument("--k", default=k, help="k values; text datasets use those >= 10")
     p.add_argument("--queries", type=int, help="use only the first N queries")
-    p.add_argument(
-        "--docs",
-        type=int,
-        help="vector datasets: index only the first N docs (GT recomputed)",
-    )
-    p.add_argument("--filters", default="int_1p,int_99p,label_1p,label_50p")
+    if docs:
+        p.add_argument("--docs", type=int, help="vector datasets: index only the first N docs")
     p.add_argument(
         "--metric",
         choices=["default", "ip"],
@@ -544,19 +538,49 @@ if __name__ == "__main__":
         default=time.strftime("%Y%m%dT%H%M%S"),
         help="result file stamp; run_suite.sh passes the one in the log name",
     )
-    args = p.parse_args()
-
-    print(
-        "args: " + json.dumps(vars(args)), flush=True
-    )  # first log line: the exact arguments of this attempt
-
-    if args.engine == "moss":
+    if more:
+        more(p)
+    a = p.parse_args()
+    a.suite = suite
+    print("args: " + json.dumps(vars(a)), flush=True)  # first log line: the exact arguments
+    if a.engine == "moss":
         ensure_latest_moss()
-    res = asyncio.run(main(args))
-    out_dir = RESULTS / args.dataset
-    out_dir.mkdir(parents=True, exist_ok=True)
-    tag = ("-ip" if args.metric == "ip" else "") + (f"-docs{args.docs}" if args.docs else "")
-    path = out_dir / f"{args.engine}{tag}-{args.stamp}.json"
+    res = asyncio.run(build(a, measure))
+    out = RESULTS / suite / a.dataset
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / f"{run_key(a.engine, a.metric, getattr(a, 'docs', None))}-{a.stamp}.json"
     path.write_text(json.dumps(res, indent=1) + "\n")
-
     print(f"wrote {path}")
+
+
+def applies(suite: str, dataset: str, engine: str, metric: str, docs: int | None) -> str:
+    """Tell whether a suite run makes sense for a pair; run_suite.sh asks before each run.
+
+    Args:
+        suite: "defaults", "tuning" or "filter".
+        dataset: Prepared dataset name.
+        engine: Engine name, a key of ENGINES.
+        metric: "default" or "ip".
+        docs: --docs value, or None.
+
+    Returns:
+        "" when it applies, else the reason to skip it.
+    """
+    from engines import ENGINES, MossTextEngine
+
+    meta = json.loads((DATA / dataset / "meta.json").read_text())
+    text = meta["kind"] == "text"
+    cls = ENGINES[engine]
+    if metric == "ip" and "ip" not in getattr(cls, "func", cls).METRICS:
+        return (
+            f"{engine}: its default metric is already inner product (the default run serves both)"
+        )
+    if docs and (text or suite != "defaults"):
+        return "--docs applies to the defaults suite on vector datasets only"
+    if suite == "filter" and not meta.get("filters"):
+        return f"{dataset} has no filter cases"
+    if suite == "tuning":
+        eng = MossTextEngine if text and engine == "moss" else cls(metric)
+        if len(eng.sweep) < 2 and not eng.extra:
+            return f"{engine} has one search setting (exact); the defaults suite measures it"
+    return ""

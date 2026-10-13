@@ -588,13 +588,13 @@ wheels = [
 
 [[package]]
 name = "inferedge-moss-core"
-version = "0.30.0"
+version = "0.30.1"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a3/53/06cb11f0341cb931935b9ae9c4924324a60a33a98b1f700293cd4dd6df5c/inferedge_moss_core-0.30.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:2701232f222cbda42814afadf063298534c234018db9f96ee87738bf02299451", size = 4583704, upload-time = "2026-10-12T20:25:17.062Z" },
-    { url = "https://files.pythonhosted.org/packages/d2/c8/b3e33bc017c370193f324c7049348828c0a200790669181c8b93343b58f0/inferedge_moss_core-0.30.0-cp310-abi3-manylinux_2_35_x86_64.whl", hash = "sha256:1c8f3966aec98b493de2b1435e348c2627e2de45b812472b75fc99c48696b7c2", size = 5625489, upload-time = "2026-10-12T20:25:19.103Z" },
-    { url = "https://files.pythonhosted.org/packages/dd/3b/6992505a61de381c4152ce8019e2f634c27be3e0ca9fbe75af084f312f97/inferedge_moss_core-0.30.0-cp310-abi3-manylinux_2_39_aarch64.whl", hash = "sha256:50f302342b9a7e510b448f4370e5baaf11d71c2334bcb9498e3ddecbd56683ee", size = 5467145, upload-time = "2026-10-12T20:25:20.689Z" },
-    { url = "https://files.pythonhosted.org/packages/cd/08/15424acb9756e6d09849bb1c63870579827537a0b4d4cfbe5b4f3c076a6a/inferedge_moss_core-0.30.0-cp310-abi3-win_amd64.whl", hash = "sha256:0c69fb9896423279e7741f1d76f667cc168520f23623989d87098e2882ef18dc", size = 6114866, upload-time = "2026-10-12T20:25:22.134Z" },
+    { url = "https://files.pythonhosted.org/packages/0a/42/0e8e0b639b545bb3a33dfef3dcd5d77b897f4572324f063441c60d33aee5/inferedge_moss_core-0.30.1-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:69c47169c59622e2776cadc1ae701e8e5b5ab1b6d8845f660bf18a2d5e6d923b", size = 4583428, upload-time = "2026-10-13T20:27:54.941Z" },
+    { url = "https://files.pythonhosted.org/packages/9b/b7/21b6f051b8d559248077e7f93a92e75c2af25f1acb89c0d894a7c65b4564/inferedge_moss_core-0.30.1-cp310-abi3-manylinux_2_35_x86_64.whl", hash = "sha256:1a9fbe9a56a1917807c95d65cb6ef971f689b8d5fac8e02e11a38034f242ef14", size = 5625233, upload-time = "2026-10-13T20:27:57.221Z" },
+    { url = "https://files.pythonhosted.org/packages/fe/1d/e3c9a3180f4710036486eef76835718ad0a21400c2ac4f8664975417bd3f/inferedge_moss_core-0.30.1-cp310-abi3-manylinux_2_39_aarch64.whl", hash = "sha256:2b986099220b460ce870aaa9e51c5555d30ab7c24f5d62c8bf792ab985e4294b", size = 5466482, upload-time = "2026-10-13T20:27:59.333Z" },
+    { url = "https://files.pythonhosted.org/packages/d1/db/0fc334204cab0a03a5ccc9c24064f345b5808d322d60c570bb897b4ce905/inferedge_moss_core-0.30.1-cp310-abi3-win_amd64.whl", hash = "sha256:c89059958e3af548e7cf22767299f66fc17be36261e60ed8a80a388d2a3698db", size = 6113940, upload-time = "2026-10-13T20:28:01.301Z" },
 ]
 
 [[package]]
@@ -768,15 +768,15 @@ wheels = [
 
 [[package]]
 name = "moss"
-version = "1.16.0"
+version = "1.16.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "inferedge-moss-core" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3b/3c/93ab58be8caaf6b4a0a5f8b36fde549645dec0e5ce5df521f50cd663cb0a/moss-1.16.0.tar.gz", hash = "sha256:be2ea693879db4074679bca2ce1507fc3ed5efb29a260ffbd837bd7ea4f5e5fb", size = 35533, upload-time = "2026-10-12T20:28:26.86Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7b/64/81a03801ee0e1ed2b30d921dfe3bab22266fe00c4c08ec1a59fb82505d1f/moss-1.16.1.tar.gz", hash = "sha256:69536004c3ab16a2c0f180e12575bab3ff9bbd11086a06f06515421e608e5189", size = 35535, upload-time = "2026-10-13T20:31:18.563Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/40/a2/345676f76fa19bd3b9dba115bd869fa5589fb3eb48a540261fd09a327b59/moss-1.16.0-py3-none-any.whl", hash = "sha256:a0a0595000c7f4ab63cffe0425caad7152beaf29ca73471505286479896ddc1b", size = 32916, upload-time = "2026-10-12T20:28:25.853Z" },
+    { url = "https://files.pythonhosted.org/packages/03/5c/c7d913b30813130f9da7098ff8d4246c94d4a0eeff8d13be904e56a221eb/moss-1.16.1-py3-none-any.whl", hash = "sha256:6138b040e664abb4eb62c7f786df04542eeefe90f83d9399c0f65f915ddc7c4b", size = 32920, upload-time = "2026-10-13T20:31:17.4Z" },
 ]
 
 [[package]]
