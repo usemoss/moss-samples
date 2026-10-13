@@ -8,7 +8,7 @@
     "start": "next start --port 3001"
   },
   "dependencies": {
-    "next": "^16.2.6",
+    "next": "^16.3.7",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "geist": "^1.7.0",
