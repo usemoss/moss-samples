@@ -8,7 +8,25 @@ a fix before public disclosure.
 
 Please do not open public GitHub issues for security reports.
 
-Instead, email `contact@moss.dev` with:
+### Preferred: GitHub Private Vulnerability Reporting
+
+Use GitHub's private vulnerability reporting form when it is enabled for this
+repository:
+
+[Report a vulnerability](https://github.com/usemoss/moss/security/advisories/new)
+
+This keeps the report, discussion, and remediation in one place and lets us
+credit you on a coordinated advisory when appropriate.
+
+Repository maintainers: enable this under **Settings → Advanced Security →
+Private vulnerability reporting**. See GitHub's guide on
+[configuring private vulnerability reporting](https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/configure-for-a-repository).
+
+### Alternative: Email
+
+If private vulnerability reporting is unavailable, email `contact@moss.dev`.
+
+Include:
 
 - A clear description of the vulnerability
 - The affected package, example, or component
@@ -25,6 +43,20 @@ Please avoid:
 
 We ask for coordinated disclosure and will work with you to validate the report,
 develop a fix, and determine an appropriate disclosure timeline.
+
+For non-security bugs and feature requests, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Scope
+
+This policy covers security issues in:
+
+- Moss SDKs (`sdks/python`, `sdks/javascript`, `sdks/elixir`, and other language bindings)
+- Native runtime bindings (`moss-core`, `@moss-dev/moss-core`, and related packages)
+- Packages and connectors under `packages/`
+- Example apps, cookbooks, and integrations in `examples/` and `apps/`
+
+Reports about Moss Cloud or the Moss web dashboard should still use the channels
+above; we will route them to the appropriate team.
 
 ## Supported Versions
 

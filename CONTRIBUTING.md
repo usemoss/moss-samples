@@ -26,6 +26,16 @@ In short, when you submit code changes, your submissions are understood to be un
 
 We use GitHub issues to track public bugs. Report a bug by [opening a new issue](https://github.com/usemoss/moss/issues/new); it's that easy!
 
+## Report security vulnerabilities privately
+
+Do not open public issues for security vulnerabilities.
+
+Follow [SECURITY.md](SECURITY.md) to report them privately. Prefer GitHub's
+[private vulnerability reporting form](https://github.com/usemoss/moss/security/advisories/new)
+when enabled; otherwise email `contact@moss.dev`. We aim to acknowledge reports
+within 3 business days and provide triage updates on the timeline described in
+SECURITY.md.
+
 ## Python SDK Development
 
 The Python SDK source lives in [`sdks/python/sdk/`](sdks/python/sdk/). Set up a development environment:

@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Report a Security Vulnerability
+    url: https://github.com/usemoss/moss/security/advisories/new
+    about: Do not use public issues for security reports. Use GitHub private vulnerability reporting or email contact@moss.dev (see SECURITY.md).
   - name: Usage Questions and Troubleshooting
     url: https://moss.link/discord
     about: Use GitHub Issues for bugs and feature proposals. Use Discord for setup help, troubleshooting, and general usage questions.

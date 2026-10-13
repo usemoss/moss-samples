@@ -11,7 +11,7 @@ body:
 
         Please use this form for reproducible defects in Moss. If you are not yet sure whether you have found a bug, or you need help debugging your setup, use the community Discord first: https://moss.link/discord
 
-        Do not report security vulnerabilities here. Follow the private reporting instructions in `SECURITY.md` and email contact@moss.dev instead.
+        Do not report security vulnerabilities here. Follow the private reporting instructions in [SECURITY.md](https://github.com/usemoss/moss/blob/main/SECURITY.md) (GitHub private vulnerability reporting or email contact@moss.dev).
 
   - type: textarea
     id: description

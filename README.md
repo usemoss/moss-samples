@@ -294,6 +294,7 @@ Check out issues labeled [`good first issue`](https://github.com/usemoss/moss/la
 
 - [Discord](https://moss.link/discord) — ask questions, share what you're building
 - [GitHub Issues](https://github.com/usemoss/moss/issues) — bug reports and feature requests
+- [Security Policy](SECURITY.md) — report vulnerabilities privately (do not use public issues)
 - [Twitter](https://x.com/usemoss) — announcements and updates
 
 ## License
