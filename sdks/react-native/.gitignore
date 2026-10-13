@@ -1,0 +1,9 @@
+node_modules/
+build/
+.DS_Store
+*.tgz
+ios/Frameworks/
+ios/Moss.xcframework/
+*.xcframework/
+.expo/
+package-lock.json

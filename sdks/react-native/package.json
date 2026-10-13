@@ -1,0 +1,60 @@
+{
+  "name": "@moss-dev/moss-react-native",
+  "version": "0.1.0",
+  "description": "React Native and Expo module for on-device Moss semantic search",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf build",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "moss",
+    "usemoss",
+    "semantic-search",
+    "react-native",
+    "expo",
+    "embeddings",
+    "vector-search"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/usemoss/moss.git",
+    "directory": "sdks/react-native"
+  },
+  "bugs": {
+    "url": "https://github.com/usemoss/moss/issues"
+  },
+  "author": "InferEdge Inc. <contact@moss.dev>",
+  "license": "BSD-2-Clause",
+  "homepage": "https://github.com/usemoss/moss/tree/main/sdks/react-native#readme",
+  "files": [
+    "build",
+    "ios/*.swift",
+    "ios/*.podspec",
+    "ios/scripts",
+    "android",
+    "app.plugin.js",
+    "expo-module.config.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@expo/config-plugins": "^54.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "expo-modules-core": "*",
+    "react": "*",
+    "react-native": "*"
+  },
+  "peerDependenciesMeta": {
+    "expo": {
+      "optional": true
+    }
+  }
+}

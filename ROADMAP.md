@@ -92,6 +92,7 @@ These are well-scoped and ready for contributors. Each one has (or will have) a 
 - [ ] **Swift bindings** — for iOS/macOS apps with on-device retrieval ([`good first issue`](https://github.com/usemoss/moss/labels/good%20first%20issue))
 - [ ] **Rust bindings** — for performance-critical pipelines ([`good first issue`](https://github.com/usemoss/moss/labels/good%20first%20issue))
 - [ ] **Kotlin bindings** — for Android apps and Spring Boot backend services ([`good first issue`](https://github.com/usemoss/moss/labels/good%20first%20issue))
+- [x] **React Native / Expo module** — iOS via `Moss.xcframework` + Expo config plugin (`sdks/react-native/`, `@moss-dev/moss-react-native`); Android pending [#411](https://github.com/usemoss/moss/issues/411) ([#432](https://github.com/usemoss/moss/issues/432))
 
 ### Voice AI Ecosystem
 

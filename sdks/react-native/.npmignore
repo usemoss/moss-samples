@@ -1,0 +1,7 @@
+node_modules/
+ios/Frameworks/
+ios/Moss.xcframework/
+*.tgz
+.DS_Store
+tsconfig.json
+.gitignore

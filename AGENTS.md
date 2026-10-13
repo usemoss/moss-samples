@@ -15,10 +15,13 @@ sdks/
   python/sdk/      — Python SDK (PyPI: moss), Python 3.10+
   javascript/sdk/  — JS/TS SDK (npm: @moss-dev/moss), ESM-only
   elixir/sdk/      — Elixir SDK (Hex: moss)
+  swift/           — Swift SDK for iOS (wraps Moss.xcframework)
+  react-native/    — Expo / React Native module (@moss-dev/moss-react-native); iOS native, Android stub
 examples/
   python/          — Standalone Python usage examples
   javascript/      — Standalone TS usage examples
   javascript-web/  — Browser/Vite examples (no Node runtime)
+  react-native/    — Expo usage sketch for @moss-dev/moss-react-native
   c/               — C binding examples
   go/              — Standalone Go SDK usage examples
   bun/             — Bun runtime example
@@ -224,6 +227,17 @@ cd sdks/elixir/sdk
 mix deps.get
 mix test
 ```
+
+### React Native / Expo module (`sdks/react-native/`)
+
+```bash
+cd sdks/react-native
+npm install
+npm run build      # tsc → build/
+```
+
+iOS links `Moss.xcframework` (downloaded at `pod install` via `ios/scripts/download-moss-xcframework.sh`).
+Android is a stub until [#411](https://github.com/usemoss/moss/issues/411). Requires Expo prebuild / a dev client — not Expo Go.
 
 ## Architecture: Two-Layer Design
 

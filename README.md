@@ -21,7 +21,7 @@
 
 Moss is a sub-10 ms semantic search runtime built for Conversational AI agents. Hybrid retrieval (semantic + Keyword Search), built-in embeddings, metadata filtering, and a WebAssembly build that runs in the browser - all from a single SDK that embeds in your application.
 
-No network hop on the hot path. No clusters to tune. Point the SDK at Moss Cloud, load your index, and query it in **under 10 ms**. Python, TypeScript, Elixir, and C.
+No network hop on the hot path. No clusters to tune. Point the SDK at Moss Cloud, load your index, and query it in **under 10 ms**. Python, TypeScript, Elixir, C, Swift, and React Native / Expo.
 
 ![Moss Python walkthrough](https://github.com/user-attachments/assets/d826023d-92d6-49ac-8e5e-81cf04d409c5)
 
@@ -116,7 +116,7 @@ Moss isn't a database! It's a **search runtime**. You don't manage clusters, tun
 - **Runs in the browser too** - separate WebAssembly SDK ([`@moss-dev/moss-web`](https://www.npmjs.com/package/@moss-dev/moss-web)) for client-side semantic search with no server
 - **Database connectors** - ingest directly from SQLite, MongoDB, MySQL, and Supabase ([`packages/moss-data-connector/`](packages/moss-data-connector/))
 - **CLI** - manage indexes and query from the terminal ([`packages/moss-cli/`](packages/moss-cli/))
-- **SDKs** - Python (3.10+), TypeScript / Node.js (20+), Elixir, and C ([`libmoss`](https://github.com/usemoss/moss/releases))
+- **SDKs** - Python (3.10+), TypeScript / Node.js (20+), Elixir, C ([`libmoss`](https://github.com/usemoss/moss/releases)), Swift (iOS), and React Native / Expo (`@moss-dev/moss-react-native`)
 - **Framework integrations** - LangChain, DSPy, LlamaIndex, Pipecat, LiveKit, Vapi, ElevenLabs, Strands Agents
 
 ## Examples
@@ -276,7 +276,7 @@ Full Python SDK source code is available at [`sdks/python/`](sdks/python/).
 
 Here's where the community can have the most impact:
 
-- **New SDK bindings** — Swift, Go, Elixir,...
+- **New SDK bindings** — Kotlin/Android, Rust,… React Native / Expo module shipped under `sdks/react-native/`
 - **Framework integrations** — CrewAI, Haystack, AutoGen
 - **Reranking support** — plug in cross-encoder rerankers
 - **Doc-parsing connectors** — PDF, DOCX, HTML, Markdown ingestion

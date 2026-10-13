@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["MossModule"]
+  },
+  "android": {
+    "modules": ["dev.moss.reactnative.MossModule"]
+  }
+}

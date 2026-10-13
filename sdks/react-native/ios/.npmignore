@@ -1,0 +1,9 @@
+# Moss.xcframework is fetched and checksum-verified at `pod install` time (see
+# MossReactNative.podspec). It must never be published: a packed copy would be
+# used as-is, and the download script skips verification when the directory
+# already exists — so a stale or unverified binary would ship silently.
+#
+# The `files` allow-list in package.json already enumerates only the sources,
+# podspec and scripts. This is the second line of defence if that list is ever
+# widened back to the whole `ios` directory.
+Frameworks/

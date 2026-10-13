@@ -27,3 +27,4 @@ skills-lock.json
 
 # Swift / SwiftPM build artifacts
 .build/
+.smoke-expo-moss/
