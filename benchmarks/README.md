@@ -2,6 +2,8 @@
 
 Compares Moss with nine local in-process engine setups on standard public datasets, using the methodology of VectorDBBench, qdrant's vector-db-benchmark and ann-benchmarks. Every engine runs **off the shelf**: its library's default index and search settings, so the comparison is what a user gets without tuning. Every run writes an interactive Plotly report and Markdown tables.
 
+Latest results (2026-10-13/14): [summary](RESULTS.md), [full detail](RESULTS-DETAIL.md).
+
 ## Benchmarks
 
 The suite is modular: each benchmark has its own runner, result files and report page, and a page reads only the results it names, so a change to one benchmark cannot break another. Shared code is small: `bench_data.py` (datasets), `engines.py` (engine adapters), `metrics.py` (quality and latency statistics), `harness.py` (load, build, timing, memory, result files) and `report_common.py` (page shell, chart and table helpers).
@@ -38,7 +40,7 @@ Defaults read from the installed libraries (DuckDB's from its VSS docs). The ef 
 
 | Engine | Version | Index (library defaults) | Default search | Default metric / `ip` mode | Sweep | Filter mechanism |
 |---|---|---|---|---|---|---|
-| `moss` | 1.16.0 (`inferedge-moss-core` 0.30.0) | exact search via public `SessionIndex` | exact | inner product | none (text: `alpha` default 0.8, then 1.0) | metadata filter (`$gte`, `$eq`) |
+| `moss` | 1.16.1 (`inferedge-moss-core` 0.30.1) | exact search via public `SessionIndex` | exact | inner product | none (text: `alpha` default 0.8, then 1.0) | metadata filter (`$gte`, `$eq`) |
 | `chroma` | 1.5.9 | HNSW M 16, ef_construction 100, persistent client | ef 100 | l2 / ip | ef | `where` |
 | `lancedb` | 0.40.0 | `create_index()`: IVF_PQ | no refine | l2 / dot | refine_factor 2, 5, 10, 20, 50 | `where` (prefilter, the default) |
 | `lancedb-hnsw` | 0.40.0 | `IvfHnswSq()` (docs: best recall/latency for unfiltered search) | ef 1.5 x k | l2 / dot | ef, then refine_factor 2, 5, 10 (re-rank with full vectors; ef alone levels off near 0.96 recall) | `where` (prefilter) |
