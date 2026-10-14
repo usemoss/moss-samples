@@ -185,7 +185,7 @@ directories. Examples here may move, change shape, or be removed.
 
 ### SDK folders (`sdks/javascript/sdk/`, `sdks/python/sdk/`, `sdks/elixir/sdk/`)
 
-These hold the source and samples of the latest release of each SDK, for reading. Each release replaces them, so they have no build, test or lint setup. Install the SDKs from npm, PyPI or Hex.
+These hold the source and samples of the latest release of each SDK, for reading. Each release replaces them, so they have no build, test or lint setup. Install the SDKs from npm, PyPI or Hex. A pull request against them is carried into the SDK's next release, which credits its author in the CHANGELOG.
 
 ### Root (examples only — not the SDK)
 

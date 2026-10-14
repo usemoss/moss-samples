@@ -118,4 +118,4 @@ Open an issue at <https://github.com/usemoss/moss/issues>.
 
 ## License
 
-[BSD 2-Clause](./LICENSE)
+[PolyForm Shield 1.0.0](./LICENSE.txt)
