@@ -4,16 +4,29 @@ Summary: [RESULTS.md](RESULTS.md). Methods, options and known behaviors: [README
 
 ## Setup
 
-- **Machine:** Apple M5 Max, 18 cores, 128 GB RAM, macOS 26.6.2. Runs in 2026-10, commit `3d169e8`.
-- **Engines:** Moss 1.16.1 (core 0.30.1), Chroma 1.5.9, LanceDB 0.40.0 (IVF-PQ and IVF-HNSW-SQ), Qdrant client 1.19.1 (local mode), FAISS 1.15.1 (flat and HNSW), zvec 0.7.0, sqlite-vec 0.1.9, DuckDB 1.5.6 + vss. All in-process; index settings are each library's defaults (see the README's engine table).
+- **Machine:** Apple M5 Max, 18 cores, 128 GB RAM, macOS 26.6.2. Runs in October 2026, commit `3d169e8`.
+
+- **Engines:**
+  - Moss 1.16.1 (core 0.30.1)
+  - Chroma 1.5.9
+  - LanceDB 0.40.0 (IVF-PQ and IVF-HNSW-SQ)
+  - Qdrant client 1.19.1 (local mode)
+  - FAISS 1.15.1 (flat and HNSW)
+  - zvec 0.7.0, sqlite-vec 0.1.9
+  - DuckDB 1.5.6 + vss
+  
+  All in-process; index settings are each library's defaults (see the README's engine table).
+
 - **Datasets:**
   - dbpedia-openai-1m: 990k docs, 1536-d OpenAI embeddings, 1,000 queries.
   - cohere-100k: 100k docs, 768-d, 1,000 queries. Also used for filters and corpus scaling.
   - SciFact: 5,183 abstracts, 300 test queries, human relevance labels.
+
 - **Method:**
   - Queries run one at a time from one client, after 100 unmeasured warm-up queries. Latency is the wall-clock time per call.
   - Recall@k is measured against exact search; text quality is nDCG@10 against the human labels.
   - Each configuration was measured in one run, without repeats.
+
 - **Metric:** vectors are normalized, so inner product (the dataset metric) and each library's default distance rank documents the same; only speed differs. Numbers below use inner product unless noted.
 
 ## What recall means for an application
