@@ -62,7 +62,10 @@ NOTES = {
     "in one run, without repeats. Engines differ in how many CPU cores one query uses; CPU time is not "
     "measured. Each engine returns its library's default result payload (e.g. Chroma: ids, metadata, "
     "documents and distances; LanceDB: every column, the vector included; FAISS: ids and distances), "
-    "and a larger payload costs more as k grows.",
+    "and a larger payload costs more as k grows. Exception: on dbpedia-openai-1m, FAISS-HNSW's first passes "
+    "after its index build ran 1.2-2.4x slower than the same setting measured later in the run (k = 10, "
+    "library default metric: 0.320 ms against 0.138 ms), so its default-settings latency and lowest "
+    "Pareto point there are overstated.",
 }
 # Subsection heading of each note; the "metric" note only shows in the inner-product view.
 NOTE_HEADINGS = {
