@@ -185,7 +185,7 @@ directories. Examples here may move, change shape, or be removed.
 
 ### SDK folders (`sdks/javascript/sdk/`, `sdks/python/sdk/`, `sdks/elixir/sdk/`)
 
-These hold the source and samples of each SDK release, for reading. Each release replaces a folder with its source and samples alone, without build, test or lint setup. Install the SDKs from npm, PyPI or Hex. An accepted pull request against them is carried into the SDK's next release, which credits its author in the CHANGELOG.
+These hold the source and samples of each SDK release, for reading, with no build or test setup. [CONTRIBUTING.md](CONTRIBUTING.md#sdks) covers how releases update them and how a pull request against them reaches a release.
 
 ### Root (examples only — not the SDK)
 
@@ -234,7 +234,6 @@ When adding examples or cookbook integrations, follow the existing patterns:
 ## Testing Notes
 
 - E2E and integration tests require `MOSS_PROJECT_ID` and `MOSS_PROJECT_KEY`; they auto-skip gracefully when credentials are absent
-- CI compiles the Python SDK source and samples on Python 3.10–3.14 in a GitHub Actions matrix
 - CI lints Python with `ruff` and type-checks with `mypy`; format locally with `black` + `isort`
 - JS tests use Vitest; CI runs on Node 20
 
