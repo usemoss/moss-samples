@@ -183,46 +183,15 @@ directories. Examples here may move, change shape, or be removed.
 
 ## Commands
 
-### Python SDK (`sdks/python/sdk/`)
+### SDK folders (`sdks/javascript/sdk/`, `sdks/python/sdk/`, `sdks/elixir/sdk/`)
 
-```bash
-cd sdks/python/sdk
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-
-pytest tests/                    # run all tests (E2E tests auto-skip without credentials)
-pytest tests/test_client.py      # run a single test file
-black src/ tests/                # format
-isort src/ tests/                # sort imports
-mypy --ignore-missing-imports src/  # type check
-ruff check .                     # lint (used in CI)
-```
-
-### JavaScript/TypeScript SDK (`sdks/javascript/sdk/`)
-
-```bash
-cd sdks/javascript/sdk
-npm install
-npm run build      # compile TS → dist/
-npm test           # vitest run
-npm run test:watch # vitest watch mode
-npm run lint       # eslint
-npm run format     # prettier
-```
+These hold the source and samples of the latest release of each SDK, for reading. Each release replaces them, so they have no build, test or lint setup. Install the SDKs from npm, PyPI or Hex.
 
 ### Root (examples only — not the SDK)
 
 ```bash
 npm run type-check  # TS type check across examples/javascript and apps/next-js
 npm run lint        # eslint across examples/javascript and apps/next-js
-```
-
-### Elixir SDK (`sdks/elixir/sdk/`)
-
-```bash
-cd sdks/elixir/sdk
-mix deps.get
-mix test
 ```
 
 ## Architecture: Two-Layer Design
@@ -232,7 +201,7 @@ Every SDK has the same two-layer structure:
 ```
 Your Code
    ↓
-SDK layer (pure language, open source)
+SDK layer (pure language, source available)
    └─ MossClient — async API surface for index and document operations
    └─ Communicates with Moss Cloud (HTTPS) for mutations and distribution
    ↓

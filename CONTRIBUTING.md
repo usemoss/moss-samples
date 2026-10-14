@@ -20,30 +20,16 @@ Pull requests are the best way to propose changes to the codebase. We actively w
 
 ## Any contributions you make will be under the BSD 2-Clause License
 
-In short, when you submit code changes, your submissions are understood to be under the same [BSD 2-Clause License](LICENSE) that covers the project. Feel free to contact the maintainers if that's a concern.
+In short, when you submit code changes, your submissions are understood to be under the same [BSD 2-Clause License](LICENSE) that covers the project. The JavaScript, Python and Elixir SDK folders are the exception: they are under the PolyForm Shield License, as their `LICENSE.txt` states. Feel free to contact the maintainers if that's a concern.
 
 ## Report bugs using GitHub's [issues](https://github.com/usemoss/moss/issues)
 
 We use GitHub issues to track public bugs. Report a bug by [opening a new issue](https://github.com/usemoss/moss/issues/new); it's that easy!
 
-## Python SDK Development
+## SDK folders
 
-The Python SDK source lives in [`sdks/python/sdk/`](sdks/python/sdk/). Set up a development environment:
-
-```bash
-cd sdks/python/sdk
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-```
-
-Run the tests (cloud/E2E tests auto-skip without credentials):
-
-```bash
-pytest tests/
-```
-
-Code style is enforced via `black`, `isort`, and `mypy` (see `pyproject.toml` for configuration).
+`sdks/javascript/sdk`, `sdks/python/sdk` and `sdks/elixir/sdk` hold the source and samples of the latest release of each SDK, for reading. Each release replaces them, so they carry no build or test setup. Install the SDKs from npm (`@moss-js/moss`), PyPI (`moss`) or Hex (`moss`). To report a bug or suggest a change to an SDK, [open an issue](https://github.com/usemoss/moss/issues/new).
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the BSD 2-Clause License.
+By contributing, you agree that your contributions will be licensed under the BSD 2-Clause License, or under the PolyForm Shield License for the SDK folders above.
