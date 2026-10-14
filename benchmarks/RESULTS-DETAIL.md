@@ -18,7 +18,7 @@ Summary: [RESULTS.md](RESULTS.md). Methods, options and known behaviors: [README
 
 ## What recall means for an application
 
-Recall@10 is how many of the 10 truly closest documents a search returns, averaged over queries. Missed documents are silently replaced by the next-closest ones the index found:
+Recall@10 is how many of a query's 10 best matches (by embedding similarity, as an exact search finds them) an engine returns, averaged over queries. A skipped match is silently replaced by a weaker one:
 
 | recall@10 | True top-10 documents missing per query, on average | Engines at default settings (1M docs) |
 |---|---|---|
@@ -184,9 +184,9 @@ nDCG@10 with each engine's default settings, k = 10:
 | FAISS-HNSW | Lowest latency at 0.95 recall (0.45 ms at 1M); saves to disk (`write_index()`) | 0.855 recall at defaults; recall plummets when filters applied; must be tuned and re-tuned | Unfiltered, latency-critical search with a team to maintain tuning |
 | zvec | Lowest latency at 0.99 recall (1.51 ms at 1M); 0.998 recall at defaults; low RAM; on disk | Slowest build (14 min at 1M), and cost per doc rises with index size (4.7x from 10K to 1M); 177 ms with a filter keeping 99% | Read-heavy data that is rebuilt rarely |
 | Chroma | 0.964 recall at defaults; simple API; on disk | Slow filtered search, up to ~100 ms; 2.7x slower with inner product than with its default l2 | Prototypes and small to medium collections |
-| LanceDB-HNSW | Low RAM; 0.95-0.98 filtered recall; on disk | 0.849 recall at defaults; max recall@10 0.988 at 1M | Disk-resident data with moderate recall needs |
+| LanceDB-HNSW | Low RAM; 0.95-0.98 filtered recall; on disk | 0.849 recall at defaults; best recall@10 at 1M: 0.988 | Disk-resident data with moderate recall needs |
 | DuckDB-VSS | Vector search inside SQL | Largest in-memory index (15.7 GB at 1M); recall plummets when filters applied (post-filtering); adding docs to an indexed table 4.3x slower than rebuilding; on-disk index experimental | Analytics in DuckDB without selective filters |
-| LanceDB IVF-PQ | Fast build (28 s at 1M); compressed index; on disk | 0.53 recall at defaults; max recall@10 0.974 at 1M | Very large data where memory matters more than recall |
+| LanceDB IVF-PQ | Fast build (28 s at 1M); compressed index; on disk | 0.53 recall at defaults; best recall@10 at 1M: 0.974 | Very large data where memory matters more than recall |
 | Qdrant local | Exact; same API as the Qdrant server | Brute force in local mode: 952 ms at 1M, 21 GB peak; filtered queries ~275 ms at 100K | Development before moving to a Qdrant server |
 | sqlite-vec | Tiny RAM; plain SQLite file | Brute force: 0.68-1.37 s at 1M | Small collections, edge and embedded apps |
 
