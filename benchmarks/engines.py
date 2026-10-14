@@ -864,15 +864,15 @@ class MossTextEngine(Engine):
 class QueryEmbedder:
     """Text mode for a vector engine: queries are embedded inside search().
 
-    It indexes precomputed MiniLM corpus vectors and embeds each query with fastembed
-    all-MiniLM-L6-v2 (the same weights as moss-minilm), so latency is end to end.
+    It indexes corpus vectors precomputed with all-MiniLM-L6-v2 and embeds each query with the
+    same model (fastembed), so latency is end to end.
     """
 
     def __init__(self, engine: object, cache_dir: str) -> None:
         """Wrap a vector engine and load the fastembed model once.
 
         The wrapper copies the engine's name, sweep, extra and metric; truncation is set to
-        MINILM_MAX_TOKENS to match moss-minilm.
+        MINILM_MAX_TOKENS, as for the corpus vectors.
 
         Args:
             engine: Vector engine adapter to wrap.
@@ -887,7 +887,7 @@ class QueryEmbedder:
         self.model = TextEmbedding(MINILM, cache_dir=cache_dir)
         self.model.model.tokenizer.enable_truncation(
             max_length=MINILM_MAX_TOKENS
-        )  # match moss-minilm
+        )  # same truncation as the corpus vectors
 
     def open(self) -> object:
         """Forward the wrapped engine's untimed setup.

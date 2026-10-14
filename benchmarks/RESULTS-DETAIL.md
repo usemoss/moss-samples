@@ -4,7 +4,7 @@ Summary: [RESULTS.md](RESULTS.md). Methods, options and known behaviors: [README
 
 ## Setup
 
-- **Machine:** Apple M5 Max, 18 cores, 128 GB RAM, macOS 26.6.2. Runs on 2026-10-13/14, commit `3d169e8`.
+- **Machine:** Apple M5 Max, 18 cores, 128 GB RAM, macOS 26.6.2. Runs in 2026-10, commit `3d169e8`.
 - **Engines:** Moss 1.16.1 (core 0.30.1), Chroma 1.5.9, LanceDB 0.40.0 (IVF-PQ and IVF-HNSW-SQ), Qdrant client 1.19.1 (local mode), FAISS 1.15.1 (flat and HNSW), zvec 0.7.0, sqlite-vec 0.1.9, DuckDB 1.5.6 + vss. All in-process; index settings are each library's defaults (see the README's engine table).
 - **Datasets:**
   - dbpedia-openai-1m: 990K docs, 1536-d OpenAI embeddings, 1,000 queries.
@@ -18,7 +18,7 @@ Summary: [RESULTS.md](RESULTS.md). Methods, options and known behaviors: [README
 
 ## What recall means for an application
 
-Recall@10 is the share of the true 10 nearest documents that the engine returns, averaged over queries. What is lost is replaced by the next-closest documents the index found, with no error or signal:
+Recall@10 is how many of the 10 truly closest documents a search returns, averaged over queries. Missed documents are silently replaced by the next-closest ones the index found:
 
 | recall@10 | True top-10 documents missing per query, on average | Engines at default settings (1M docs) |
 |---|---|---|
@@ -36,16 +36,16 @@ Recall is a mean, so a 0.95 average can include queries that lose more than half
 
 dbpedia-openai-1m, k = 10, inner product:
 
-| Engine | recall@10 at defaults | Mean latency at defaults | Fastest setting with recall ≥ 0.95 | Fastest setting with recall ≥ 0.99 | Build | Index in RAM | Index on disk |
+| Engine | recall@10 at defaults | Mean latency at defaults | Fastest setting with recall ≥ 0.95 | Fastest setting with recall ≥ 0.99 (or max recall) | Build | Index in RAM | Index on disk |
 |---|---|---|---|---|---|---|---|
 | Moss | 1.000 | 25.2 ms | 25.2 ms | 25.2 ms | 55 s | 6.0 GB | none |
 | FAISS-flat | 1.000 | 25.2 ms | 25.2 ms | 25.2 ms | 1.3 s | 9.7 GB | none |
 | FAISS-HNSW | 0.855 | 0.14 ms | 0.45 ms (ef 100) | 2.58 ms (ef 768) | 51 s | 6.2 GB | none |
 | zvec | 0.998 | 3.63 ms | 0.66 ms (ef 32) | 1.51 ms (ef 100) | 836 s | 0.12 GB | 6.1 GB |
 | Chroma | 0.964 | 2.38 ms | 2.33 ms (ef 100) | 10.5 ms (ef 768) | 418 s | 6.3 GB | 6.0 GB |
-| LanceDB-HNSW | 0.849 | 1.69 ms | 3.15 ms (refine 5) | not reached | 114 s | 2.3 GB | 7.3 GB |
+| LanceDB-HNSW | 0.849 | 1.69 ms | 3.15 ms (refine 5) | max 0.988 (refine 10, 4.47 ms) | 114 s | 2.3 GB | 7.3 GB |
 | DuckDB-VSS | 0.951 | 6.03 ms | 6.06 ms (ef 100) | 8.09 ms (ef 512) | 117 s | 15.7 GB | none |
-| LanceDB IVF-PQ | 0.531 | 5.79 ms | 7.12 ms (refine 20) | not reached | 28 s | 3.2 GB | 5.8 GB |
+| LanceDB IVF-PQ | 0.531 | 5.79 ms | 7.12 ms (refine 20) | max 0.974 (refine 50, 8.93 ms) | 28 s | 3.2 GB | 5.8 GB |
 | Qdrant local | 1.000 | 952 ms | 952 ms | 952 ms | 477 s | 9.7 GB (21.1 GB peak while searching) | none |
 | sqlite-vec | 1.000 | 1,374 ms | 1,374 ms | 1,374 ms | 163 s | 0.01 GB | 5.7 GB |
 
@@ -100,8 +100,8 @@ Exact engines (Moss, FAISS-flat, Qdrant local, sqlite-vec) have nothing to tune:
 
 | Engine | Storage as tested | Persistence | Rebuild after restart without a save (1M docs) |
 |---|---|---|---|
-| Moss | in memory | manual: `save_to_disk()` / `load_from_disk()`, or a cloud index loaded with a local cache | 55 s |
-| FAISS (flat, HNSW) | in memory | manual: `write_index()` / `read_index()` | 1.3 s (flat), 51 s (HNSW) |
+| Moss | in-memory session (not saved) | `save_to_disk()` / `load_from_disk()`, or a Moss cloud index loaded locally with a cache; standard in production, not used here | 55 s |
+| FAISS (flat, HNSW) | in memory | `write_index()` / `read_index()` (save and load cost not measured) | 1.3 s (flat), 51 s (HNSW) |
 | DuckDB-VSS | in-memory database | HNSW in a database file needs `hnsw_enable_experimental_persistence` | 117 s |
 | Qdrant local | `:memory:` | local mode can write to a `path` instead | 477 s |
 | Chroma | persistent client | automatic | none (reopen) |
@@ -112,11 +112,13 @@ Exact engines (Moss, FAISS-flat, Qdrant local, sqlite-vec) have nothing to tune:
 In-memory engines have three costs:
 - **RAM:** the whole index must fit in memory, 6-16 GB at 1M docs here, with Qdrant local peaking at 21 GB.
 - **Restarts:** after a restart or crash the index is rebuilt unless it was saved.
-- **Unsaved changes:** with a manual save (Moss, FAISS), changes since the last save are lost.
+- **Unsaved changes:** with an explicit save (Moss to disk, FAISS), changes since the last save are lost on a crash.
 
 Disk-backed engines reopen without rebuilding, though reopen time was not measured. They lean on the OS file cache, so their search speed depends on how much of the index stays cached.
 
 ## Filtered search
+
+Filtering splits the approximate engines in two: those that stay fast lose most of their recall (FAISS-HNSW, DuckDB-VSS), and those that keep recall slow down by 10-100x in some cases (Chroma, zvec). Moss and FAISS-flat stay exact at a few ms.
 
 cohere-100k, k = 100, inner product. Each cell is recall@100 / mean latency (warm cache), with recall measured against exact search within the filtered set.
 
@@ -135,7 +137,36 @@ cohere-100k, k = 100, inner product. Each cell is recall@100 / mean latency (war
 
 DuckDB-VSS applies the filter after the index search, so a filter keeping 1% leaves almost nothing of the top 100. FAISS-HNSW's recall also collapses when a filter keeps 1% of docs, at its default setting.
 
+## Growing an index
+
+Corpora grow, so the cost of adding documents matters as much as the first build. Setup:
+- Data: the first 250K docs of dbpedia-openai-1m, inner product, no metadata.
+- Incremental: build 10K, then add 90K and then 150K to the same index with each library's own API (LanceDB: `add()` then `optimize()`; zvec: `insert()` then `optimize()`).
+- Full builds from scratch at 100K and 250K for comparison; 1M times come from the main runs.
+- One run each. After each step, 20 of the added docs searched by their own vector came back first (19 of 20 for LanceDB-HNSW at 250K). Search quality after incremental adds was not measured.
+
+| Engine | Build time per doc at 10K | 100K | 250K | 1M | Add 150K docs to a 100K index | Full build of 250K |
+|---|---|---|---|---|---|---|
+| Moss | 58 µs | 54 µs | 53 µs | 55 µs | 8.5 s | 13.3 s |
+| FAISS-flat | 2 µs | <1 µs | <1 µs | 1 µs | 0.4 s | 0.1 s |
+| FAISS-HNSW | 24 µs | 39 µs | 45 µs | 51 µs | 7.2 s | 11.3 s |
+| zvec | 179 µs | 455 µs | 632 µs | 844 µs | 92.4 s | 158.0 s |
+| Chroma | 181 µs | 252 µs | 276 µs | 422 µs | 44.7 s | 69.1 s |
+| LanceDB-HNSW | 43 µs | 86 µs | 98 µs | 115 µs | 12.7 s | 24.6 s |
+| DuckDB-VSS | 97 µs | 94 µs | 107 µs | 118 µs | 114.4 s | 26.8 s |
+| LanceDB IVF-PQ | 277 µs | 223 µs | 96 µs | 29 µs | 1.9 s | 24.1 s |
+| Qdrant local | 357 µs | 376 µs | 405 µs | 482 µs | 63.4 s | 101.2 s |
+| sqlite-vec | 180 µs | 167 µs | 167 µs | 165 µs | 29.7 s | 41.7 s |
+
+- **Steady cost per doc:** Moss and sqlite-vec (flat from 10K to 1M), DuckDB-VSS (+22%). Build time grows in proportion to the corpus.
+- **Rising cost per doc:** zvec (4.7x from 10K to 1M), Chroma (2.3x), LanceDB-HNSW (2.7x), FAISS-HNSW (2.1x) and Qdrant local (1.35x). Each new document costs more as the index grows.
+- **Adding vs rebuilding:** for most engines, adding 150K docs to a 100K index took 52-71% of a full 250K build, about the cost of indexing the new docs alone.
+- **DuckDB-VSS:** inserting into a table that already has an HNSW index took 4.3x longer than a full build of all 250K docs, so for bulk loads a rebuild was faster here.
+- **LanceDB IVF-PQ:** `optimize()` added the new rows to the existing index in 1.9 s, against 24 s for a full build. Its full-build cost per doc falls as the corpus grows. Whether recall holds after many such additions was not measured.
+
 ## Text search (SciFact)
+
+SciFact is the most realistic test here: real scientific claims as queries, real abstracts as documents, and human relevance judgments. Its score, nDCG@10, measures whether the relevant documents come back near the top, not only whether the nearest vectors do.
 
 nDCG@10 with each engine's default settings, k = 10:
 
@@ -148,14 +179,14 @@ nDCG@10 with each engine's default settings, k = 10:
 
 | Engine | Benefits | Tradeoffs | Fits |
 |---|---|---|---|
-| **Moss** | Exact results with no tuning; as fast as FAISS-flat with inner product; exact filtered search at a few ms; hybrid keyword + vector text search | In memory; saving is a manual call; latency grows linearly with corpus size (25 ms at 1M); slower text build | Correct results and filters without tuning effort; text retrieval |
-| FAISS-flat | Exact; builds in about 1 s; exact filters | A library, not a database: no storage or metadata (filters need your own id mapping); in memory | An exact baseline inside your own data layer |
-| FAISS-HNSW | Lowest latency at 0.95 recall (0.45 ms at 1M) | 0.855 recall at defaults; recall collapses under selective filters; in memory; must be tuned and re-tuned | Unfiltered, latency-critical search with a team to maintain tuning |
-| zvec | Lowest latency at 0.99 recall (1.51 ms at 1M); 0.998 recall at defaults; low RAM; on disk | Slowest build (14 min at 1M); 177 ms with a filter keeping 99% | Read-heavy data that is rebuilt rarely |
-| Chroma | 0.964 recall at defaults; simple API; on disk | Filtered search 38-101 ms; 2.7x slower with inner product than with its default l2 | Prototypes and small to medium collections |
-| LanceDB-HNSW | Low RAM; 0.95-0.98 filtered recall; on disk | 0.849 recall at defaults; did not reach 0.99 at 1M | Disk-resident data with moderate recall needs |
-| DuckDB-VSS | Vector search inside SQL | Largest in-memory index (15.7 GB at 1M); post-filtering; persistence experimental | Analytics in DuckDB without selective filters |
-| LanceDB IVF-PQ | Fast build (28 s at 1M); compressed index; on disk | 0.53 recall at defaults; did not reach 0.99 at 1M | Very large data where memory matters more than recall |
+| **Moss** | Exact results with no tuning; as fast as FAISS-flat with inner product; exact filtered search at a few ms; hybrid keyword + vector text search; index on disk or in Moss cloud | Latency grows with corpus size, less than proportionally (4x the docs: 2.7x the latency; 25 ms at 1M); slower text build | Correct results and filters without tuning effort; growing corpora (steady build cost per doc); text retrieval |
+| FAISS-flat | Exact; builds in about 1 s; exact filters; saves to disk (`write_index()`) | A library, not a database: no storage layer or metadata (filters need your own id mapping) | An exact baseline inside your own data layer |
+| FAISS-HNSW | Lowest latency at 0.95 recall (0.45 ms at 1M); saves to disk (`write_index()`) | 0.855 recall at defaults; recall plummets when filters applied; must be tuned and re-tuned | Unfiltered, latency-critical search with a team to maintain tuning |
+| zvec | Lowest latency at 0.99 recall (1.51 ms at 1M); 0.998 recall at defaults; low RAM; on disk | Slowest build (14 min at 1M), and cost per doc rises with index size (4.7x from 10K to 1M); 177 ms with a filter keeping 99% | Read-heavy data that is rebuilt rarely |
+| Chroma | 0.964 recall at defaults; simple API; on disk | Slow filtered search, up to ~100 ms; 2.7x slower with inner product than with its default l2 | Prototypes and small to medium collections |
+| LanceDB-HNSW | Low RAM; 0.95-0.98 filtered recall; on disk | 0.849 recall at defaults; max recall@10 0.988 at 1M | Disk-resident data with moderate recall needs |
+| DuckDB-VSS | Vector search inside SQL | Largest in-memory index (15.7 GB at 1M); recall plummets when filters applied (post-filtering); adding docs to an indexed table 4.3x slower than rebuilding; on-disk index experimental | Analytics in DuckDB without selective filters |
+| LanceDB IVF-PQ | Fast build (28 s at 1M); compressed index; on disk | 0.53 recall at defaults; max recall@10 0.974 at 1M | Very large data where memory matters more than recall |
 | Qdrant local | Exact; same API as the Qdrant server | Brute force in local mode: 952 ms at 1M, 21 GB peak; filtered queries ~275 ms at 100K | Development before moving to a Qdrant server |
 | sqlite-vec | Tiny RAM; plain SQLite file | Brute force: 0.68-1.37 s at 1M | Small collections, edge and embedded apps |
 

@@ -41,10 +41,9 @@ VDBB_FILTER_FILES = {
 }
 HF_DBPEDIA = "KShivendu/dbpedia-entities-openai-1M"
 HF_DBPEDIA_REV = "af9b8869cc2d8debbd254d77737865bb09a2067f"
-MINILM = "sentence-transformers/all-MiniLM-L6-v2"  # same weights as Moss's built-in moss-minilm
-# moss-minilm embeds up to 512 tokens; fastembed 0.9.0 truncates at 256 by default. At 512,
-# fastembed vectors
-# reproduce Moss's built-in retrieval exactly (SciFact nDCG@10 0.6541 for both; 0.6451 at 256).
+MINILM = "sentence-transformers/all-MiniLM-L6-v2"  # embedder for the non-Moss engines on text data
+# fastembed 0.9.0 truncates at 256 tokens by default; 512 replicates Moss's built-in text process
+# exactly for vector-only search (SciFact nDCG@10 0.6541 for both; 0.6451 at 256).
 MINILM_MAX_TOKENS = 512
 
 
@@ -645,7 +644,7 @@ def write_warmup(name: str, beir_set: str, n: int = 100) -> None:
 def embed_corpus(name: str, batch: int = 256) -> None:
     """Embed corpus.jsonl with fastembed MiniLM into base_minilm.npy for the non-Moss engines.
 
-    Truncation is set to MINILM_MAX_TOKENS to match Moss's built-in moss-minilm. Vectors are
+    Truncation is set to MINILM_MAX_TOKENS (see its comment). Vectors are
     unit-normalized and written row by row to a memory-mapped file; the embedding time is added to
     meta.json as corpus_embed_s.
 

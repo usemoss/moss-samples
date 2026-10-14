@@ -2,7 +2,7 @@
 
 Compares Moss with nine local in-process engine setups on standard public datasets, using the methodology of VectorDBBench, qdrant's vector-db-benchmark and ann-benchmarks. Every engine runs **off the shelf**: its library's default index and search settings, so the comparison is what a user gets without tuning. Every run writes an interactive Plotly report and Markdown tables.
 
-Latest results (2026-10-13/14): [summary](RESULTS.md), [full detail](RESULTS-DETAIL.md).
+Latest results (2026-10): [summary](RESULTS.md), [full detail](RESULTS-DETAIL.md).
 
 ## Benchmarks
 
