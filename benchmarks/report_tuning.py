@@ -143,7 +143,6 @@ def frontier_chart(
                 marker=st["marker"],
                 meta=k,
                 visible=k == ks[-1],
-                showlegend=k == ks[-1],
                 hovertemplate=f"<b>{eng}</b> k={k}<br>%{{customdata[0]}}<br>{q} %{{customdata[1]:.4f}}"
                 "<br>mean %{y:.3f} ms<extra></extra>",
             )
