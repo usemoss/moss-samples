@@ -185,7 +185,7 @@ directories. Examples here may move, change shape, or be removed.
 
 ### SDK folders (`sdks/javascript/sdk/`, `sdks/python/sdk/`, `sdks/elixir/sdk/`)
 
-These hold the source and samples of the latest release of each SDK, for reading. Each release replaces them, so they have no build, test or lint setup. Install the SDKs from npm, PyPI or Hex. A pull request against them is carried into the SDK's next release, which credits its author in the CHANGELOG.
+These hold the source and samples of each SDK release, for reading. Each release replaces a folder with its source and samples alone, without build, test or lint setup. Install the SDKs from npm, PyPI or Hex. An accepted pull request against them is carried into the SDK's next release, which credits its author in the CHANGELOG.
 
 ### Root (examples only — not the SDK)
 
@@ -234,7 +234,7 @@ When adding examples or cookbook integrations, follow the existing patterns:
 ## Testing Notes
 
 - E2E and integration tests require `MOSS_PROJECT_ID` and `MOSS_PROJECT_KEY`; they auto-skip gracefully when credentials are absent
-- CI runs Python SDK tests across versions 3.10–3.14 in a GitHub Actions matrix using `pytest` directly
+- CI compiles the Python SDK source and samples on Python 3.10–3.14 in a GitHub Actions matrix
 - CI lints Python with `ruff` and type-checks with `mypy`; format locally with `black` + `isort`
 - JS tests use Vitest; CI runs on Node 20
 
@@ -242,7 +242,7 @@ When adding examples or cookbook integrations, follow the existing patterns:
 
 The `.github/workflows/ci.yml` pipeline runs on push to `main` and on PRs:
 - `python-lint` — ruff on examples and apps
-- `python-sdk-test` — matrix over Python 3.10–3.14
+- `python-sdk-test` — compiles the Python SDK source and samples on Python 3.10–3.14
 - `javascript-lint` — eslint
 - `agora-ten-samples-smoke` — TEN graph contract + `bench/run.py --echo-grounding` + custom-llm mock/doctor (no Agora/LLM keys)
 - Separate release workflows publish to PyPI / npm on tagged releases

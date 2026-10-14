@@ -20,7 +20,7 @@ Pull requests are the best way to propose changes to the codebase. We actively w
 
 ## Any contributions you make will be under the BSD 2-Clause License
 
-In short, when you submit code changes, your submissions are understood to be under the same [BSD 2-Clause License](LICENSE) that covers the project. The SDKs in `sdks/` are the exception: they are under the PolyForm Shield License, as their `LICENSE.txt` states. Feel free to contact the maintainers if that's a concern.
+In short, when you submit code changes, your submissions are understood to be under the same [BSD 2-Clause License](LICENSE) that covers the project. The SDKs in `sdks/` are the exception. Swift and Go are under the PolyForm Shield License, as their `LICENSE.txt` states, and the JavaScript, Python and Elixir SDKs move to it with their next release, which replaces each folder's BSD `LICENSE` with a PolyForm Shield `LICENSE.txt`. Code already contributed under the BSD 2-Clause License stays under it. Feel free to contact the maintainers if that's a concern.
 
 ## Report bugs using GitHub's [issues](https://github.com/usemoss/moss/issues)
 
@@ -28,7 +28,7 @@ We use GitHub issues to track public bugs. Report a bug by [opening a new issue]
 
 ## SDKs
 
-`sdks/javascript/sdk`, `sdks/python/sdk` and `sdks/elixir/sdk` hold the source and samples of the latest release of each SDK, for reading. Each release replaces them, so they carry no build or test setup, and each iOS release replaces `sdks/swift/Sources` the same way. Install the SDKs from npm (`@moss-js/moss`), PyPI (`moss`), Hex (`moss`) or Swift Package Manager.
+`sdks/javascript/sdk`, `sdks/python/sdk` and `sdks/elixir/sdk` hold the source and samples of each SDK release, for reading. Each release replaces a folder with its source and samples alone, without build or test setup, and each iOS release replaces `sdks/swift/Sources` the same way. Install the SDKs from npm (`@moss-js/moss`), PyPI (`moss`), Hex (`moss`) or Swift Package Manager.
 
 Pull requests against these folders are welcome. Maintainers bring an accepted change into the SDK's next release, thank its author in that release's CHANGELOG, and close the pull request with a link to the release. Pull requests against `sdks/go` merge here as usual.
 

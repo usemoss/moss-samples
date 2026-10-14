@@ -298,7 +298,7 @@ Check out issues labeled [`good first issue`](https://github.com/usemoss/moss/la
 
 ## License
 
-The SDKs in [`sdks/`](sdks/) are licensed under the [PolyForm Shield License 1.0.0](https://polyformproject.org/licenses/shield/1.0.0/), as each SDK's `LICENSE.txt` states. Everything else in this repository is under the [BSD 2-Clause License](LICENSE).
+The SDKs in [`sdks/`](sdks/) are licensed under the [PolyForm Shield License 1.0.0](https://polyformproject.org/licenses/shield/1.0.0/): Swift and Go now, as their `LICENSE.txt` states, and JavaScript, Python and Elixir from their next release, which replaces each folder's BSD `LICENSE` with a PolyForm Shield `LICENSE.txt`. Code already contributed under the BSD 2-Clause License stays under it. Everything else in this repository is under the [BSD 2-Clause License](LICENSE).
 
 ---
 
