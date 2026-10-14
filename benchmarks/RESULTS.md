@@ -4,7 +4,19 @@ Ten vector search engines that run inside your application (no separate server),
 
 ## Recall in plain terms
 
-An engine's `recall@10` is how many of a query's 10 best matches (by embedding similarity) it returns. At 0.95, on average 1 result in 20 is a weaker match that took the place of a better one; at 0.85, 3 in 20. Nothing flags the miss at runtime: if a skipped document held the answer, your application never sees it.
+An engine's `recall@10` is how many of a query's 10 best matches (by embedding similarity) it returns. Below 1.0, weaker matches take the place of better ones. Nothing flags the miss at runtime: if a skipped document held the answer, your application never sees it.
+
+### Missed matches
+
+| recall@10 | Weaker matches returned, on average |
+|---|---|
+| 1.0 | none (exact search) |
+| 0.99 | ~1 in 100 results |
+| 0.97 | ~3 in 100 |
+| 0.95 | 1 in 20 |
+| 0.85 | 3 in 20 |
+
+---
 
 <details><summary>What is HNSW?</summary>
 
@@ -30,16 +42,16 @@ HNSW (Hierarchical Navigable Small World) is a widely used approximate index. It
 
 ## Choosing an engine
 
-| Engine | Benefits | Tradeoffs | Use it when |
+| Engine | Benefits | Tradeoffs | Use it when... |
 |---|---|---|---|
 | **Moss** | Exact results, no tuning; fast exact filtered search; hybrid text search; steady build cost as the corpus grows; index on disk or in Moss cloud | Query latency increases with a larger corpus | you want exact results, hybrid search, fast filtered queries and low latency (2 ms @100k docs, 25 ms @1M) with no tuning, and have RAM for the whole index |
 | FAISS-flat | Exact; near-instant build; can save to disk | Bare index: you store ids and metadata yourself; no metadata filters | you want exact results, low latency and fast builds, have RAM for the whole index, and don't need hybrid search or built-in metadata storage |
 | FAISS-HNSW | Fastest at 0.95 recall once tuned; can save to disk | Low recall at defaults; recall plummets with filters; requires significant tuning | you want the lowest unfiltered latency, have RAM for the whole index, don't need filters, and don't mind regular re-tuning |
 | zvec | Fastest at 0.99 recall once tuned; low RAM; on disk | Slowest build, and per-doc build cost grows with the index; slow filtered search, up to ~180 ms; requires tuning | you want minimal RAM usage, don't need frequent updates (slow builds and inserts), and don't mind tuning that trades recall for latency |
 | Chroma | Good recall at defaults; simple API; on disk | Slow filtered search, up to ~100 ms; requires tuning | you want to prototype or search a small to medium collection, and don't mind tuning or slow filtered searches and builds |
-| LanceDB-HNSW | Low RAM; good filtered recall; on disk | Low recall at defaults; best recall@10 at 1M docs: 0.988; requires tuning | you want low RAM usage and frequent filtered search, don't need recall above ~0.99, and don't mind re-tuning |
+| LanceDB-HNSW | Low RAM; good filtered recall; on disk | Low recall at defaults; best recall@10 at 1M docs: 0.988; requires tuning | you want low RAM usage and frequent filtered search, don't need recall above [~0.99](#missed-matches), and don't mind re-tuning |
 | DuckDB-VSS | Vector search inside SQL | Largest in-memory index; recall plummets with filters; adding docs is slower than rebuilding; on-disk index is experimental; requires tuning | you want vector search in an existing DuckDB database, and don't need filters, incremental inserts or low RAM usage |
-| LanceDB IVF-PQ | Fast build; compressed vectors; on disk | Recall 0.53 at defaults; best recall@10 at 1M docs: 0.974; requires tuning | you want low RAM usage and fast builds for a very large corpus, don't need recall above ~0.97, and don't mind re-tuning |
+| LanceDB IVF-PQ | Fast build; compressed vectors; on disk | Recall 0.53 at defaults; best recall@10 at 1M docs: 0.974; requires tuning | you want low RAM usage and fast builds for a very large corpus, don't need recall above [~0.97](#missed-matches), and don't mind re-tuning |
 | Qdrant (local mode) | Exact; same API as Qdrant server | Brute-force search: ~1 s per query at 1M | you want to prototype for a Qdrant server and aren't building for edge retrieval |
 | sqlite-vec | Exact; tiny RAM; plain SQLite file | Brute-force search: 0.7-1.4 s per query at 1M | you want minimal RAM usage for a small corpus (<100k docs), and don't need low latency |
 
