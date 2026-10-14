@@ -8,13 +8,13 @@ An engine's `recall@10` is how many of a query's 10 best matches (by embedding s
 
 ### Missed matches
 
-| recall@10 | Weaker matches returned, on average |
-|---|---|
-| 1.0 | none (exact search) |
-| 0.99 | ~1 in 100 results |
-| 0.97 | ~3 in 100 |
-| 0.95 | 1 in 20 |
-| 0.85 | 3 in 20 |
+| recall@10 | Weaker matches returned (on avg) |
+| :-------: | -------------------------------- |
+| 1.0       | none (exact search)              |
+| 0.99      | ~1 in 100 results                |
+| 0.97      | ~3 in 100                        |
+| 0.95      | 1 in 20                          |
+| 0.85      | 3 in 20                          |
 
 ---
 
