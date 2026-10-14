@@ -57,27 +57,27 @@ LanceDB setups: its docs say an exact scan "works fine below ~100K vectors, but 
 
 Versions come from `uv.lock`. Known behaviors:
 
-- **Chroma:** a modified `ef_search` is stored but only applied after the client reopens, so the sweep closes and reopens the persistent client. `close()` frees the old client's loaded index; reopening without it kept one more copy of the index per setting (about 340 MB each at cohere-100k), which inflated Chroma's search memory before 2026-10-13.
+- **Chroma:** a modified `ef_search` is stored but only applied after the client reopens, so the sweep closes and reopens the persistent client. `close()` frees the old client's loaded index; reopening without it kept one more copy of the index per setting (about 340 MiB each at cohere-100k), which inflated Chroma's search memory before 2026-10-13.
 - **Index builds of Chroma, DuckDB-VSS, LanceDB and zvec are not reproducible:** identical runs gave different recall (scifact nDCG@10 for Chroma: 0.6524, 0.6545, 0.6541 in three runs on 2026-10-13; zvec differed by at most 0.0001 recall, at k = 50 and 100 on cohere-100k and dbpedia-openai-1m, 2026-10-14), so the defaults, tuning and filter pages, which each build their own index, can differ slightly for these engines. FAISS, Moss, Qdrant and sqlite-vec reproduced exactly.
 - **DuckDB HNSW** applies `WHERE` after the index scan (post-filtering), so selective filters lose recall.
 - **FAISS HNSW** with 1%-selectivity filters has low recall.
 - **FAISS HNSW on dbpedia-openai-1m:** the first measured passes after the ~55 s index build ran 1.2-2.4x slower than the same setting measured later in the same run (library default metric, k = 10: 0.320 ms in the defaults run, 0.138 ms at ef 16 = the default in the tuning run; 2026-10-14). The 100-query warm-up (about 20 ms of work) does not cover this; a test with 5 s idle after the build gave steady-state latency from the first pass. Its default-settings latency and lowest Pareto point on that dataset are overstated; other engines' first passes were within 7% of their repeats.
 - **LanceDB HNSW** defaults to ef = 1.5 x k, so recall at k = 1 is low.
-- **qdrant-local** keeps everything in memory and searches exhaustively: peak RSS 2.3 GB at cohere-100k and 27.6 GB at dbpedia-openai-1m, where one run took 77 minutes (2026-10-09).
+- **qdrant-local** keeps everything in memory and searches exhaustively: peak RSS 2.3 GiB at cohere-100k and 27.6 GiB at dbpedia-openai-1m, where one run took 77 minutes (2026-10-09).
 - **DuckDB** downloads the `vss` extension into `~/.duckdb/extensions` on first use.
 
 ## Datasets
 
 | Name | Source | Docs / queries | Dim / metric | License | Download |
 |---|---|---|---|---|---|
-| `cohere-100k` (smoke) | VectorDBBench Cohere | 100K / 1,000 | 768 / cosine | no data license stated; Cohere Wikipedia embeddings are Apache-2.0 (secondary source) | 313 MB |
+| `cohere-100k` (smoke) | VectorDBBench Cohere | 100K / 1,000 | 768 / cosine | no data license stated; Cohere Wikipedia embeddings are Apache-2.0 (secondary source) | 314 MiB |
 | `cohere-1m` | VectorDBBench Cohere | 1M / 1,000 | 768 / cosine | same | 3.13 GB |
-| `dbpedia-openai-1m` | HF `KShivendu/dbpedia-entities-openai-1M`, ann-benchmarks split | 990K / 10,000 | 1536 / angular | MIT | 9.52 GB |
+| `dbpedia-openai-1m` | HF `KShivendu/dbpedia-entities-openai-1M`, ann-benchmarks split | 990K / 10,000 | 1536 / angular | MIT | 8.87 GiB |
 | `arxiv-titles-2m` | Qdrant `arxiv_no_filters.tar.gz` (all-MiniLM-L6-v2) | 2,138,591 / ~15K | 384 / cosine | arXiv metadata CC0; tarball none stated | 3.10 GB |
-| `hotpotqa-1m` | BEIR HotpotQA, VectorDBBench subset rule (qrel docs + corpus-order fill to 1M) | 1M / 7,405 | text (nDCG@10, Recall@100, R-precision) | CC BY-SA 4.0 | 654 MB + about 1.5 GB of vectors |
-| `scifact` | BEIR SciFact, test split, all docs | 5,183 / 300 (about 1.1 relevant docs per query) | text (nDCG@10, Recall@k, R-precision) | claims CC BY 4.0, abstracts ODC-By 1.0 ([allenai/scifact](https://github.com/allenai/scifact/blob/master/LICENSE.md)) | 2.7 MB |
+| `hotpotqa-1m` | BEIR HotpotQA, VectorDBBench subset rule (qrel docs + corpus-order fill to 1M) | 1M / 7,405 | text (nDCG@10, Recall@100, R-precision) | CC BY-SA 4.0 | 624 MiB + 1.43 GiB of vectors |
+| `scifact` | BEIR SciFact, test split, all docs | 5,183 / 300 (about 1.1 relevant docs per query) | text (nDCG@10, Recall@k, R-precision) | claims CC BY 4.0, abstracts ODC-By 1.0 ([allenai/scifact](https://github.com/allenai/scifact/blob/master/LICENSE.md)) | 2.7 MiB |
 
-Ground truth is exact brute force (cohere sets ship VectorDBBench's; our float32 brute force matches it as a set at k ≤ 10 and on 99.997% of the top-100 ids at cohere-100k, the rest being near-ties at rank 100, so exact engines can score just under 1.0 recall@100). `--docs N` runs use the exact ground truth over the first N docs, `data/<name>/gt_docs<N>.npy`, which `run_suite.sh` creates with `bench_data.py subset-gt <name> <N>` in its own process (log `results/logs/subset-gt-<name>-<N>-<stamp>.log`); computing it inside the benchmark process inflated its memory baseline by up to 440 MB. The defaults runner refuses a missing cache or one older than the dataset's `base.npy`. The published dbpedia-openai-1m runs use its first 1,000 queries (`--queries 1000`) and k = 10 and 100 (`--k 10,100`, big-ann's and VectorDBBench's k) to fit one night; the other datasets use every query and k = 1, 10, 50, 100. MS MARCO is excluded (non-commercial terms). Moss indexes the text datasets with its built-in embedder; other engines use fastembed MiniLM at 512 tokens.
+Ground truth is exact brute force (cohere sets ship VectorDBBench's; our float32 brute force matches it as a set at k ≤ 10 and on 99.997% of the top-100 ids at cohere-100k, the rest being near-ties at rank 100, so exact engines can score just under 1.0 recall@100). `--docs N` runs use the exact ground truth over the first N docs, `data/<name>/gt_docs<N>.npy`, which `run_suite.sh` creates with `bench_data.py subset-gt <name> <N>` in its own process (log `results/logs/subset-gt-<name>-<N>-<stamp>.log`); computing it inside the benchmark process inflated its memory baseline by up to 440 MiB. The defaults runner refuses a missing cache or one older than the dataset's `base.npy`. The published dbpedia-openai-1m runs use its first 1,000 queries (`--queries 1000`) and k = 10 and 100 (`--k 10,100`, big-ann's and VectorDBBench's k) to fit one night; the other datasets use every query and k = 1, 10, 50, 100. MS MARCO is excluded (non-commercial terms). Moss indexes the text datasets with its built-in embedder; other engines use fastembed MiniLM at 512 tokens.
 
 ```bash
 mkdir -p results/logs
@@ -85,7 +85,7 @@ mkdir -p results/logs
 ./watchdog.sh results/logs/prepare-<name>-$(date +%Y%m%dT%H%M%S).log $PWD/.venv/bin/python bench_data.py prepare <name>
 ```
 
-Measured on a cohere-100k smoke run (Apple M5 Max): fetch 5 s (sha256-checked against `checksums.json`), prepare 1 s at 2078 MiB peak RSS. hotpotqa-1m: fetch 84 s, prepare 7442 s (embedding 7418 s) at 25903 MiB peak RSS. dbpedia-openai-1m: fetch 271 s (9.0 GB, 26 shards), prepare 79 s at 25710 MiB peak RSS. cohere-1m and arxiv-titles-2m are not measured yet. Prepare for the 1M sets is heavy (GB of RAM, large ground-truth matmuls): raise `WATCHDOG_MAX_S` (default 1200 s) as needed.
+Measured on a cohere-100k smoke run (Apple M5 Max): fetch 5 s (sha256-checked against `checksums.json`), prepare 1 s at 2078 MiB peak RSS. hotpotqa-1m: fetch 84 s, prepare 7442 s (embedding 7418 s) at 25903 MiB peak RSS. dbpedia-openai-1m: fetch 271 s (8.87 GiB, 26 shards), prepare 79 s at 25710 MiB peak RSS. cohere-1m and arxiv-titles-2m are not measured yet. Prepare for the 1M sets is heavy (GB of RAM, large ground-truth matmuls): raise `WATCHDOG_MAX_S` (default 1200 s) as needed.
 
 ## Quick start
 
@@ -164,7 +164,7 @@ An "About these results" section at the top has one subsection each for the metr
 
 ## Hardware
 
-Apple M5 Max, 18 cores, 128 GB, recorded in every result file together with OS, Python and package versions.
+Apple M5 Max, 18 cores, 128 GiB, recorded in every result file together with OS, Python and package versions.
 
 ## Phase 2
 

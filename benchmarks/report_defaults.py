@@ -244,12 +244,12 @@ def section(ds: str, metric: str, runs: dict[str, dict], missing: list[str]) -> 
     s.card(
         "Memory",
         "process footprint over the footprint after loading the dataset · on disk = index files",
-        "Memory each engine adds, in GB: index (after build), build peak, search peak (during the measured "
+        "Memory each engine adds, in GiB: index (after build), build peak, search peak (during the measured "
         "passes), RSS increase over the build, and index files on disk (disk-backed engines keep part of "
         "their index in OS-cached files, which the footprint does not count). Dropdown: measure.",
         bars(
             {
-                f"{m}, GB (lower is better)": [mem[e][m] for e in runs]
+                f"{m}, GiB (lower is better)": [mem[e][m] for e in runs]
                 for m in mem[next(iter(runs))]
             },
             list(runs),
@@ -282,13 +282,13 @@ def section(ds: str, metric: str, runs: dict[str, dict], missing: list[str]) -> 
             "build s",
             *(["corpus embed s"] if text else []),
             "docs/s",
-            "baseline footprint GB",
-            "index GB",
-            "build peak GB",
-            "search peak GB",
-            "RSS increase over build GB",
-            "on disk GB",
-            "process peak RSS GB",
+            "baseline footprint GiB",
+            "index GiB",
+            "build peak GiB",
+            "search peak GiB",
+            "RSS increase over build GiB",
+            "on disk GiB",
+            "process peak RSS GiB",
         ],
         [
             [

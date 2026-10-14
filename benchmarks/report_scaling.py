@@ -84,8 +84,8 @@ def section(ds: str, metric: str, runs: dict[str, dict], missing: list[str]) -> 
         for st, key in LATENCY.items()
     }
     views |= {
-        "index memory, GB (lower is better)": lambda r: mem_gb(r)["index"],
-        "build peak memory, GB (lower is better)": lambda r: mem_gb(r)["build peak"],
+        "index memory, GiB (lower is better)": lambda r: mem_gb(r)["index"],
+        "build peak memory, GiB (lower is better)": lambda r: mem_gb(r)["build peak"],
         "build time, s (lower is better)": lambda r: r["load"]["build_s"],
     }
     ys = {v: [[f(r) for r in by[e]] for e in engines] for v, f in views.items()}
@@ -132,7 +132,7 @@ def section(ds: str, metric: str, runs: dict[str, dict], missing: list[str]) -> 
             f"recall@{k}",
             *(f"{st} ms" for st in LATENCY),
             "build s",
-            "index GB",
+            "index GiB",
         ],
         [
             [

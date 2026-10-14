@@ -491,11 +491,11 @@ def better(col: str) -> str:
         col: Column header.
 
     Returns:
-        "hi" for quality columns, "lo" for columns in ms, s or GB (not the baseline), "" otherwise.
+        "hi" for quality columns, "lo" for columns in ms, s or GiB (not the baseline), "" otherwise.
     """
     if re.search(r"recall|nDCG|R-precision|docs/s", col):
         return "hi"
-    if re.search(r"\b(ms|s|GB)$", col) and "baseline" not in col:
+    if re.search(r"\b(ms|s|GiB)$", col) and "baseline" not in col:
         return "lo"
     return ""
 
@@ -716,7 +716,7 @@ def env_line(results: list[dict]) -> str:
         {r["env"]["git"] + ("+uncommitted" if r["env"].get("git_dirty") else "") for r in results}
     )
     return (
-        f"Hardware: {env['cpu']}, {env['cores']} cores, {env['ram_gb']} GB, {env['os']}. Versions: "
+        f"Hardware: {env['cpu']}, {env['cores']} cores, {env['ram_gb']} GiB, {env['os']}. Versions: "
         + ", ".join(p + " " + " / ".join(sorted(v)) for p, v in versions.items())
         + f". Code: {', '.join(commits)}."
     )
@@ -784,7 +784,7 @@ def write_page(
 
 
 def mem_gb(r: dict) -> dict[str, float]:
-    """Summarize one run's memory in GB over the post-load baseline.
+    """Summarize one run's memory in GiB (2**30 bytes) over the post-load baseline.
 
     Args:
         r: Result document.

@@ -119,7 +119,7 @@ SOURCES: dict[str, Callable[[], dict[str, str]]] = {
 
 
 def sha256(path: Path) -> str:
-    """Hex sha256 of a file, read in 16 MB blocks."""
+    """Hex sha256 of a file, read in 16 MiB blocks."""
     h = hashlib.sha256()
     with path.open("rb") as f:
         for block in iter(lambda: f.read(1 << 24), b""):
@@ -233,7 +233,7 @@ def subset_gt(name: str, docs: int) -> None:
 
     Computed in its own process because the brute-force temporaries (chunk x docs scores) stay
     counted in the process footprint after they are freed; computing them inside run.py inflated
-    its memory baseline (up to 440 MB at 75k docs). run.py slices the rows for --queries (each
+    its memory baseline (up to 440 MiB at 75k docs). run.py slices the rows for --queries (each
     row depends only on its own query).
 
     Args:

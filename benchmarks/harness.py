@@ -161,7 +161,7 @@ def env() -> dict:
     """Collect the hardware and software versions recorded in every result file.
 
     Returns:
-        CPU brand, core count, RAM in GB, OS, Python version, the short git commit, whether
+        CPU brand, core count, RAM in GiB (key ram_gb), OS, Python version, the short git commit, whether
         benchmarks/ has uncommitted changes to tracked files, and the installed version of every
         package in PACKAGES.
     """
@@ -190,7 +190,7 @@ def env() -> dict:
 
 
 def rss_mb() -> float:
-    """Current resident set size of this process in MB."""
+    """Current resident set size of this process in MiB (fields named *_mb hold MiB)."""
     return (
         int(
             subprocess.run(
@@ -232,7 +232,7 @@ def footprint_mb() -> tuple[float, float]:
     memory-mapped base vectors.
 
     Returns:
-        The current footprint and the interval peak, in MB.
+        The current footprint and the interval peak, in MiB.
 
     Raises:
         OSError: proc_pid_rusage fails.
@@ -266,7 +266,7 @@ def disk_mb(eng: object) -> float:
         eng: Engine adapter, possibly wrapped by QueryEmbedder.
 
     Returns:
-        Allocated size in MB; 0 for in-memory engines (no `dir`).
+        Allocated size in MiB; 0 for in-memory engines (no `dir`).
     """
     d = getattr(getattr(eng, "engine", eng), "dir", None)
     return (

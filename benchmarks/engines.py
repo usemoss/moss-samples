@@ -237,7 +237,7 @@ class ChromaEngine(Engine):
 
         modify() alone does not change the loaded index. close() stops the client's system and
         frees its loaded index; without it every reopen kept another copy of the index in memory
-        (about 340 MB per reopen at cohere-100k).
+        (about 340 MiB per reopen at cohere-100k).
 
         Args:
             params: Sweep setting, {"ef": int}; {} restores the default ef_search kept by build().
