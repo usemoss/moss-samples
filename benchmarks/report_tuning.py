@@ -291,7 +291,7 @@ def section(
     intro += (
         " Each tunable engine was measured at every setting of its search knob (HNSW ef from 16 to 1024, LanceDB IVF-PQ "
         "refine_factor, Moss alpha on text datasets); exact engines have one setting and come from the default-settings "
-        "runs. Each benchmark builds its own index, and the Chroma, DuckDB-VSS and LanceDB builds are not reproducible "
+        "runs. Each benchmark builds its own index, and the Chroma, DuckDB-VSS, LanceDB and zvec builds are not reproducible "
         "(identical runs gave slightly different recall), so their default setting here can differ slightly from the "
         "default-settings page."
     )
@@ -331,6 +331,26 @@ def section(
                 },
             ),
         )
+    mean = {
+        (e, row["k"]): row["latency_ms"]["mean"]
+        for e, r in exact.items()
+        for row in r["rows"]
+        if row["k"] in ks
+    }
+    close = sorted(
+        {
+            f"{a} and {b}"
+            for (a, k), x in mean.items()
+            for (b, kk), y in mean.items()
+            if a < b and k == kk and abs(x - y) < 0.1 * min(x, y)
+        }
+    )
+    hidden = (
+        f" The lines of {', '.join(close)} are within 10% in latency, so one can hide the other (hover or click "
+        "the legend to tell them apart)."
+        if close
+        else ""
+    )
     s.card(
         "nDCG@10 vs latency" if text else "Recall vs latency",
         "each engine's best settings (Pareto frontier) · mean latency · "
@@ -338,7 +358,9 @@ def section(
         "For each engine, only its best settings of its primary search knob: those that no other setting of the same "
         "engine beats on both quality and mean latency (Pareto frontier, as in ann-benchmarks). A setting that is "
         "slower without being better is left out. An exact engine has one setting: a dotted horizontal line at its "
-        "latency, ending at its point, so another engine's settings below the line are faster than it. "
+        "latency, ending at its point, so another engine's settings below the line are faster than it."
+        + hidden
+        + " "
         + ("" if text else "Settings with ef below k are not run at that k. ")
         + "Every measured setting is in the table below.",
         frontier_chart(tun, exact, ks, text),

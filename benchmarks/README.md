@@ -56,7 +56,7 @@ LanceDB setups: its docs say an exact scan "works fine below ~100K vectors, but 
 Versions come from `uv.lock`. Known behaviors:
 
 - **Chroma:** a modified `ef_search` is stored but only applied after the client reopens, so the sweep closes and reopens the persistent client. `close()` frees the old client's loaded index; reopening without it kept one more copy of the index per setting (about 340 MB each at cohere-100k), which inflated Chroma's search memory before 2026-10-13.
-- **Index builds of Chroma, DuckDB-VSS and LanceDB are not reproducible:** identical runs gave different recall (scifact nDCG@10 for Chroma: 0.6524, 0.6545, 0.6541 in three runs on 2026-10-13), so the defaults, tuning and filter pages, which each build their own index, can differ slightly for these engines. FAISS, Moss, Qdrant, sqlite-vec and zvec at its default setting reproduced exactly.
+- **Index builds of Chroma, DuckDB-VSS, LanceDB and zvec are not reproducible:** identical runs gave different recall (scifact nDCG@10 for Chroma: 0.6524, 0.6545, 0.6541 in three runs on 2026-10-13; zvec differed by at most 0.0001 recall, at k = 50 and 100 on cohere-100k and dbpedia-openai-1m, 2026-10-14), so the defaults, tuning and filter pages, which each build their own index, can differ slightly for these engines. FAISS, Moss, Qdrant and sqlite-vec reproduced exactly.
 - **DuckDB HNSW** applies `WHERE` after the index scan (post-filtering), so selective filters lose recall.
 - **FAISS HNSW** with 1%-selectivity filters has low recall.
 - **LanceDB HNSW** defaults to ef = 1.5 x k, so recall at k = 1 is low.
