@@ -26,23 +26,23 @@ HNSW (Hierarchical Navigable Small World) is a widely used approximate index. It
 
 - **Growing an index gets more expensive with some engines.** Moss's build cost per document stays flat as the corpus grows. Graph-based (HNSW) engines get slower per document as they grow (zvec most), and adding documents to an indexed DuckDB-VSS table is slower than rebuilding it.
 
-- **Exact search can still be fast.** Moss searches exactly, with no recall loss, as fast as FAISS's exact index. Its latency grows with corpus size, but less than proportionally.
+- **Exact search can still be fast.** Moss searches exactly, with no recall loss, matching FAISS's exact index at 1M docs (25 ms). Moss's latency grows with corpus size, but less than proportionally from 25k → 100k docs.
 
 ## Choosing an engine
 
 | Engine | Benefits | Tradeoffs | Use it when |
 |---|---|---|---|
-| **Moss** | Exact results, no tuning; fast exact filtered search; hybrid text search; steady build cost as the corpus grows; index on disk or in Moss cloud | Latency grows with corpus size, 4x the docs: ~2.7x the latency | The index fits in RAM and you want exact results and filters with steady latency (2 ms at 100K docs, 25 ms at 1M) and no tuning as the corpus grows |
-| FAISS-flat | Exact; near-instant build; can save to disk | Bare index: you store ids and metadata yourself; no metadata filters | The index fits in RAM, you already manage storage and metadata, and you need exact results |
-| FAISS-HNSW | Fastest at 0.95 recall once tuned; can save to disk | Low recall at defaults; recall plummets when filters applied; requires significant tuning | Unfiltered speed matters most, the index fits in RAM, and someone can re-tune as data changes |
-| zvec | Fastest at 0.99 recall once tuned; low RAM; on disk | Slowest build, and slower per doc as the index grows; slow filtered search, up to ~180 ms; requires continuous tuning | RAM is tight, data changes rarely (slow builds and inserts), and you need very high recall |
-| Chroma | Good recall at defaults; simple API; on disk | Slow filtered search, up to ~100 ms; requires tuning | Prototypes or small to medium collections where filters are rare and build time matters little |
-| LanceDB-HNSW | Low RAM; good filtered recall; on disk | Low recall at defaults; best recall@10 at 1M docs: 0.988; requires tuning | RAM is tight, filters are common, and recall up to ~0.99 is enough |
-| DuckDB-VSS | Vector search inside SQL | Largest in-memory index; recall plummets when filters applied; adding docs is slower than rebuilding; on-disk index is experimental; requires tuning | You already use DuckDB, RAM is plentiful, filters are rare, and data loads in bulk |
-| LanceDB IVF-PQ | Fast build; compressed vectors; on disk | Recall 0.53 at defaults; best recall@10 at 1M docs: 0.974; requires tuning | The corpus is very large, RAM and build time matter most, and lower recall is acceptable |
-| Qdrant (local mode) | Exact; same API as Qdrant server | Slow exact search in local mode: ~1 s per query at 1M | Prototyping a small collection before moving to a Qdrant server |
-| sqlite-vec | Exact; tiny RAM; plain SQLite file | Slow exact search: 0.7-1.4 s per query at 1M | Collections are small (tens of thousands of docs), RAM is minimal, and an SQLite file is convenient |
+| **Moss** | Exact results, no tuning; fast exact filtered search; hybrid text search; steady build cost as the corpus grows; index on disk or in Moss cloud | Query latency increases with a larger corpus | Index fits in available RAM, you want hybrid search, need fast filtered queries, require low latency & exact results (2 ms @100k docs, 25 ms @1M), and never need tuning |
+| FAISS-flat | Exact; near-instant build; can save to disk | Bare index: you store ids and metadata yourself; no metadata filters | Index fits in available RAM, you manage storage and metadata separately, want low latency, fast build times, and vector-only search (no keyword matching) is enough |
+| FAISS-HNSW | Fastest at 0.95 recall once tuned; can save to disk | Low recall at defaults; recall plummets when filters applied; requires significant tuning | Unfiltered speed matters most, the index fits in available RAM, and regular re-tuning isn't a concern |
+| zvec | Fastest at 0.99 recall once tuned; low RAM; on disk | Slowest build, and slower per doc as the index grows; slow filtered search, up to ~180 ms; requires tuning | Need minimal RAM use, data changes rarely (slow builds and inserts), and you accept tuning for lower latency that also reduces recall |
+| Chroma | Good recall at defaults; simple API; on disk | Slow filtered search, up to ~100 ms; requires tuning | Prototyping, or small to medium collections, where slow filtered searches and slow builds are acceptable |
+| LanceDB-HNSW | Low RAM; good filtered recall; on disk | Low recall at defaults; best recall@10 at 1M docs: 0.988; requires tuning | Need low RAM usage, filtered search is common, recall up to ~0.99 is acceptable, and re-tuning isn't a concern |
+| DuckDB-VSS | Vector search inside SQL | Largest in-memory index; recall plummets when filters applied; adding docs is slower than rebuilding; on-disk index is experimental; requires tuning | DuckDB already used, RAM is plentiful, filters aren't needed, and data loads in bulk |
+| LanceDB IVF-PQ | Fast build; compressed vectors; on disk | Recall 0.53 at defaults; best recall@10 at 1M docs: 0.974; requires tuning | You have a very large corpus, need less RAM than in-memory engines, fast build times, and you can accept lower recall and re-tuning needs |
+| Qdrant (local mode) | Exact; same API as Qdrant server | Slow exact search in local mode: ~1 s per query at 1M | Only for prototyping code for a Qdrant server; not a fit for apps that ship retrieval on the user's device |
+| sqlite-vec | Exact; tiny RAM; plain SQLite file | Slow exact search: 0.7-1.4 s per query at 1M | Small corpus (<100k docs), need minimal RAM use, and low latency isn't a concern |
 
 One run per configuration on one machine; CPU use per query was not measured.
 
-¹ The benchmark searched Moss's index without saving it. A saved index loads back into memory and is searched the same way; load time was not measured.
+¹ The benchmark searched Moss's index without saving it. A saved index loads back into memory and is searched the same way; load time from disk was not measured.
