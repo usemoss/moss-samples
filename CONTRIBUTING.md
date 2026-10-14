@@ -20,7 +20,7 @@ Pull requests are the best way to propose changes to the codebase. We actively w
 
 ## Any contributions you make will be under the BSD 2-Clause License
 
-In short, when you submit code changes, your submissions are understood to be under the same [BSD 2-Clause License](LICENSE) that covers the project. The Moss-maintained SDKs in `sdks/` are the exception. Swift is under the PolyForm Shield License, as its `LICENSE.txt` states, and the JavaScript, Python and Elixir SDKs move to it with their next release, which replaces each folder's BSD `LICENSE` with a PolyForm Shield `LICENSE.txt`. The Go SDK in `sdks/go` stays under the BSD 2-Clause License, as does code already contributed under it. Feel free to contact the maintainers if that's a concern.
+In short, when you submit code changes, your submissions are understood to be under the same [BSD 2-Clause License](LICENSE) that covers the project. The SDKs that Moss releases sync into `sdks/` are the exception. Swift is under the PolyForm Shield License, as its `LICENSE.txt` states, and the JavaScript, Python and Elixir SDKs move to it with their next release, which replaces each folder's BSD `LICENSE` with a PolyForm Shield `LICENSE.txt`. The Go SDK in `sdks/go` stays under the BSD 2-Clause License, as does code already contributed under it. Feel free to contact the maintainers if that's a concern.
 
 ## Report bugs using GitHub's [issues](https://github.com/usemoss/moss/issues)
 
@@ -34,4 +34,4 @@ Pull requests against these folders are welcome. Maintainers bring an accepted c
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the BSD 2-Clause License, or under the PolyForm Shield License for the PolyForm Shield SDKs in `sdks/`.
+By contributing, you agree that your contributions will be licensed under the BSD 2-Clause License, or under the PolyForm Shield License for the SDKs that Moss releases sync into `sdks/`.
