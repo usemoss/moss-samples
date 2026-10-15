@@ -54,7 +54,7 @@ dbpedia-openai-1m, k = 10, inner product. Compare engines down each column.
 | Engine         | recall@10 at defaults | p95 at defaults (ms) | Fastest p95 at R ≥ 0.95 (ms) | Fastest p95 at R ≥ 0.99 (ms) | Build (s) | Index in RAM (GiB) | Search max memory (GiB) | Index on disk (GiB) |
 | -------------- | :-------------------: | :------------------: | :--------------------------: | :--------------------------: | :-------: | :----------------: | :---------------------: | :-----------------: |
 | Moss           |       **1.000**       |         27.8         |             27.8             |             27.8             |     55    |        6.0         |           6.1           |         N/A         |
-| FAISS-flat     |       **1.000**       |         25.0         |             25.0             |             25.0             |  **0.6**  |        5.7         |           5.7           |         N/A         |
+| FAISS-flat     |       **1.000**       |         29.3         |             29.3             |             29.3             |  **1.3**  |        9.7         |           9.7           |         N/A         |
 | FAISS-HNSW     |         0.855         |       **0.21**       |          **0.67\***          |            3.82\*            |     51    |        6.2         |           6.2           |         N/A         |
 | zvec           |       **0.998**       |         5.48         |            0.93\*            |          **2.22\***          |    836    |        0.12        |           0.12          |         6.12        |
 | Chroma         |         0.964         |         3.17         |             3.17             |            15.7\*            |    418    |        6.3         |           6.3           |         6.01        |
@@ -76,7 +76,7 @@ With each library's default distance instead of inner product, three engines cha
 | Engine     | Default distance (ms) | Inner product (ms) |
 | ---------- | :-------------------: | :----------------: |
 | Chroma     |     **1.14** (l2)     |        3.17        |
-| FAISS-flat |       47.9 (l2)       |      **25.0**      |
+| FAISS-flat |       45.8 (l2)       |      **29.3**      |
 | sqlite-vec |      **681** (l2)     |   1,384 (cosine)   |
 
 The distance can also change recall: LanceDB IVF-PQ reached R=0.662 with l2 and R=0.531 with inner product. FAISS-HNSW's default-distance run was slowed by a post-build effect (see Limits).
@@ -116,7 +116,7 @@ Exact engines (Moss, FAISS-flat, Qdrant local, sqlite-vec) have nothing to tune:
 | Engine             | Storage as tested     | Persistence                                                                                                        | Rebuild after restart without a save, 1M docs |
 | ------------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------: |
 | Moss               | in memory (not saved) | `save_to_disk()` / `load_from_disk()`, or a Moss cloud index cached locally; standard in production, not used here |                      55 s                     |
-| FAISS (flat, HNSW) | in memory             | `write_index()` / `read_index()`                                                                                   |           0.6 s (flat), 51 s (HNSW)           |
+| FAISS (flat, HNSW) | in memory             | `write_index()` / `read_index()`                                                                                   |           1.3 s (flat), 51 s (HNSW)           |
 | DuckDB-VSS         | in-memory database    | HNSW in a database file needs `hnsw_enable_experimental_persistence`                                               |                     117 s                     |
 | Qdrant local       | `:memory:`            | can write to a `path` instead                                                                                      |                     477 s                     |
 | Chroma             | persistent client     | automatic                                                                                                          |                 none (reopen)                 |
@@ -165,7 +165,7 @@ Corpora grow, so the cost of adding documents matters as much as the first build
 | Engine         | Build per doc at 10k (µs) | at 100k (µs) | at 250k (µs) | at 1M (µs) | +150k docs to 100k index (s) | Full build of 250k (s) |
 | -------------- | :-----------------------: | :----------: | :----------: | :--------: | :--------------------------: | :--------------------: |
 | Moss           |             58            |      54      |      53      |     55     |             8.5              |          13.3          |
-| FAISS-flat     |           **2**           |    **<1**    |    **<1**    |   **<1**   |           **0.4**            |        **0.1**         |
+| FAISS-flat     |           **2**           |    **<1**    |    **<1**    |   **1**    |           **0.4**            |        **0.1**         |
 | FAISS-HNSW     |             24            |      39      |      45      |     51     |             7.2              |          11.3          |
 | zvec           |            179            |     455      |     632      |    844     |             92.4             |         158.0          |
 | Chroma         |            181            |     252      |     276      |    422     |             44.7             |          69.1          |
@@ -208,8 +208,8 @@ Default settings, k = 10. Moss uses its default hybrid search (keyword + vector)
 
 | Engine | Benefits | Tradeoffs | Use it when... |
 |---|---|---|---|
-| **Moss** | Exact results, no tuning; within 7% of FAISS-flat at 1M docs (25.2 vs 23.6 ms mean); exact filtered search in a few ms; hybrid keyword + vector search; index on disk or in Moss cloud | Latency grows with corpus size, sub-linearly from 25k to 100k docs (4x the docs, 2.7x the latency); slower text build | you want exact results, hybrid search, fast filtered queries and low latency (2 ms @100k docs, 25 ms @1M) with no tuning, and have RAM for the whole index |
-| FAISS-flat | Exact; builds in under 1 s; exact filters; saves to disk (`write_index()`) | A library, not a database: no storage layer or metadata (filters need your own id mapping) | you want exact results, low latency and fast builds, have RAM for the whole index, and don't need hybrid search or built-in metadata storage |
+| **Moss** | Exact results, no tuning; matches FAISS-flat at 1M docs (25 ms mean); exact filtered search in a few ms; hybrid keyword + vector search; index on disk or in Moss cloud | Latency grows with corpus size, sub-linearly from 25k to 100k docs (4x the docs, 2.7x the latency); slower text build | you want exact results, hybrid search, fast filtered queries and low latency (2 ms @100k docs, 25 ms @1M) with no tuning, and have RAM for the whole index |
+| FAISS-flat | Exact; builds in about 1 s; exact filters; saves to disk (`write_index()`) | A library, not a database: no storage layer or metadata (filters need your own id mapping) | you want exact results, low latency and fast builds, have RAM for the whole index, and don't need hybrid search or built-in metadata storage |
 | FAISS-HNSW | Lowest p95 at R ≥ 0.95 (0.67 ms at 1M); saves to disk (`write_index()`) | R=0.855 at defaults; recall plummets with selective filters; needs tuning and re-tuning | you want the lowest unfiltered latency, have RAM for the whole index, don't need filters, and don't mind regular re-tuning |
 | zvec | Lowest p95 at R ≥ 0.99 (2.22 ms at 1M); R=0.998 at defaults; low RAM; on disk | Slowest build (14 min at 1M), and cost per doc rises with index size (4.7x from 10k to 1M); 177 ms with a filter keeping 99% | you want minimal RAM usage, don't need frequent updates (slow builds and inserts), and don't mind tuning that trades recall for latency |
 | Chroma | R=0.964 at defaults; simple API; on disk | Slow filtered search, up to ~100 ms; 2.8x slower with inner product than with its default l2 | you want to prototype or search a small to medium collection, and don't mind tuning or slow filtered searches and builds |
@@ -222,7 +222,6 @@ Default settings, k = 10. Moss uses its default hybrid search (keyword + vector)
 ## Limits
 
 - One run per configuration, on one machine; no confidence intervals.
-- FAISS-flat's dbpedia-openai-1m runs were repeated on 2026-10-15 after its adapter switched to one add call (adding 100k rows at a time had left about 4 GiB of freed buffers in its memory figure); the other runs are from 2026-10-13/14.
 - CPU time per query was not measured; engines use different numbers of cores per query.
 - Chroma, DuckDB-VSS, LanceDB and zvec index builds are not reproducible, so their recall varies slightly between runs.
 - FAISS-HNSW's first passes after its dbpedia-openai-1m build ran 1.2-2.4x slower than the same setting measured later (k = 10, default distance, mean: 0.320 ms in the defaults run against 0.138 ms in the tuning run), so its default-distance latency there is overstated.

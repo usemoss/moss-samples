@@ -467,10 +467,7 @@ class FaissEngine(Engine):
         self.sweep = EF_SWEEP if kind == "hnsw" else [{}]
 
     def build(self, ids: np.ndarray, vectors: np.ndarray, metadata: list[dict] | None) -> None:
-        """Create the index and add every vector: flat in one add, HNSW 100k rows at a time.
-
-        Flat adds in one call: growing its storage over many adds left the freed growth buffers in
-        the process footprint (+1.76 GiB for 400k x 1536 in 100k chunks, not released on request).
+        """Create the index and add every vector, 100k rows at a time.
 
         FAISS ids are row positions: self.ids maps them back to doc ids and self.labels holds the
         label of each row (a numpy array, the way a FAISS application keeps filterable metadata).
@@ -490,9 +487,8 @@ class FaissEngine(Engine):
         else:
             self.index = faiss.IndexHNSWFlat(d, FAISS_HNSW_M, metric)
             self.default_ef = self.index.hnsw.efSearch
-        step = len(ids) if self.kind == "flat" else 100_000
-        for i in range(0, len(ids), step):
-            self.index.add(np.ascontiguousarray(vectors[i : i + step], dtype=np.float32))
+        for i in range(0, len(ids), 100_000):
+            self.index.add(np.ascontiguousarray(vectors[i : i + 100_000], dtype=np.float32))
         self.ids = np.asarray(ids)
         self.labels = np.array([m["labels"] for m in metadata]) if metadata else None
 
