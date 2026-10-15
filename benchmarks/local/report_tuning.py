@@ -3,7 +3,8 @@
 Reads results/tuning/ (every search setting of tunable engines) and, for exact engines (one search
 setting, "tunable": false), their results/defaults/ full-corpus runs. Per dataset and metric view:
   - latency at equal recall (vector datasets): each engine's fastest setting (mean latency) that
-    reaches recall@k >= 0.95 / 0.99, any knob; exact engines at their one setting;
+    reaches recall@k >= 0.95 / 0.99, any knob (the library default when within 5%); exact engines
+    at their one setting;
   - quality vs latency: per engine only its best settings, the Pareto frontier of its primary knob
     (lowest mean latency for each quality level), one line per engine; exact engines as one point;
     vector datasets pick k from a dropdown, text datasets use k = 10;
@@ -241,6 +242,9 @@ def secondary_chart(eng: str, r: dict, ks: list[int], text: bool) -> go.Figure:
 def fastest(r: dict, k: int, target: float) -> dict | None:
     """A run's fastest row (mean latency) at k whose quality reaches a target, any knob.
 
+    The library default ({}) wins when it reaches the target within 5% of the fastest row's
+    latency, so a tuned setting that only beats it by noise is not shown as needed tuning.
+
     Args:
         r: Result (tuning or defaults).
         k: k.
@@ -250,7 +254,11 @@ def fastest(r: dict, k: int, target: float) -> dict | None:
         The row, or None when no setting reaches the target.
     """
     ok = [row for row in r["rows"] if row["k"] == k and row["quality"] >= target]
-    return min(ok, key=lambda row: row["latency_ms"]["mean"], default=None)
+    best = min(ok, key=lambda row: row["latency_ms"]["mean"], default=None)
+    dflt = next((row for row in ok if not row.get("params")), None)
+    if dflt and dflt["latency_ms"]["mean"] <= 1.05 * best["latency_ms"]["mean"]:
+        return dflt
+    return best
 
 
 def section(
@@ -310,7 +318,8 @@ def section(
             "approximate engines tuned up to the target (any knob), exact engines at their one setting. Public "
             "benchmarks compare speed this way (Qdrant, VIBE, big-ann). recall@k ≥ 0.95 means the engine "
             "returned, on average over the queries, at least 95% of the true k nearest documents. The bar label "
-            "names the setting; an engine without a bar never reached the target. Dropdown: recall@k target.",
+            "names the setting; the library default is shown when it reaches the target within 5% of the "
+            "fastest setting. An engine without a bar never reached the target. Dropdown: recall@k target.",
             bars(
                 {
                     f"mean latency at {v}, ms (lower is better)": [

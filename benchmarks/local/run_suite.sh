@@ -2,7 +2,8 @@
 # Run one suite for engines x datasets, one watchdogged process per pair; then rebuild the reports.
 # usage: ./run_suite.sh <suite> "<datasets>" "<engines>|all" [options...]
 #   suites: defaults (suite_defaults.py), tuning (suite_tuning.py), filter (suite_filter.py)
-#   e.g. ./run_suite.sh defaults cohere-100k all --queries 200 --metric ip
+#   e.g. ./run_suite.sh defaults cohere-100k all --queries 200 --metric ip (moss, qdrant-local and
+#   zvec rank by inner product by default, so they run only with --metric default)
 # Each run gets one stamp: log results/logs/<suite>-<dataset>-<engine>[-ip][-docs<N>]-<stamp>.log,
 # result results/<suite>/<dataset>/<engine>[-ip][-docs<N>]-<stamp>.json. A pair that does not apply
 # (harness.applies: no ip mode, exact engine for tuning, no filter cases, --docs outside defaults)

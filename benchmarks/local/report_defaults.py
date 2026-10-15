@@ -245,7 +245,8 @@ def section(ds: str, metric: str, runs: dict[str, dict], missing: list[str]) -> 
         "Memory",
         "process footprint over the footprint after loading the dataset · on disk = index files",
         "Memory each engine adds, in GiB: index (after build), build peak, search peak (during the measured "
-        "passes), RSS increase over the build, and index files on disk (disk-backed engines keep part of "
+        "passes), RSS increase over the build (it also counts the memory-mapped dataset vectors the build "
+        "reads, up to the dataset's size), and index files on disk (disk-backed engines keep part of "
         "their index in OS-cached files, which the footprint does not count). Dropdown: measure.",
         bars(
             {

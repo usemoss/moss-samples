@@ -46,11 +46,12 @@ TABLES = itertools.count()  # unique id per rendered table (scopes its filter CS
 NOTES = {
     "metric": "Every document and query vector is scaled to unit length when the dataset "
     "is prepared. For unit vectors, cosine similarity equals the inner product and squared L2 distance "
-    "equals 2 − 2 × inner product, so all three rank documents identically and give the same recall. "
+    "equals 2 − 2 × inner product, so all three rank documents identically in an exact search. "
     "The datasets are defined with cosine similarity, so the inner-product view (the default) runs every "
     "engine in its inner-product mode (cosine where an engine has no inner product), and every engine "
     "computes the same similarity. The library-default view runs each engine with its library's default "
-    "metric (L2 for most), which can change speed but not the ranking. Moss, zvec and Qdrant use inner "
+    "metric (L2 for most), which can change speed, and the recall of approximate indexes (LanceDB "
+    "IVF-PQ: recall@10 0.66 with L2 and 0.53 with inner product on dbpedia-openai-1m). Moss, zvec and Qdrant use inner "
     "product by default and appear unchanged in both views.",
     "quality": "recall@k is the share of the true k nearest documents (found by exact search) "
     "that an engine returns in its top k, averaged over the queries: recall@100 ≥ 0.95 means at least "
@@ -63,8 +64,8 @@ NOTES = {
     "measured. Each engine returns its library's default result payload (e.g. Chroma: ids, metadata, "
     "documents and distances; LanceDB: every column, the vector included; FAISS: ids and distances), "
     "and a larger payload costs more as k grows. Exception: on dbpedia-openai-1m, FAISS-HNSW's first passes "
-    "after its index build ran 1.2-2.4x slower than the same setting measured later in the run (k = 10, "
-    "library default metric: 0.320 ms against 0.138 ms), so its default-settings latency and lowest "
+    "after its index build ran 1.2-2.4x slower than the same setting measured later (k = 10, library "
+    "default metric: 0.320 ms in the defaults run and 0.334 ms as the tuning run's first setting, against 0.138 ms later in the tuning run), so its default-settings latency and lowest "
     "Pareto point there are overstated.",
 }
 # Subsection heading of each note; the "metric" note only shows in the inner-product view.
@@ -126,11 +127,21 @@ def load(suite: str) -> dict[str, dict[str, dict]]:
 
     Returns:
         {dataset: {run key: result}}; file names end in a sortable stamp, so the newest wins.
+
+    Raises:
+        SystemExit: The newest runs of one dataset used different --queries or --k (e.g. a smoke
+            run replaced one engine's full run), so their numbers are not comparable.
     """
     runs: dict[str, dict[str, dict]] = {}
     for p in sorted((RESULTS / suite).glob("*/*.json")):
         key = re.sub(r"-\d{8}T\d{6}$", "", p.stem)
         runs.setdefault(p.parent.name, {})[key] = json.loads(p.read_text())
+    for ds, rs in runs.items():
+        args = {(r["args"].get("queries"), r["args"].get("k")) for r in rs.values()}
+        if len(args) > 1:
+            raise SystemExit(
+                f"MIXED {suite}/{ds}: the newest runs differ in (--queries, --k): {sorted(args, key=str)}"
+            )
     return runs
 
 
@@ -229,12 +240,21 @@ def dnf_view(dnfs: list[tuple[str, str, str]], ds: str, metric: str) -> list[str
         metric: "ip" or "default".
 
     Returns:
-        "<run key>: DNF, <last log line>" per run of that view that did not finish.
+        "<run key>: DNF, <last log line>" per run of that view that did not finish. The
+        inner-product view also lists default runs of engines with no ip mode (their default is
+        inner product).
     """
+    from engines import ENGINES
+
+    def ip_default(key: str) -> bool:
+        """Tell whether a run key's engine ranks by inner product by default (no ip mode)."""
+        cls = ENGINES.get(re.sub(r"-docs\d+$", "", key))
+        return cls is not None and "ip" not in getattr(cls, "func", cls).METRICS
+
     return [
         f"{re.sub(r'-ip(?=$|-docs)', '', k)}: DNF, {last}"
         for d, k, last in dnfs
-        if d == ds and ("-ip" in k) == (metric == "ip")
+        if d == ds and (("-ip" in k) == (metric == "ip") or (metric == "ip" and ip_default(k)))
     ]
 
 

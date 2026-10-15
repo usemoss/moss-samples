@@ -223,6 +223,6 @@ Default settings, k = 10. Moss uses its default hybrid search (keyword + vector)
 - One run per configuration, on one machine; no confidence intervals.
 - CPU time per query was not measured; engines use different numbers of cores per query.
 - Chroma, DuckDB-VSS, LanceDB and zvec index builds are not reproducible, so their recall varies slightly between runs.
-- FAISS-HNSW's first passes after its dbpedia-openai-1m build ran 1.2-2.4x slower than the same setting later in the run (k = 10, default distance, mean: 0.320 ms against 0.138 ms), so its default-distance latency there is overstated.
+- FAISS-HNSW's first passes after its dbpedia-openai-1m build ran 1.2-2.4x slower than the same setting measured later (k = 10, default distance, mean: 0.320 ms in the defaults run against 0.138 ms in the tuning run), so its default-distance latency there is overstated.
 - DuckDB-VSS was slower at k = 50 than at k = 100 in every run (cohere-100k: 3.37 vs 2.70 ms).
 - Each engine returns its library's default payload (e.g. LanceDB returns every column, the vector included), which costs more as k grows.
