@@ -38,7 +38,7 @@ HNSW (Hierarchical Navigable Small World) is a widely used approximate index. It
 
 - **Growing an index gets more expensive with some engines.** Moss's build cost per document stays flat as the corpus grows. Most graph-based (HNSW) engines get slower per document as they grow (zvec most), and adding documents to an indexed DuckDB-VSS table is slower than rebuilding it.
 
-- **Exact search can still be fast.** Moss's exact search matches FAISS's exact index at 1M docs (25 ms mean). Its latency grew sub-linearly from 25k to 100k docs.
+- **Exact search can still be fast.** Moss's exact search runs within 7% of FAISS's exact index at 1M docs (25.2 vs 23.6 ms mean). Its latency grew sub-linearly from 25k to 100k docs.
 
 ## Choosing an engine
 
