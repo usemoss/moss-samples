@@ -66,7 +66,8 @@ dbpedia-openai-1m, k = 10, inner product. Compare engines down each column.
 
 \* Needs a non-default setting (tuning). Unmarked values use the library defaults.
 
-- **Fastest p95 at R ≥ X:** the lowest p95 latency among the measured settings that reach that recall; the default's value is shown when it reaches X within 5% of the fastest. Where no setting reached it, the cell shows the highest R reached and that setting's p95.
+- **Fastest p95 at R ≥ X:** the lowest p95 latency among the measured settings that reach that recall; the default's value is shown when it reaches X within 5% of the fastest. Where no setting reached it, the cell shows the best R over the settings tried and that setting's p95 (LanceDB's `nprobes` was not part of the sweep).
+- **Build:** ingest and index build. Moss's session setup (a round trip to Moss cloud, about 1 s) is not timed; the other engines' local client setup is.
 - **Index in RAM:** process memory added by the index after the build. **Search max memory:** its peak during search. Both leave out the OS file cache that holds disk-backed indexes.
 - **Index on disk:** N/A for in-memory engines, which can save to disk but weren't saved here (see [In-memory vs on-disk](#in-memory-vs-on-disk)).
 
@@ -212,9 +213,9 @@ Default settings, k = 10. Moss uses its default hybrid search (keyword + vector)
 | FAISS-HNSW | Lowest p95 at R ≥ 0.95 (0.67 ms at 1M); saves to disk (`write_index()`) | R=0.855 at defaults; recall plummets with selective filters; needs tuning and re-tuning | you want the lowest unfiltered latency, have RAM for the whole index, don't need filters, and don't mind regular re-tuning |
 | zvec | Lowest p95 at R ≥ 0.99 (2.22 ms at 1M); R=0.998 at defaults; low RAM; on disk | Slowest build (14 min at 1M), and cost per doc rises with index size (4.7x from 10k to 1M); 177 ms with a filter keeping 99% | you want minimal RAM usage, don't need frequent updates (slow builds and inserts), and don't mind tuning that trades recall for latency |
 | Chroma | R=0.964 at defaults; simple API; on disk | Slow filtered search, up to ~100 ms; 2.8x slower with inner product than with its default l2 | you want to prototype or search a small to medium collection, and don't mind tuning or slow filtered searches and builds |
-| LanceDB-HNSW | Low RAM; R=0.95-0.98 with filters; on disk | R=0.849 at defaults; max recall@10 at 1M: 0.988 | you want low RAM usage and frequent filtered search, don't need recall above ~0.99, and don't mind re-tuning |
+| LanceDB-HNSW | Low RAM; R=0.95-0.98 with filters; on disk | R=0.849 at defaults; best recall@10 at 1M over the settings tried: 0.988 | you want low RAM usage and frequent filtered search, don't need recall above ~0.99, and don't mind re-tuning |
 | DuckDB-VSS | Vector search inside SQL | Largest in-memory index (15.7 GiB at 1M); recall plummets with selective filters (post-filtering); adding docs to an indexed table 4.3x slower than rebuilding; on-disk index experimental | you want vector search in an existing DuckDB database, and don't need filters, incremental inserts or low RAM usage |
-| LanceDB IVF-PQ | Fast build (28 s at 1M); compressed index; on disk | R=0.53 at defaults; max recall@10 at 1M: 0.974 | you want low RAM usage and fast builds for a very large corpus, don't need recall above ~0.97, and don't mind re-tuning |
+| LanceDB IVF-PQ | Fast build (28 s at 1M); compressed index; on disk | R=0.53 at defaults; best recall@10 at 1M over the settings tried: 0.974 | you want low RAM usage and fast builds for a very large corpus, don't need recall above ~0.97, and don't mind re-tuning |
 | Qdrant local | Exact; same API as the Qdrant server | Brute force in local mode: 961 ms p95 at 1M, 21 GiB peak; filtered queries ~275 ms at 100k | you want to prototype for a Qdrant server and aren't building for edge retrieval |
 | sqlite-vec | Tiny RAM; plain SQLite file | Brute force: 0.68-1.38 s p95 at 1M | you want minimal RAM usage for a small corpus (<100k docs), and don't need low latency |
 
