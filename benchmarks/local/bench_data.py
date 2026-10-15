@@ -5,7 +5,7 @@ usage: bench_data.py fetch <name>      download the raw files (resumable, sha256
        bench_data.py subset-gt <name> <docs>
                                        exact GT over the first <docs> docs, for --docs runs
                                        (run_suite.sh runs it when needed)
-       run each under the watchdog from benchmarks/, with the absolute interpreter:
+       run each under the watchdog from benchmarks/local/, with the absolute interpreter:
        ./watchdog.sh results/logs/<step>-<name>-<stamp>.log $PWD/.venv/bin/python bench_data.py ...
 names: cohere-100k (smoke), cohere-1m, dbpedia-openai-1m, arxiv-titles-2m, hotpotqa-1m, scifact
 

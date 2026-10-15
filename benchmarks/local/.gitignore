@@ -1,6 +1,6 @@
-.venv/
-data/
-results/
+/.venv
+/data
+/results
 __pycache__/
 .pytest_cache/
 .ruff_cache/

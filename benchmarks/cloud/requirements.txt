@@ -1,0 +1,14 @@
+# Moss SDK
+moss>=1.1.1
+
+# Competitors
+pinecone>=5.0.0
+qdrant-client>=1.7.0
+chromadb>=0.4.0
+
+# Embedding (for competitors — Moss uses built-in embedding)
+openai>=1.0.0
+requests>=2.31.0
+
+# Utilities
+python-dotenv>=1.0.0

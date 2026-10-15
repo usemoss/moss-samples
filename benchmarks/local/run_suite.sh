@@ -8,7 +8,7 @@
 # (harness.applies: no ip mode, exact engine for tuning, no filter cases, --docs outside defaults)
 # is skipped with its reason. A killed or failed run appears as DNF in its report.
 # Moss runs need MOSS_ENV_FILE (or MOSS_PROJECT_ID/KEY). Long runs: raise WATCHDOG_MAX_S (default 1200).
-# Stop (the loop first): pkill -9 -f run_suite.sh; pkill -9 -f 'benchmarks/\.venv/bin/python'
+# Stop (the loop first): pkill -9 -f run_suite.sh; pkill -9 -f 'benchmarks/local/\.venv/bin/python'
 set -u
 cd ${0:A:h}
 suite=$1
@@ -43,7 +43,7 @@ for d in $datasets; do
     key=$e; [[ $metric == ip ]] && key=$key-ip; [[ -n $docs ]] && key=$key-docs$docs
     stamp=$(date +%Y%m%dT%H%M%S); log=results/logs/$suite-$d-$key-$stamp.log
     # The watchdog wraps the python process itself (not `uv run`) so its RSS cap measures the benchmark; the
-    # absolute interpreter path lets the stop pattern 'benchmarks/\.venv/bin/python' match.
+    # absolute interpreter path lets the stop pattern 'benchmarks/local/\.venv/bin/python' match.
     ./watchdog.sh $log $PWD/.venv/bin/python suite_$suite.py $d $e --stamp $stamp "$@" || echo "DNF $suite $d $key ($log)"
   done
 done

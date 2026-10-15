@@ -103,7 +103,7 @@ End-to-end query latency (embedding + search) on 100,000 documents, 750 measured
 
 Moss includes embedding in the measurement — competitors use an external embedding service ([modal](https://modal.com/docs/examples/text_embeddings_inference)). Pinecone and Qdrant use cloud search.
 
-> [Reproduce these benchmarks →](./benchmarks/)
+> [Reproduce these benchmarks →](./benchmarks/cloud/)
 
 Moss isn't a database! It's a **search runtime**. You don't manage clusters, tune HNSW parameters, or worry about sharding. You index documents, load them into the runtime, and query. That's it.
 
