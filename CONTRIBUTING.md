@@ -20,30 +20,18 @@ Pull requests are the best way to propose changes to the codebase. We actively w
 
 ## Any contributions you make will be under the BSD 2-Clause License
 
-In short, when you submit code changes, your submissions are understood to be under the same [BSD 2-Clause License](LICENSE) that covers the project. Feel free to contact the maintainers if that's a concern.
+In short, when you submit code changes, your submissions are understood to be under the same [BSD 2-Clause License](LICENSE) that covers the project. The SDKs that Moss releases sync into `sdks/` are the exception. Swift is under the PolyForm Shield License, as its `LICENSE.txt` states, and the JavaScript, Python and Elixir SDKs move to it with their next release, which replaces each folder's BSD `LICENSE` with a PolyForm Shield `LICENSE.txt`. The Go SDK in `sdks/go` stays under the BSD 2-Clause License, as does code already contributed under it. Feel free to contact the maintainers if that's a concern.
 
 ## Report bugs using GitHub's [issues](https://github.com/usemoss/moss/issues)
 
 We use GitHub issues to track public bugs. Report a bug by [opening a new issue](https://github.com/usemoss/moss/issues/new); it's that easy!
 
-## Python SDK Development
+## SDKs
 
-The Python SDK source lives in [`sdks/python/sdk/`](sdks/python/sdk/). Set up a development environment:
+`sdks/javascript/sdk`, `sdks/python/sdk` and `sdks/elixir/sdk` hold the source and samples of each SDK release, for reading. Each release replaces a folder with its source and samples alone, without build or test setup, and each iOS release replaces `sdks/swift/Sources` the same way. Install the SDKs from npm (`@moss-js/moss`), PyPI (`moss`), Hex (`moss`) or Swift Package Manager.
 
-```bash
-cd sdks/python/sdk
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-```
-
-Run the tests (cloud/E2E tests auto-skip without credentials):
-
-```bash
-pytest tests/
-```
-
-Code style is enforced via `black`, `isort`, and `mypy` (see `pyproject.toml` for configuration).
+Pull requests against these folders are welcome. Maintainers bring an accepted change into the SDK's next release, thank its author in that release's CHANGELOG, and close the pull request with a link to the release. Pull requests against `sdks/go` merge here as usual.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the BSD 2-Clause License.
+By contributing, you agree that your contributions will be licensed under the BSD 2-Clause License, or under the PolyForm Shield License for the SDKs that Moss releases sync into `sdks/`.
