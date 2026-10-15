@@ -296,7 +296,9 @@ class LanceEngine(Engine):
         self.kind = kind
         self.name = "lancedb" if kind == "ivfpq" else "lancedb-hnsw"
         self.sweep = (
-            EF_SWEEP if kind == "hnsw" else [{}] + [{"refine_factor": r} for r in (2, 5, 10, 20, 50)]
+            EF_SWEEP
+            if kind == "hnsw"
+            else [{}] + [{"refine_factor": r} for r in (2, 5, 10, 20, 50)]
         )
         if kind == "hnsw":  # refine_factor re-ranks k x refine_factor candidates with full vectors
             self.extra = [{"refine_factor": r} for r in (2, 5, 10)]
@@ -882,7 +884,12 @@ class QueryEmbedder:
 
         from bench_data import MINILM, MINILM_MAX_TOKENS
 
-        self.engine, self.name, self.sweep, self.extra = engine, engine.name, engine.sweep, engine.extra
+        self.engine, self.name, self.sweep, self.extra = (
+            engine,
+            engine.name,
+            engine.sweep,
+            engine.extra,
+        )
         self.METRICS, self.metric = engine.METRICS, engine.metric
         self.model = TextEmbedding(MINILM, cache_dir=cache_dir)
         self.model.model.tokenizer.enable_truncation(

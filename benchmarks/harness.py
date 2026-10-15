@@ -161,9 +161,9 @@ def env() -> dict:
     """Collect the hardware and software versions recorded in every result file.
 
     Returns:
-        CPU brand, core count, RAM in GiB (key ram_gb), OS, Python version, the short git commit, whether
-        benchmarks/ has uncommitted changes to tracked files, and the installed version of every
-        package in PACKAGES.
+        CPU brand, core count, RAM in GiB (key ram_gb), OS, Python version, the short git commit,
+        whether the working directory has uncommitted changes to tracked files, and the installed
+        version of every package in PACKAGES.
     """
 
     def sh(*cmd: str) -> str:
