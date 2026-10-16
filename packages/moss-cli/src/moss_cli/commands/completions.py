@@ -2,13 +2,35 @@
 
 from __future__ import annotations
 
+import importlib
 from enum import Enum
+from typing import Callable, Optional
 
 import typer
 
 from .. import output
 
 PROG_NAME = "moss"
+_UNAVAILABLE = "Shell completion is unavailable in this Typer installation."
+# Where `get_completion_script` has lived across Typer releases, most public first.
+_COMPLETION_SCRIPT_MODULES = (
+    "typer.main",
+    "typer.completion",
+    "typer._completion_shared",
+)
+
+
+def _resolve_get_completion_script() -> Optional[Callable[..., str]]:
+    """Return Typer's ``get_completion_script`` from the first module that exposes it."""
+    for module_name in _COMPLETION_SCRIPT_MODULES:
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            continue
+        get_completion_script = getattr(module, "get_completion_script", None)
+        if get_completion_script is not None:
+            return get_completion_script
+    return None
 
 
 class Shell(str, Enum):
@@ -38,22 +60,9 @@ def completions_command(
     """
     json_mode = ctx.obj.get("json_output", False) if ctx.obj else False
 
-    try:
-        # Prefer a public API when available.
-        from typer.main import get_completion_script  # type: ignore[attr-defined]
-    except Exception:  # pragma: no cover
-        try:
-            from typer._completion_shared import get_completion_script  # type: ignore
-        except Exception:  # pragma: no cover - depends on Typer installation
-            output.print_error(
-                "Shell completion is unavailable in this Typer installation.",
-                json_mode,
-            )
-            raise typer.Exit(1)
-        output.print_error(
-            "Shell completion is unavailable in this Typer installation.",
-            json_mode,
-        )
+    get_completion_script = _resolve_get_completion_script()
+    if get_completion_script is None:
+        output.print_error(_UNAVAILABLE, json_mode)
         raise typer.Exit(1)
 
     complete_var = "_{}_COMPLETE".format(PROG_NAME.replace("-", "_").upper())
