@@ -2,6 +2,20 @@
 
 Ten vector search engines that run inside your application (no separate server), measured October 2026 on one Apple M5 Max (128 GiB). Queries ran one at a time, first at each library's default settings, then tuned. Datasets: 1M Wikipedia (DBpedia) articles embedded with an OpenAI model, 100k Cohere vectors (filters and scaling), and SciFact, a real text-retrieval dataset. Full numbers and methods: [RESULTS-DETAIL.md](RESULTS-DETAIL.md).
 
+## At a glance
+
+![Three panels per engine at default settings, 100k Cohere docs, k = 100. Best matches missed: 0% for Moss, FAISS-flat, Qdrant local and sqlite-vec; zvec 0.28%; LanceDB-HNSW 5.0%; DuckDB-VSS 8.7%; Chroma 9.2%; FAISS-HNSW 30.1%; LanceDB IVF-PQ 51.1%. p95 latency: FAISS-HNSW 0.13 ms, FAISS-flat 1.32, zvec 2.09, Chroma 2.16, Moss 2.23, DuckDB-VSS 2.83, LanceDB IVF-PQ 3.10, LanceDB-HNSW 3.20, Qdrant local 17.7, sqlite-vec 74.3 ms. Included in the library: only Moss has exact results by default, metadata filters, hybrid search and built-in text embedding.](https://github.com/user-attachments/assets/d9da22fa-5299-4130-b7dc-7415664a9550)
+
+*Each library as shipped, with no tuning. Moss is the only engine with exact results, metadata filters, hybrid search and built-in text embedding by default.*
+
+![Recall@10 against p95 latency for each engine's best settings, 100k Cohere docs. Exact engines are dotted lines at recall 1.0: FAISS-flat 1.3 ms, Moss 2.1 ms, Qdrant local 17.2 ms. Tuned, FAISS-HNSW reaches recall 0.99 at 0.58 ms and zvec at 0.86 ms; LanceDB-HNSW 3.31 ms, Chroma 3.36 ms, DuckDB-VSS 3.78 ms.](https://github.com/user-attachments/assets/4413d927-c081-4715-b2d3-75fc0dea10ee)
+
+*Tuned for this dataset, some approximate indexes beat exact search on speed; each setting has to be found, and re-checked as the data changes.*
+
+![nDCG@10 against mean latency on SciFact at default settings. Moss 0.685 at 2.13 ms; the vector-only engines 0.644 to 0.654 at 1.15 to 3.26 ms; LanceDB IVF-PQ 0.539 is off the chart.](https://github.com/user-attachments/assets/91bdcdb5-97fc-433d-8df4-941a340c8a44)
+
+*On real queries with human relevance labels, Moss's default hybrid search ranks relevant documents higher than vector-only search.*
+
 ## Recall in plain terms
 
 An engine's `recall@10` (R in tables) is how many of a query's 10 best matches (by embedding similarity) it returns. Below 1.0, weaker matches take the place of better ones. Nothing flags the miss at runtime: if a skipped document held the answer, your application never sees it.
