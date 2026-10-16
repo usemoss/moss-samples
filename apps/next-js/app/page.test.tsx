@@ -52,9 +52,14 @@ async function doLoadIndex(user: ReturnType<typeof userEvent.setup>) {
   await waitFor(() => expect(screen.getByText('✓ Ready')).toBeInTheDocument())
 }
 
+// The delete transition can still be pending (button reads "Deleting Index")
+// for a render after its state updates land, so wait for the label to settle.
 async function doDeleteIndex(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: /delete index/i }))
-  await waitFor(() => expect(screen.getByText('Build first')).toBeInTheDocument())
+  await waitFor(() => {
+    expect(screen.getByText('Build first')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /delete index/i })).toBeInTheDocument()
+  })
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -211,11 +216,11 @@ describe('MossDemo', () => {
 
       await user.click(screen.getByRole('button', { name: /delete index/i }))
 
-      await waitFor(() =>
+      await waitFor(() => {
         expect(screen.getByText('delete failed')).toBeInTheDocument()
-      )
+        expect(screen.getByRole('button', { name: /delete index/i })).toBeEnabled()
+      })
       expect(screen.queryByText('Index ready to search')).not.toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /delete index/i })).toBeEnabled()
       expect(screen.getByRole('button', { name: /load index/i })).toBeEnabled()
     })
 
