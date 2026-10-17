@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import csv
+import io
 import json
 import sys
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Optional
 
 import typer
 from moss import DocumentInfo
@@ -23,7 +24,7 @@ def load_documents(file_path: str) -> List[DocumentInfo]:
         raise typer.BadParameter(f"File not found: {file_path}")
 
     suffix = path.suffix.lower()
-    content = path.read_text()
+    content = path.read_text(encoding="utf-8-sig")
 
     if suffix == ".csv":
         return _parse_csv_docs(content)
@@ -67,40 +68,68 @@ def _parse_jsonl_docs(raw: str, source: str = "input") -> List[DocumentInfo]:
 
 
 def _parse_csv_docs(content: str) -> List[DocumentInfo]:
-    reader = csv.DictReader(content.splitlines())
-    docs = []
-    for i, row in enumerate(reader):
-        if "id" not in row or "text" not in row:
-            raise typer.BadParameter(
-                f"CSV row {i + 1}: missing required 'id' or 'text' column"
-            )
-        metadata = None
-        if "metadata" in row and row["metadata"]:
-            try:
-                metadata = json.loads(row["metadata"])
-            except json.JSONDecodeError:
-                raise typer.BadParameter(
-                    f"CSV row {i + 1}: invalid JSON in 'metadata' column"
-                )
+    reader = csv.DictReader(io.StringIO(content, newline=""))
+    if reader.fieldnames is None:
+        raise typer.BadParameter("CSV is empty: expected a header row")
 
-        embedding = None
-        if "embedding" in row and row["embedding"]:
-            try:
-                embedding = json.loads(row["embedding"])
-            except json.JSONDecodeError:
-                raise typer.BadParameter(
-                    f"CSV row {i + 1}: invalid JSON in 'embedding' column"
-                )
+    reader.fieldnames = [(name or "").strip() for name in reader.fieldnames]
+
+    seen = set()
+    dupes = set()
+    for name in reader.fieldnames:
+        if not name:
+            continue
+        if name in seen:
+            dupes.add(name)
+        else:
+            seen.add(name)
+    if dupes:
+        raise typer.BadParameter(
+            f"CSV header has duplicate column name(s): {', '.join(sorted(dupes))}"
+        )
+
+    missing = [name for name in ("id", "text") if name not in reader.fieldnames]
+    if missing:
+        raise typer.BadParameter(
+            f"CSV header is missing required column(s): {', '.join(missing)}"
+        )
+
+    docs = []
+    for row in reader:
+        line_no = reader.line_num
+        doc_id = row.get("id")
+        text = row.get("text")
+        if not doc_id or text is None:
+            raise typer.BadParameter(
+                f"CSV line {line_no}: empty value in required 'id' or 'text' column"
+            )
+
+        metadata = _parse_csv_json(row.get("metadata"), "metadata", line_no)
+        embedding = _parse_csv_json(row.get("embedding"), "embedding", line_no)
 
         docs.append(
             DocumentInfo(
-                id=row["id"],
-                text=row["text"],
+                id=doc_id,
+                text=text,
                 metadata=metadata,
                 embedding=embedding,
             )
         )
     return docs
+
+
+def _parse_csv_json(value: Optional[str], column: str, line_no: int) -> Any:
+    if value is None:
+        return None
+    value = value.strip()
+    if not value:
+        return None
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        raise typer.BadParameter(
+            f"CSV line {line_no}: invalid JSON in '{column}' column"
+        )
 
 
 def _dict_to_doc(d: Any, index: int) -> DocumentInfo:
