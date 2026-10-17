@@ -186,6 +186,26 @@ results = await client.query(
 
 For a complete runnable example, see [`examples/python/metadata_filtering.py`](../../examples/python/metadata_filtering.py).
 
+### Metrics & Tracing Hooks
+
+Moss provides opt-in callbacks to monitor query latency, counts, and performance without vendor lock-in. Wire them up to your metrics sink (Prometheus, StatsD, Datadog) or tracing framework (OpenTelemetry):
+
+```python
+from moss import MossClient, QueryMetrics
+
+def metrics_sink(metrics: QueryMetrics):
+    print(f"Query on {metrics.index_name} took {metrics.duration_ms:.2f}ms (local={metrics.is_local})")
+    print(f"Returned {metrics.result_count} docs, success={metrics.is_success}")
+
+# Register at client initialization
+client = MossClient("your-project-id", "your-project-key", on_query=metrics_sink)
+
+# Or pass per-query
+results = await client.query("my-docs", "search query", on_query=metrics_sink)
+```
+
+Async callbacks are supported and awaited automatically (`async def on_query(metrics: QueryMetrics)`).
+
 ## 🧠 Providing custom embeddings
 
 Already using your own embedding model? Supply vectors directly when managing

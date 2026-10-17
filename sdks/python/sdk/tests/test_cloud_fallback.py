@@ -51,9 +51,7 @@ class TestCloudFallbackQuery:
         index_name = generate_unique_index_name("test-cloud-fallback")
 
         # Create the index with documents
-        docs = [
-            DocumentInfo(id=doc["id"], text=doc["text"]) for doc in TEST_DOCUMENTS
-        ]
+        docs = [DocumentInfo(id=doc["id"], text=doc["text"]) for doc in TEST_DOCUMENTS]
         await moss_client.create_index(index_name, docs, TEST_MODEL_ID)
 
         yield index_name

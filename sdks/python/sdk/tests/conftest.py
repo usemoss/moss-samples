@@ -6,13 +6,12 @@ Loads environment variables before any tests are collected.
 import os
 import warnings
 from pathlib import Path
-
 from unittest.mock import MagicMock, patch
-
-from moss import MossClient
 
 import pytest
 from dotenv import load_dotenv
+
+from moss import MossClient
 
 # Load .env from project root.
 project_env_path = Path(__file__).parent.parent / ".env"

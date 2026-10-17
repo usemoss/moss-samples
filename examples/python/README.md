@@ -79,8 +79,12 @@ python multi_index_search.py
 
 Open a local-first `SessionIndex`, add documents in real time (no cloud round trip), query the in-memory index, then `push_index` to the cloud so another agent or device can resume it. This is how Moss indexes a live conversation.
 
+### Metrics & Tracing Sample
+
+Demonstrate opt-in metrics and tracing callbacks (`QueryMetrics`, `on_query`) for observing query latency, counts, and result stats without vendor lock-in.
+
 ```bash
-python session_sample.py
+python metrics_and_tracing_sample.py
 ```
 
 ## Requirements

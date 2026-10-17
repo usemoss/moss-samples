@@ -58,7 +58,7 @@ class TestGetDocumentsOptionsUsage:
             patch("moss.client.moss_client.ManageClient") as mock_manage,
             patch("moss.client.moss_client.IndexManager") as _,
         ):
-            from moss import MossClient, GetDocumentsOptions
+            from moss import GetDocumentsOptions, MossClient
 
             mock_manage_instance = mock_manage.return_value
             mock_manage_instance.get_docs = MagicMock(return_value=[])
@@ -126,7 +126,7 @@ class TestDocumentInfoUsage:
             patch("moss.client.moss_client.ManageClient") as mock_manage,
             patch("moss.client.moss_client.IndexManager") as _,
         ):
-            from moss import MossClient, DocumentInfo
+            from moss import DocumentInfo, MossClient
 
             mock_manage_instance = mock_manage.return_value
             mock_result = MagicMock()
@@ -154,7 +154,7 @@ class TestDocumentInfoUsage:
             patch("moss.client.moss_client.ManageClient") as mock_manage,
             patch("moss.client.moss_client.IndexManager") as _,
         ):
-            from moss import MossClient, DocumentInfo
+            from moss import DocumentInfo, MossClient
 
             mock_manage_instance = mock_manage.return_value
             mock_result = MagicMock()
@@ -188,7 +188,7 @@ class TestDocumentInfoUsage:
             patch("moss.client.moss_client.ManageClient") as mock_manage,
             patch("moss.client.moss_client.IndexManager") as _,
         ):
-            from moss import MossClient, DocumentInfo
+            from moss import DocumentInfo, MossClient
 
             mock_manage_instance = mock_manage.return_value
             mock_result = MagicMock()
@@ -211,7 +211,7 @@ class TestSearchResultUsage:
     """Tests for SearchResult handling."""
 
     def test_search_result_structure(self):
-        from moss import SearchResult, QueryResultDocumentInfo
+        from moss import QueryResultDocumentInfo, SearchResult
 
         doc1 = QueryResultDocumentInfo(id="d1", text="First", score=0.95)
         doc2 = QueryResultDocumentInfo(id="d2", text="Second", score=0.85)

@@ -19,15 +19,14 @@ import time
 from typing import List
 
 import pytest
-
 from moss_core import DocumentInfo
 
 from moss import GetDocumentsOptions, MossClient
 
 from .constants import (
+    TEST_MODEL_ID,
     TEST_PROJECT_ID,
     TEST_PROJECT_KEY,
-    TEST_MODEL_ID,
     generate_unique_index_name,
 )
 
@@ -50,15 +49,19 @@ def generate_docs(count: int, seed: int = 42) -> List[DocumentInfo]:
     docs = []
     for i in range(count):
         topic = rng.choice(DOC_TOPICS)
-        docs.append(DocumentInfo(
-            id=f"doc-{i}",
-            text=f"{topic} (variation {i}, seed {rng.randint(0, 100000)})",
-        ))
+        docs.append(
+            DocumentInfo(
+                id=f"doc-{i}",
+                text=f"{topic} (variation {i}, seed {rng.randint(0, 100000)})",
+            )
+        )
     return docs
 
 
 def generate_docs_with_embeddings(
-    count: int, dimension: int, seed: int = 42,
+    count: int,
+    dimension: int,
+    seed: int = 42,
 ) -> List[DocumentInfo]:
     rng = random.Random(seed)
     docs = []
@@ -68,15 +71,18 @@ def generate_docs_with_embeddings(
         magnitude = sum(x * x for x in embedding) ** 0.5
         if magnitude > 0:
             embedding = [x / magnitude for x in embedding]
-        docs.append(DocumentInfo(
-            id=f"doc-{i}",
-            text=f"{topic} (variation {i})",
-            embedding=embedding,
-        ))
+        docs.append(
+            DocumentInfo(
+                id=f"doc-{i}",
+                text=f"{topic} (variation {i})",
+                embedding=embedding,
+            )
+        )
     return docs
 
 
 # -- Fixtures ----------------------------------------------------------
+
 
 @pytest.fixture
 def client():
@@ -84,6 +90,7 @@ def client():
 
 
 # -- Tests -------------------------------------------------------------
+
 
 @pytest.mark.e2e
 class TestBulkCreateIndex:
@@ -284,7 +291,9 @@ class TestReadOps:
             all_docs = await client.get_docs(index_name)
             assert len(all_docs) == 5_000
 
-            specific = await client.get_docs(index_name, GetDocumentsOptions(doc_ids=["doc-0", "doc-100", "doc-999"]))
+            specific = await client.get_docs(
+                index_name, GetDocumentsOptions(doc_ids=["doc-0", "doc-100", "doc-999"])
+            )
             assert len(specific) == 3
             ids = {d.id for d in specific}
             assert ids == {"doc-0", "doc-100", "doc-999"}

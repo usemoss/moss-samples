@@ -1,28 +1,84 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import os
+import time
 import uuid
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 import httpx
 from moss_core import (
     CLOUD_API_MANAGE_URL,
-    ManageClient,
     DocumentInfo,
     GetDocumentsOptions,
     IndexInfo,
     IndexManager,
+    JobStatusResponse,
+    ManageClient,
     MutationOptions,
     MutationResult,
-    JobStatusResponse,
     QueryOptions,
     QueryResultDocumentInfo,
     SearchResult,
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class QueryMetrics:
+    """
+    Metrics and timing data for a single query execution.
+
+    Emitted to user-provided callbacks/sinks when querying an index.
+
+    Attributes:
+        index_name: Name of the queried index.
+        query: The search query string.
+        duration_ms: Total query execution duration in milliseconds.
+        result_count: Number of results returned (0 if error or no matches).
+        is_local: True if executed locally in-memory via IndexManager, False if fallback to cloud API.
+        top_k: Top-k parameter passed to the query, if specified.
+        alpha: Alpha parameter (hybrid weight) passed to the query, if specified.
+        engine_time_ms: Engine-reported execution time in milliseconds, if available from the search result.
+        error: Exception raised during query execution, or None if successful.
+    """
+
+    index_name: str
+    query: str
+    duration_ms: float
+    result_count: int
+    is_local: bool
+    top_k: Optional[int] = None
+    alpha: Optional[float] = None
+    engine_time_ms: Optional[int] = None
+    error: Optional[Exception] = None
+
+    @property
+    def is_success(self) -> bool:
+        """True if the query completed successfully without raising an exception."""
+        return self.error is None
+
+    def as_dict(self) -> Dict[str, Any]:
+        """Convert metrics to a dictionary suitable for logging or serialization."""
+        return {
+            "index_name": self.index_name,
+            "query": self.query,
+            "duration_ms": self.duration_ms,
+            "result_count": self.result_count,
+            "is_local": self.is_local,
+            "top_k": self.top_k,
+            "alpha": self.alpha,
+            "engine_time_ms": self.engine_time_ms,
+            "is_success": self.is_success,
+            "error": str(self.error) if self.error is not None else None,
+        }
+
+
+QueryHook = Callable[[QueryMetrics], Any]
 
 
 def _get_manage_url() -> str:
@@ -62,9 +118,16 @@ class MossClient:
 
     DEFAULT_MODEL_ID = "moss-minilm"
 
-    def __init__(self, project_id: str, project_key: str) -> None:
+    def __init__(
+        self,
+        project_id: str,
+        project_key: str,
+        *,
+        on_query: Optional[Union[QueryHook, Sequence[QueryHook]]] = None,
+    ) -> None:
         self._project_id = project_id
         self._project_key = project_key
+        self._on_query = on_query
         self._client_id = str(uuid.uuid4())
         manage_url = _get_manage_url()
         self._manage = ManageClient(
@@ -73,6 +136,16 @@ class MossClient:
         self._manager = IndexManager(
             project_id, project_key, manage_url, self._client_id
         )
+
+    @property
+    def on_query(self) -> Optional[Union[QueryHook, Sequence[QueryHook]]]:
+        """Get the configured query metrics hook(s)."""
+        return self._on_query
+
+    @on_query.setter
+    def on_query(self, hook: Optional[Union[QueryHook, Sequence[QueryHook]]]) -> None:
+        """Set or update the query metrics hook(s)."""
+        self._on_query = hook
 
     # -- Mutations (via Rust ManageClient) --------------------------
 
@@ -181,6 +254,8 @@ class MossClient:
         name: str,
         query: str,
         options: Optional[QueryOptions] = None,
+        *,
+        on_query: Optional[Union[QueryHook, Sequence[QueryHook]]] = None,
     ) -> SearchResult:
         """
         Perform a semantic similarity search.
@@ -189,24 +264,88 @@ class MossClient:
         Otherwise, falls back to the cloud query API.
 
         Args:
+            name: Name of the target index to search.
+            query: The search query text.
             options: Query options (top_k, alpha, embedding, filter). Example filter:
                 QueryOptions(filter={"$and": [
                     {"field": "city", "condition": {"$eq": "NYC"}},
                     {"field": "price", "condition": {"$lt": "50"}},
                 ]})
+            on_query: Optional callback or sequence of callbacks invoked with QueryMetrics.
         """
-        is_loaded = await asyncio.to_thread(self._manager.has_index, name)
+        start_time = time.perf_counter()
+        is_local = False
+        result_count = 0
+        engine_time_ms = None
+        error: Optional[Exception] = None
+        try:
+            is_loaded = await asyncio.to_thread(self._manager.has_index, name)
 
-        if is_loaded:
-            return await self._query_local(name, query, options)
+            if is_loaded:
+                is_local = True
+                result = await self._query_local(name, query, options)
+            else:
+                is_local = False
+                if getattr(options, "filter", None) is not None:
+                    logger.warning(
+                        "Metadata filter ignored: filtering is only supported for locally loaded indexes. "
+                        "Call load_index('%s') first.",
+                        name,
+                    )
+                result = await self._query_cloud(name, query, options)
 
-        if getattr(options, "filter", None) is not None:
-            logger.warning(
-                "Metadata filter ignored: filtering is only supported for locally loaded indexes. "
-                "Call load_index('%s') first.",
-                name,
+            result_count = len(result.docs)
+            engine_time_ms = result.time_taken_ms
+            return result
+        except Exception as e:
+            error = e
+            raise
+        finally:
+            duration_ms = (time.perf_counter() - start_time) * 1000.0
+            metrics = QueryMetrics(
+                index_name=name,
+                query=query,
+                duration_ms=duration_ms,
+                result_count=result_count,
+                is_local=is_local,
+                top_k=getattr(options, "top_k", None),
+                alpha=getattr(options, "alpha", None),
+                engine_time_ms=engine_time_ms,
+                error=error,
             )
-        return await self._query_cloud(name, query, options)
+            await self._emit_metrics(
+                metrics,
+                on_query=on_query,
+            )
+
+    async def _emit_metrics(
+        self,
+        metrics: QueryMetrics,
+        on_query: Optional[Union[QueryHook, Sequence[QueryHook]]] = None,
+        options_on_query: Optional[Union[QueryHook, Sequence[QueryHook]]] = None,
+    ) -> None:
+        hooks: List[QueryHook] = []
+        for src in (self._on_query, options_on_query, on_query):
+            if src is not None:
+                if isinstance(src, (list, tuple, set)):
+                    for h in src:
+                        if callable(h) and h not in hooks:
+                            hooks.append(h)
+                elif callable(src) and src not in hooks:
+                    hooks.append(src)
+
+        for hook in hooks:
+            try:
+                res = hook(metrics)
+                if inspect.isawaitable(res):
+                    await res
+            except Exception as e:
+                logger.warning(
+                    "Error executing query metrics hook %r: %s",
+                    hook,
+                    e,
+                    exc_info=True,
+                )
 
     # -- Internal ---------------------------------------------------
 
