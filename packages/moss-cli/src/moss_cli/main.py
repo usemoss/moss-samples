@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import typer
 
+from .commands.bench import bench_command
 from .commands.completions import completions_command
 from .commands.doc import doc_app
 from .commands.index import index_app
@@ -33,6 +33,7 @@ app.add_typer(job_app, name="job", help="Track background jobs")
 app.add_typer(profile_app, name="profile", help="Manage auth profiles")
 
 # Register top-level commands
+app.command(name="bench")(bench_command)
 app.command(name="query")(query_command)
 app.command(name="init")(init_command)
 app.command(name="version")(version_command)
@@ -44,13 +45,13 @@ app.command(name="completions")(completions_command)
 @app.callback()
 def main(
     ctx: typer.Context,
-    project_id: Optional[str] = typer.Option(
+    project_id: str | None = typer.Option(
         None, "--project-id", "-p", envvar="MOSS_PROJECT_ID", help="Project ID"
     ),
-    project_key: Optional[str] = typer.Option(
+    project_key: str | None = typer.Option(
         None, "--project-key", envvar="MOSS_PROJECT_KEY", help="Project key"
     ),
-    profile: Optional[str] = typer.Option(
+    profile: str | None = typer.Option(
         None,
         "--profile",
         envvar="MOSS_PROFILE",
@@ -80,7 +81,7 @@ def run() -> None:
         app()
     except (typer.Exit, typer.Abort, SystemExit):
         raise
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print_error(str(e))
         raise typer.Exit(1)
 

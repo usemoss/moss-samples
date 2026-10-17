@@ -13,6 +13,7 @@ Moss CLI wraps the [Moss Python SDK](https://docs.moss.dev/) so you can build an
 - **Local by default** — downloads indexes for on-device queries, `--cloud` to skip
 - **Flexible auth** — CLI flags, environment variables, or config file
 - **Multiple output formats** — rich tables for humans, `--json` for scripts
+- **Latency benchmarking** — measure p50/p95/p99 retrieval latency with `moss bench`
 - **Job tracking** — poll background jobs with live progress display
 - **Pipe-friendly** — stdin/stdout support for composing with other tools
 
@@ -143,6 +144,28 @@ echo "what is AI" | moss query my-index
 
 # JSON output for scripting
 moss query my-index "query" --json | jq '.docs[0].text'
+```
+
+### Benchmark
+
+```bash
+# Benchmark latency with a single inline query
+moss bench my-index --query "what is semantic search?" --runs 20
+
+# Multiple inline queries
+moss bench my-index \
+  --query "what is semantic search?" \
+  --query "how does embedding work?" \
+  --runs 20 --warmup 5
+
+# Load queries from a file (one per line)
+moss bench my-index --queries-file queries.txt --runs 50
+
+# JSON output for CI/scripting
+moss bench my-index --query "what is AI?" --json
+
+# Cloud mode (skip local index download)
+moss bench my-index --query "what is AI?" --cloud --runs 10
 ```
 
 ### Job Tracking
