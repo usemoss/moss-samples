@@ -31,6 +31,8 @@ def save_config(data: dict) -> None:
     path = get_config_path()
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    # os.open() ignores the mode for existing files
+    os.chmod(str(path), 0o600)
     with os.fdopen(fd, "w") as f:
         json.dump(data, f, indent=2)
         f.write("\n")

@@ -5,6 +5,8 @@
 - Shell completions: `moss completions bash` and `moss completions zsh` output
   completion scripts covering commands, subcommands, and global flags, with
   dynamic completion of index names
+- `~/.moss/config.json` is now always written with `0600` permissions, including
+  when the file already existed with looser permissions
 
 ## [0.1.0] - 2026-03-29
 

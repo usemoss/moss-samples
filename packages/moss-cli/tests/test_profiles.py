@@ -1,5 +1,8 @@
 import json
+import stat
+import sys
 
+import pytest
 from typer.testing import CliRunner
 
 from moss_cli import config
@@ -116,6 +119,17 @@ def test_set_profile_credentials_initializes_active_when_missing(monkeypatch, tm
     cfg = json.loads(path.read_text(encoding="utf-8"))
 
     assert cfg["active_profile"] == "staging"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX permission bits")
+def test_save_config_restricts_existing_file_permissions(monkeypatch, tmp_path):
+    path = _write_config(tmp_path, {})
+    path.chmod(0o644)
+    monkeypatch.setattr(config, "get_config_path", lambda: path)
+
+    config.set_profile_credentials("default", "default-id", "default-key")
+
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
 
 def test_profile_list_command_shows_profiles(monkeypatch, tmp_path):
