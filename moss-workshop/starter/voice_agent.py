@@ -11,12 +11,19 @@ Both query in-process, under 10 ms.
 import os
 
 from dotenv import load_dotenv
-from livekit.plugins import openai, deepgram, silero
 from livekit.agents import (
-    JobContext, WorkerOptions, cli, Agent, AgentSession,
-    ChatContext, ChatMessage, RunContext, function_tool,
+    Agent,
+    AgentSession,
+    ChatContext,
+    ChatMessage,
+    JobContext,
+    RunContext,
+    WorkerOptions,
+    cli,
+    function_tool,
 )
-from moss import MossClient, DocumentInfo, QueryOptions
+from livekit.plugins import deepgram, openai, silero
+from moss import DocumentInfo, MossClient, QueryOptions
 
 load_dotenv()
 INDEX = os.getenv("MOSS_INDEX_NAME", "hackathon")

@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 from collections.abc import Sequence
 from typing import Any
+
 from moss import MossClient, QueryOptions
 from pydantic_ai import Tool
 

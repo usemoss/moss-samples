@@ -38,7 +38,6 @@ from livekit.agents import (
     function_tool,
 )
 from livekit.plugins import cartesia, deepgram, openai
-
 from moss import DocumentInfo, MossClient, QueryOptions, SessionIndex
 
 load_dotenv()

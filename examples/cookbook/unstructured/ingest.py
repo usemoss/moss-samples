@@ -11,7 +11,6 @@ from moss import DocumentInfo, MossClient, MutationOptions, QueryOptions
 from unstructured.chunking.title import chunk_by_title
 from unstructured.partition.auto import partition
 
-
 DEFAULT_MAX_CHARACTERS = 1_500
 DEFAULT_NEW_AFTER_N_CHARS = 1_200
 DEFAULT_COMBINE_UNDER_N_CHARS = 300

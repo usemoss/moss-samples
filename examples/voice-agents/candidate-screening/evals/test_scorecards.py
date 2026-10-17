@@ -20,7 +20,7 @@ import pytest
 # Make the agent module importable without installing the package.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from agent import (  # noqa: E402
+from agent import (
     RubricEntry,
     ScreeningSessionData,
     _build_scorecard,

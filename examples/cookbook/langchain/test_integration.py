@@ -1,7 +1,8 @@
 import unittest
-from unittest.mock import AsyncMock, patch, MagicMock
-from moss_langchain import MossRetriever, get_moss_tool
+from unittest.mock import AsyncMock, MagicMock, patch
+
 from langchain_core.documents import Document
+from moss_langchain import MossRetriever, get_moss_tool
 
 
 class TestMossRetriever(unittest.IsolatedAsyncioTestCase):

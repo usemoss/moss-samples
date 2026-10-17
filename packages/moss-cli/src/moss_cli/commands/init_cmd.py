@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
 import typer
+from moss import MossClient
 from rich.console import Console
 from rich.prompt import Prompt
-
-from moss import MossClient
 
 from ..config import (
     get_config_path,
@@ -24,7 +22,7 @@ console = Console()
 def init_command(
     ctx: typer.Context,
     force: bool = typer.Option(False, "--force", help="Overwrite existing config"),
-    profile: Optional[str] = typer.Option(
+    profile: str | None = typer.Option(
         None, "--profile", help="Profile name to save credentials under"
     ),
 ) -> None:

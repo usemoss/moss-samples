@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 from agents import Agent, Runner, function_tool
 from dotenv import load_dotenv
@@ -17,7 +17,7 @@ REQUIRED_ENV_VARS = (
 )
 
 
-def _require_env_vars(names: tuple[str, ...] = REQUIRED_ENV_VARS) -> Dict[str, str]:
+def _require_env_vars(names: tuple[str, ...] = REQUIRED_ENV_VARS) -> dict[str, str]:
     """Return required environment variables or raise a clear setup error."""
     values = {name: os.getenv(name) for name in names}
     missing = [name for name, value in values.items() if not value]
@@ -97,7 +97,7 @@ async def search_moss(
     index_name: str,
     query: str,
     top_k: int = DEFAULT_TOP_K,
-    filter: Optional[Dict[str, Any]] = None,
+    filter: dict[str, Any] | None = None,
 ) -> str:
     """Query Moss and format results for the OpenAI agent."""
     top_k = _validate_top_k(top_k)
@@ -116,7 +116,7 @@ def create_moss_search_tool(client: MossClient, index_name: str) -> Any:
     async def moss_search(
         query: str,
         top_k: int = DEFAULT_TOP_K,
-        filter: Optional[Dict[str, Any]] = None,
+        filter: dict[str, Any] | None = None,
     ) -> str:
         """Search the knowledge base for answers to the user's question.
 

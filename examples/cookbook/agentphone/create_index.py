@@ -16,7 +16,6 @@ import os
 from dotenv import load_dotenv
 from moss import DocumentInfo, MossClient
 
-
 DEMO_DOCS = [
     DocumentInfo(
         id="refunds",

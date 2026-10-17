@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 
 import typer
-
 from moss import MossClient
 
 from .. import output

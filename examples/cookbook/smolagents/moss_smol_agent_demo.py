@@ -6,9 +6,8 @@ from typing import Any
 
 from dotenv import load_dotenv
 from moss import DocumentInfo, MossClient
-from smolagents import CodeAgent
-
 from moss_smolagents import MossSearchTool
+from smolagents import CodeAgent
 
 
 def _require_env(name: str) -> str:

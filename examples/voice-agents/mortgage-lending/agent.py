@@ -24,7 +24,6 @@ LiveKit preserves chat history so the conversation feels continuous.
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Optional
 
 from dotenv import load_dotenv
 from livekit.agents import (
@@ -37,7 +36,6 @@ from livekit.agents import (
     function_tool,
 )
 from livekit.plugins import cartesia, deepgram, openai, silero
-
 from moss import MossClient, QueryOptions
 
 load_dotenv()
@@ -85,13 +83,13 @@ class MortgageSessionData:
     (which would silently fall back to the slow cloud query API).
     """
 
-    loan_number: Optional[str] = None
-    customer_name: Optional[str] = None
-    last_four_ssn: Optional[str] = None
-    payment_amount: Optional[float] = None
-    payment_method: Optional[str] = None
+    loan_number: str | None = None
+    customer_name: str | None = None
+    last_four_ssn: str | None = None
+    payment_amount: float | None = None
+    payment_method: str | None = None
     questions_answered: list[str] = field(default_factory=list)
-    moss_client: Optional[MossClient] = None
+    moss_client: MossClient | None = None
 
 
 # ---------------------------------------------------------------------------

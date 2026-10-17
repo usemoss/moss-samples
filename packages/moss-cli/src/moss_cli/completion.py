@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from typing import List
 
 import typer
 
@@ -11,8 +10,8 @@ from .config import resolve_credentials
 
 
 def complete_index_name(
-    ctx: typer.Context, args: List[str], incomplete: str
-) -> List[str]:
+    ctx: typer.Context, args: list[str], incomplete: str
+) -> list[str]:
     """Autocompletion callback that lists the user's index names.
 
     The shell invokes this while completing an index-name argument. It resolves

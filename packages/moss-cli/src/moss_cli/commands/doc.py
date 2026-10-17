@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
 import typer
+from moss import GetDocumentsOptions, MossClient, MutationOptions
 from rich.console import Console
-
-from moss import MossClient, GetDocumentsOptions, MutationOptions
 
 from .. import output
 from ..completion import complete_index_name
@@ -32,13 +30,13 @@ def add(
     ctx: typer.Context,
     index_name: str = typer.Argument(..., help="Index name", autocompletion=complete_index_name),
     file: str = typer.Option(..., "--file", "-f", help="Path to JSON/CSV document file, or '-' for stdin"),
-    profile: Optional[str] = typer.Option(
+    profile: str | None = typer.Option(
         None, "--profile", help="Credential profile name"
     ),
     upsert: bool = typer.Option(False, "--upsert", "-u", help="Update existing documents"),
     wait: bool = typer.Option(False, "--wait", "-w", help="Wait for job to complete"),
     poll_interval: float = typer.Option(2.0, "--poll-interval", help="Seconds between status checks"),
-    timeout: Optional[float] = typer.Option(None, "--timeout", help="Max seconds to wait (requires --wait)"),
+    timeout: float | None = typer.Option(None, "--timeout", help="Max seconds to wait (requires --wait)"),
 ) -> None:
     """Add documents to an index."""
     json_mode = ctx.obj.get("json_output", False)
@@ -67,12 +65,12 @@ def delete(
     ctx: typer.Context,
     index_name: str = typer.Argument(..., help="Index name", autocompletion=complete_index_name),
     ids: str = typer.Option(..., "--ids", "-i", help="Comma-separated document IDs"),
-    profile: Optional[str] = typer.Option(
+    profile: str | None = typer.Option(
         None, "--profile", help="Credential profile name"
     ),
     wait: bool = typer.Option(False, "--wait", "-w", help="Wait for job to complete"),
     poll_interval: float = typer.Option(2.0, "--poll-interval", help="Seconds between status checks"),
-    timeout: Optional[float] = typer.Option(None, "--timeout", help="Max seconds to wait (requires --wait)"),
+    timeout: float | None = typer.Option(None, "--timeout", help="Max seconds to wait (requires --wait)"),
 ) -> None:
     """Delete documents from an index by ID."""
     json_mode = ctx.obj.get("json_output", False)
@@ -99,8 +97,8 @@ def delete(
 def get(
     ctx: typer.Context,
     index_name: str = typer.Argument(..., help="Index name", autocompletion=complete_index_name),
-    ids: Optional[str] = typer.Option(None, "--ids", "-i", help="Comma-separated document IDs (omit for all)"),
-    profile: Optional[str] = typer.Option(
+    ids: str | None = typer.Option(None, "--ids", "-i", help="Comma-separated document IDs (omit for all)"),
+    profile: str | None = typer.Option(
         None, "--profile", help="Credential profile name"
     ),
 ) -> None:

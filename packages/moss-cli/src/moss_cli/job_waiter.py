@@ -6,14 +6,12 @@ import asyncio
 import json
 import sys
 import time
-from typing import Optional
 
+from moss import MossClient
 from rich.console import Console
 from rich.live import Live
 from rich.spinner import Spinner
 from rich.text import Text
-
-from moss import MossClient
 
 from . import output
 
@@ -44,7 +42,7 @@ async def wait_for_job(
     job_id: str,
     poll_interval: float = 2.0,
     json_mode: bool = False,
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
 ) -> None:
     """Poll job status until terminal state, showing progress."""
     terminal = {"COMPLETED", "FAILED"}

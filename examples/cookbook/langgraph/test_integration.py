@@ -5,14 +5,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from moss_langgraph import (
-    ask_question,
-    build_moss_graph,
-)
 from example_usage import (
     _load_index_before_graph_runs,
     _parse_filter_eq,
     run_langgraph_agent,
+)
+from moss_langgraph import (
+    ask_question,
+    build_moss_graph,
 )
 
 

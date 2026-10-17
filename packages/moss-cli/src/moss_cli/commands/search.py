@@ -5,12 +5,10 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
-from typing import Optional
 
 import typer
-from rich.console import Console
-
 from moss import MossClient, QueryOptions
+from rich.console import Console
 
 from .. import output
 from ..completion import complete_index_name
@@ -19,7 +17,7 @@ from ..config import resolve_credentials
 console = Console()
 
 
-def _parse_set_command(line: str) -> tuple[Optional[str], Optional[str]]:
+def _parse_set_command(line: str) -> tuple[str | None, str | None]:
     parts = line.strip().split()
     if len(parts) != 3 or parts[0] != "/set":
         return None, "Usage: /set <alpha|top-k> <value>"
@@ -49,13 +47,13 @@ def _parse_set_command(line: str) -> tuple[Optional[str], Optional[str]]:
 def query_command(
     ctx: typer.Context,
     index_name: str = typer.Argument(..., help="Index name", autocompletion=complete_index_name),
-    query_text: Optional[str] = typer.Argument(None, help="Search query (reads from stdin if omitted)"),
-    profile: Optional[str] = typer.Option(
+    query_text: str | None = typer.Argument(None, help="Search query (reads from stdin if omitted)"),
+    profile: str | None = typer.Option(
         None, "--profile", help="Credential profile name"
     ),
     top_k: int = typer.Option(10, "--top-k", "-k", help="Number of results"),
     alpha: float = typer.Option(0.8, "--alpha", "-a", help="Semantic weight (0.0=keyword, 1.0=semantic)"),
-    filter_json: Optional[str] = typer.Option(None, "--filter", help="Metadata filter as JSON string"),
+    filter_json: str | None = typer.Option(None, "--filter", help="Metadata filter as JSON string"),
     cloud: bool = typer.Option(False, "--cloud", "-c", help="Query via cloud API instead of downloading the index"),
     interactive: bool = typer.Option(
         False,

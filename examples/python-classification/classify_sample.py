@@ -16,7 +16,6 @@ import os
 import time
 
 from dotenv import load_dotenv
-
 from moss_classify_rest import MossClassifyClient
 
 load_dotenv()

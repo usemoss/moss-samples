@@ -17,9 +17,8 @@ import time
 import uuid
 
 from dotenv import load_dotenv
+from moss import DocumentInfo, MossClient, QueryOptions
 from openai import AsyncOpenAI
-
-from moss import MossClient, DocumentInfo, QueryOptions
 
 # semantic similarity above which a cached answer is "close enough" to reuse.
 # too low -> you answer questions people didn't quite ask; too high -> you miss.

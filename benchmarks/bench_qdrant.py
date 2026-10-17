@@ -8,11 +8,10 @@ Requires QDRANT_URL and QDRANT_API_KEY environment variables.
 
 import os
 
-from dotenv import load_dotenv
-
 from corpus import get_documents, get_queries
+from dotenv import load_dotenv
 from embedding import EmbeddingClient
-from stats import Timer, BenchmarkResult
+from stats import BenchmarkResult, Timer
 
 load_dotenv()
 

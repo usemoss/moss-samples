@@ -17,10 +17,8 @@ Requires ``moss>=1.1.0``.
 import asyncio
 import os
 from datetime import datetime
-from typing import List
 
 from dotenv import load_dotenv
-
 from moss import (
     DocumentInfo,
     LoadIndexesResult,
@@ -32,7 +30,7 @@ from moss import (
 load_dotenv()
 
 
-PRODUCT_DOCS: List[DocumentInfo] = [
+PRODUCT_DOCS: list[DocumentInfo] = [
     DocumentInfo(
         id="p1",
         text="Sony WH-1000XM5 wireless noise-cancelling headphones with 30-hour battery life.",
@@ -50,7 +48,7 @@ PRODUCT_DOCS: List[DocumentInfo] = [
     ),
 ]
 
-REVIEW_DOCS: List[DocumentInfo] = [
+REVIEW_DOCS: list[DocumentInfo] = [
     DocumentInfo(
         id="r1",
         text="Battery on these wireless headphones easily lasts a 30-hour transatlantic week.",
@@ -68,7 +66,7 @@ REVIEW_DOCS: List[DocumentInfo] = [
     ),
 ]
 
-FAQ_DOCS: List[DocumentInfo] = [
+FAQ_DOCS: list[DocumentInfo] = [
     DocumentInfo(
         id="f1",
         text="How long does the battery last on wireless noise-cancelling headphones?",

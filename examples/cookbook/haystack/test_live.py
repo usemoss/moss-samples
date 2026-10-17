@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 from haystack import Document
 from haystack.document_stores.types import DuplicatePolicy
 from moss import MossClient
-
 from moss_haystack import MossDocumentStore, MossRetriever
 
 load_dotenv()

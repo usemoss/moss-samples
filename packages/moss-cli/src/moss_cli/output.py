@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import Any, Dict
+from typing import Any
 
 from rich.console import Console
 from rich.table import Table
@@ -13,7 +13,7 @@ console = Console()
 err_console = Console(stderr=True)
 
 
-def _index_to_dict(info: Any) -> Dict[str, Any]:
+def _index_to_dict(info: Any) -> dict[str, Any]:
     return {
         "id": info.id,
         "name": info.name,
@@ -26,8 +26,8 @@ def _index_to_dict(info: Any) -> Dict[str, Any]:
     }
 
 
-def _doc_to_dict(doc: Any) -> Dict[str, Any]:
-    d: Dict[str, Any] = {"id": doc.id, "text": doc.text}
+def _doc_to_dict(doc: Any) -> dict[str, Any]:
+    d: dict[str, Any] = {"id": doc.id, "text": doc.text}
     meta = getattr(doc, "metadata", None)
     if meta is not None:
         d["metadata"] = dict(meta)
@@ -37,15 +37,15 @@ def _doc_to_dict(doc: Any) -> Dict[str, Any]:
     return d
 
 
-def _result_doc_to_dict(doc: Any) -> Dict[str, Any]:
-    d: Dict[str, Any] = {"id": doc.id, "text": doc.text, "score": doc.score}
+def _result_doc_to_dict(doc: Any) -> dict[str, Any]:
+    d: dict[str, Any] = {"id": doc.id, "text": doc.text, "score": doc.score}
     meta = getattr(doc, "metadata", None)
     if meta is not None:
         d["metadata"] = dict(meta)
     return d
 
 
-def _search_result_to_dict(result: Any) -> Dict[str, Any]:
+def _search_result_to_dict(result: Any) -> dict[str, Any]:
     return {
         "query": result.query,
         "index_name": result.index_name,
@@ -54,7 +54,7 @@ def _search_result_to_dict(result: Any) -> Dict[str, Any]:
     }
 
 
-def _mutation_to_dict(result: Any) -> Dict[str, Any]:
+def _mutation_to_dict(result: Any) -> dict[str, Any]:
     return {
         "job_id": result.job_id,
         "index_name": result.index_name,
@@ -62,8 +62,8 @@ def _mutation_to_dict(result: Any) -> Dict[str, Any]:
     }
 
 
-def _job_status_to_dict(status: Any) -> Dict[str, Any]:
-    d: Dict[str, Any] = {
+def _job_status_to_dict(status: Any) -> dict[str, Any]:
+    d: dict[str, Any] = {
         "job_id": status.job_id,
         "status": status.status.value if hasattr(status.status, "value") else str(status.status),
         "progress": status.progress,

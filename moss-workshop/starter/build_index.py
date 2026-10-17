@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from moss import MossClient, DocumentInfo
+from moss import DocumentInfo, MossClient
 
 load_dotenv()
 INDEX = os.getenv("MOSS_INDEX_NAME", "hackathon")

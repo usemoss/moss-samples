@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Dict, Optional, Set
 
 import typer
-from rich.console import Console
-
 from moss import MossClient, MutationOptions
+from rich.console import Console
 
 from .. import output
 from ..completion import complete_index_name
@@ -27,9 +25,9 @@ def _client(ctx: typer.Context) -> MossClient:
     return MossClient(pid, pkey)
 
 
-def _scan(directory: Path, exts: Set[str]) -> Dict[Path, float]:
+def _scan(directory: Path, exts: set[str]) -> dict[Path, float]:
     """Return {path: mtime} for all files matching the given extensions."""
-    result: Dict[Path, float] = {}
+    result: dict[Path, float] = {}
     for ext in exts:
         for p in directory.glob(f"**/*.{ext}"):
             result[p] = p.stat().st_mtime
@@ -43,7 +41,7 @@ async def _upsert_file(
     json_mode: bool,
     wait: bool,
     poll_interval: float,
-    timeout: Optional[float],
+    timeout: float | None,
 ) -> None:
     try:
         docs = load_documents(str(path))
@@ -73,8 +71,8 @@ def sync_command(
     scan_interval: float = typer.Option(2.0, "--scan-interval", help="Seconds between directory scans (watch mode)"),
     wait: bool = typer.Option(False, "--wait", help="Wait for each upsert job to complete"),
     poll_interval: float = typer.Option(2.0, "--poll-interval", help="Seconds between job status checks"),
-    timeout: Optional[float] = typer.Option(None, "--timeout", help="Max seconds to wait per job (requires --wait)"),
-    profile: Optional[str] = typer.Option(None, "--profile", help="Credential profile name"),
+    timeout: float | None = typer.Option(None, "--timeout", help="Max seconds to wait per job (requires --wait)"),
+    profile: str | None = typer.Option(None, "--profile", help="Credential profile name"),
 ) -> None:
     """Sync documents from a directory into an index.
 

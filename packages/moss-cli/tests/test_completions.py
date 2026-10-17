@@ -1,7 +1,6 @@
-from typer.testing import CliRunner
-
 from moss_cli import completion
 from moss_cli.main import app
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

@@ -10,7 +10,6 @@ import asyncio
 import json
 import os
 from pathlib import Path
-from typing import List
 
 from dotenv import load_dotenv
 from moss import DocumentInfo, MossClient
@@ -32,7 +31,7 @@ def _get_index_name(base_name: str, tier: str) -> str:
     return f"{base_name}-{tier}"
 
 
-def _load_documents(tier: str) -> List[DocumentInfo]:
+def _load_documents(tier: str) -> list[DocumentInfo]:
     """Load documents from the tiered COCO JSON file."""
     data_path = _get_data_file_path(tier)
     if not data_path.exists():
@@ -46,7 +45,7 @@ def _load_documents(tier: str) -> List[DocumentInfo]:
     if not isinstance(data, list):
         raise ValueError("Data file must contain a JSON array.")
 
-    documents: List[DocumentInfo] = []
+    documents: list[DocumentInfo] = []
     for entry in data:
         if not isinstance(entry, dict):
             continue
@@ -84,7 +83,7 @@ async def create_index_for_tier(tier: str) -> None:
         if not value
     ]
     if missing:
-        raise EnvironmentError(
+        raise OSError(
             "Missing required environment variables: " + ", ".join(missing)
         )
 

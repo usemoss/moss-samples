@@ -10,8 +10,9 @@ console = Console()
 
 def version_command(ctx: typer.Context) -> None:
     """Print CLI and SDK version information."""
-    import moss_cli
     import moss
+
+    import moss_cli
 
     json_mode = ctx.obj.get("json_output", False)
 

@@ -6,13 +6,13 @@ import csv
 import json
 import sys
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 
 import typer
 from moss import DocumentInfo
 
 
-def load_documents(file_path: str) -> List[DocumentInfo]:
+def load_documents(file_path: str) -> list[DocumentInfo]:
     """Load documents from a JSON/CSV file or stdin ('-')."""
     if file_path == "-":
         raw = sys.stdin.read()
@@ -35,7 +35,7 @@ def load_documents(file_path: str) -> List[DocumentInfo]:
         return _parse_json_docs(content, source=file_path)
 
 
-def _parse_json_docs(raw: str, source: str = "input") -> List[DocumentInfo]:
+def _parse_json_docs(raw: str, source: str = "input") -> list[DocumentInfo]:
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as e:
@@ -52,7 +52,7 @@ def _parse_json_docs(raw: str, source: str = "input") -> List[DocumentInfo]:
     return [_dict_to_doc(d, i) for i, d in enumerate(data)]
 
 
-def _parse_jsonl_docs(raw: str, source: str = "input") -> List[DocumentInfo]:
+def _parse_jsonl_docs(raw: str, source: str = "input") -> list[DocumentInfo]:
     docs = []
     for line_no, line in enumerate(raw.splitlines(), start=1):
         line = line.strip()
@@ -66,7 +66,7 @@ def _parse_jsonl_docs(raw: str, source: str = "input") -> List[DocumentInfo]:
     return docs
 
 
-def _parse_csv_docs(content: str) -> List[DocumentInfo]:
+def _parse_csv_docs(content: str) -> list[DocumentInfo]:
     reader = csv.DictReader(content.splitlines())
     docs = []
     for i, row in enumerate(reader):
@@ -75,7 +75,7 @@ def _parse_csv_docs(content: str) -> List[DocumentInfo]:
                 f"CSV row {i + 1}: missing required 'id' or 'text' column"
             )
         metadata = None
-        if "metadata" in row and row["metadata"]:
+        if row.get("metadata"):
             try:
                 metadata = json.loads(row["metadata"])
             except json.JSONDecodeError:
@@ -84,7 +84,7 @@ def _parse_csv_docs(content: str) -> List[DocumentInfo]:
                 )
 
         embedding = None
-        if "embedding" in row and row["embedding"]:
+        if row.get("embedding"):
             try:
                 embedding = json.loads(row["embedding"])
             except json.JSONDecodeError:

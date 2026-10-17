@@ -24,7 +24,6 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from moss import MossClient, QueryOptions
-
 from moss_agentphone import (
     log_moss_search,
     ndjson,
@@ -32,7 +31,6 @@ from moss_agentphone import (
     to_anthropic_history,
     verify_webhook_signature,
 )
-
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)-7s %(message)s")
 logger = logging.getLogger("moss_agentphone.server")

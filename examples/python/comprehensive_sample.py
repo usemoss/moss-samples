@@ -14,9 +14,9 @@ The sample uses a dynamic index name based on current timestamp to avoid conflic
 
 import asyncio
 import os
-from typing import List
-from dotenv import load_dotenv
 from datetime import datetime
+
+from dotenv import load_dotenv
 from moss import (
     DocumentInfo,
     GetDocumentsOptions,
@@ -62,7 +62,7 @@ async def comprehensive_moss_example():
     client = MossClient(project_id, project_key)
 
     # Create comprehensive document collection with rich metadata
-    documents: List[DocumentInfo] = [
+    documents: list[DocumentInfo] = [
         DocumentInfo(
             id="tech-ai-001",
             text="Artificial Intelligence (AI) is transforming industries by enabling machines to perform tasks that typically require human intelligence. From healthcare diagnostics to autonomous vehicles, AI applications are revolutionizing how we work and live.",
@@ -202,7 +202,7 @@ async def comprehensive_moss_example():
             print(f"   - {idx.name}: {idx.doc_count} docs, status: {idx.status}")
 
         print("\nStep 4: Adding additional documents with upsert...")
-        additional_docs: List[DocumentInfo] = [
+        additional_docs: list[DocumentInfo] = [
             DocumentInfo(
                 id="security-cyber-008",
                 text="Cybersecurity protects digital systems, networks, and data from cyber threats. It involves implementing security measures, monitoring for vulnerabilities, and responding to incidents to maintain data integrity and privacy.",

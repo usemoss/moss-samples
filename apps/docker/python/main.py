@@ -12,6 +12,7 @@ Env vars (set via docker-compose or your container runtime):
 
 import asyncio
 import os
+
 from dotenv import load_dotenv
 from moss import MossClient, QueryOptions
 

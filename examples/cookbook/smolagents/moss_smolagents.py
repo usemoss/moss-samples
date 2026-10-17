@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from moss import MossClient, QueryOptions
 from smolagents import Tool
@@ -29,9 +30,9 @@ class MossSearchTool(Tool):
     def __init__(
         self,
         *,
-        client: Optional[MossClient] = None,
-        project_id: Optional[str] = None,
-        project_key: Optional[str] = None,
+        client: MossClient | None = None,
+        project_id: str | None = None,
+        project_key: str | None = None,
         index_name: str,
         tool_name: str = "moss_search",
         top_k: int = 5,

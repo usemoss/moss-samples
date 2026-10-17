@@ -5,10 +5,8 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Optional, Tuple
 
 import typer
-
 
 DEFAULT_PROFILE = "default"
 
@@ -69,7 +67,7 @@ def _normalize_config(config: dict) -> dict:
     return normalized
 
 
-def get_selected_profile(profile: Optional[str] = None) -> str:
+def get_selected_profile(profile: str | None = None) -> str:
     if profile:
         return profile
 
@@ -84,7 +82,7 @@ def get_selected_profile(profile: Optional[str] = None) -> str:
     return DEFAULT_PROFILE
 
 
-def get_profile_credentials(profile: str) -> Tuple[Optional[str], Optional[str]]:
+def get_profile_credentials(profile: str) -> tuple[str | None, str | None]:
     config = _normalize_config(load_config())
     profiles = config.get("profiles", {})
     if not isinstance(profiles, dict):
@@ -108,9 +106,7 @@ def set_profile_credentials(profile: str, project_id: str, project_key: str) -> 
 
     profiles[profile] = {"project_id": project_id, "project_key": project_key}
     active_profile = normalized.get("active_profile")
-    if not isinstance(active_profile, str) or not active_profile:
-        active_profile = profile
-    elif active_profile not in profiles:
+    if not isinstance(active_profile, str) or not active_profile or active_profile not in profiles:
         active_profile = profile
     save_config({"active_profile": active_profile, "profiles": profiles})
 
@@ -123,7 +119,7 @@ def list_profiles() -> list[str]:
     return sorted(name for name in profiles.keys() if isinstance(name, str) and name)
 
 
-def delete_profile(profile: str) -> Tuple[bool, Optional[str]]:
+def delete_profile(profile: str) -> tuple[bool, str | None]:
     normalized = _normalize_config(load_config())
     profiles = normalized.get("profiles", {})
     if not isinstance(profiles, dict) or profile not in profiles:
@@ -149,10 +145,10 @@ def delete_profile(profile: str) -> Tuple[bool, Optional[str]]:
 
 
 def resolve_credentials(
-    project_id: Optional[str] = None,
-    project_key: Optional[str] = None,
-    profile: Optional[str] = None,
-) -> Tuple[str, str]:
+    project_id: str | None = None,
+    project_key: str | None = None,
+    profile: str | None = None,
+) -> tuple[str, str]:
     """Resolve credentials from flags, env vars, or config file."""
     pid = project_id or os.getenv("MOSS_PROJECT_ID")
     pkey = project_key or os.getenv("MOSS_PROJECT_KEY")

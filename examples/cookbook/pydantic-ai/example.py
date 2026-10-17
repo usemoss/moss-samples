@@ -5,9 +5,8 @@ import os
 
 from dotenv import load_dotenv
 from moss import DocumentInfo, MossClient
-from pydantic_ai import Agent
-
 from moss_pydantic_ai import MossSearchTool
+from pydantic_ai import Agent
 
 
 def _require_env(name: str) -> str:

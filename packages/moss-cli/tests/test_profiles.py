@@ -1,13 +1,11 @@
 import json
 
-from typer.testing import CliRunner
-
 from moss_cli import config
-from moss_cli.commands import init_cmd
 from moss_cli.commands import index as index_cmd
+from moss_cli.commands import init_cmd
 from moss_cli.commands import search as search_cmd
 from moss_cli.main import app
-
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

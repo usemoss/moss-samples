@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
 import typer
-from rich.console import Console
-
 from moss import MossClient
+from rich.console import Console
 
 from .. import output
 from ..completion import complete_index_name
@@ -32,13 +30,13 @@ def create(
     ctx: typer.Context,
     name: str = typer.Argument(..., help="Index name"),
     file: str = typer.Option(..., "--file", "-f", help="Path to JSON/CSV document file, or '-' for stdin"),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help="Model ID (default: moss-minilm)"),
-    profile: Optional[str] = typer.Option(
+    model: str | None = typer.Option(None, "--model", "-m", help="Model ID (default: moss-minilm)"),
+    profile: str | None = typer.Option(
         None, "--profile", help="Credential profile name"
     ),
     wait: bool = typer.Option(False, "--wait", "-w", help="Wait for job to complete"),
     poll_interval: float = typer.Option(2.0, "--poll-interval", help="Seconds between status checks"),
-    timeout: Optional[float] = typer.Option(None, "--timeout", help="Max seconds to wait (requires --wait)"),
+    timeout: float | None = typer.Option(None, "--timeout", help="Max seconds to wait (requires --wait)"),
 ) -> None:
     """Create a new index with documents."""
     json_mode = ctx.obj.get("json_output", False)
@@ -60,7 +58,7 @@ def create(
 @index_app.command(name="list")
 def list_indexes(
     ctx: typer.Context,
-    profile: Optional[str] = typer.Option(
+    profile: str | None = typer.Option(
         None, "--profile", help="Credential profile name"
     ),
 ) -> None:
@@ -77,7 +75,7 @@ def list_indexes(
 def get(
     ctx: typer.Context,
     name: str = typer.Argument(..., help="Index name", autocompletion=complete_index_name),
-    profile: Optional[str] = typer.Option(
+    profile: str | None = typer.Option(
         None, "--profile", help="Credential profile name"
     ),
 ) -> None:
@@ -94,7 +92,7 @@ def get(
 def delete(
     ctx: typer.Context,
     name: str = typer.Argument(..., help="Index name", autocompletion=complete_index_name),
-    profile: Optional[str] = typer.Option(
+    profile: str | None = typer.Option(
         None, "--profile", help="Credential profile name"
     ),
     confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation"),

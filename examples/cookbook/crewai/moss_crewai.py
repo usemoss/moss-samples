@@ -3,7 +3,13 @@ import uuid
 from typing import Any
 
 from crewai.tools import BaseTool
-from moss import DocumentInfo, GetDocumentsOptions, MossClient, MutationOptions, QueryOptions
+from moss import (
+    DocumentInfo,
+    GetDocumentsOptions,
+    MossClient,
+    MutationOptions,
+    QueryOptions,
+)
 from pydantic import BaseModel, Field, PrivateAttr
 
 
@@ -203,7 +209,7 @@ class MossGetIndexTool(MossBaseTool):
 class MossListIndexesInput(BaseModel):
     """Input schema for MossListIndexesTool."""
 
-    pass  # No input needed
+    # No input needed
 
 
 class MossListIndexesTool(MossBaseTool):

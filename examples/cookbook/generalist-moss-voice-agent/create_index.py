@@ -15,7 +15,6 @@ import argparse
 import asyncio
 import os
 from pathlib import Path
-from typing import List
 
 from dotenv import load_dotenv
 from moss import DocumentInfo, MossClient
@@ -26,12 +25,12 @@ SUPPORTED_EXTENSIONS = {".txt", ".md"}
 DEFAULT_MODEL_ID = "moss-minilm"
 
 
-def load_docs_from_dir(docs_dir: Path) -> List[DocumentInfo]:
+def load_docs_from_dir(docs_dir: Path) -> list[DocumentInfo]:
     """Read all supported text files from *docs_dir* recursively."""
     if not docs_dir.exists():
         raise FileNotFoundError(f"Docs directory not found: {docs_dir}")
 
-    documents: List[DocumentInfo] = []
+    documents: list[DocumentInfo] = []
     for path in sorted(docs_dir.rglob("*")):
         if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
             continue
@@ -70,7 +69,7 @@ async def create_index(index_name: str, docs_dir: Path) -> None:
         if not val
     ]
     if missing:
-        raise EnvironmentError(
+        raise OSError(
             "Missing required environment variables: " + ", ".join(missing)
         )
 

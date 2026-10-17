@@ -24,19 +24,18 @@ from moss_core import (
     IndexInfo,
     IndexStatus,
     IndexStatusValues,
+    JobPhase,
+    JobProgress,
+    JobStatus,
+    JobStatusResponse,
     ModelRef,
     MutationOptions,
     MutationResult,
-    JobStatus,
-    JobPhase,
-    JobProgress,
-    JobStatusResponse,
-    QueryOptions,
     QueryResultDocumentInfo,
     SearchResult,
 )
 
-from .client.moss_client import MossClient
+from .client.moss_client import MossClient, QueryOptions
 
 __version__ = "1.0.0b19"
 

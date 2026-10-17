@@ -7,10 +7,9 @@ service is needed. This measures true end-to-end latency.
 import asyncio
 import os
 
-from dotenv import load_dotenv
-
 from corpus import get_documents, get_queries
-from stats import Timer, BenchmarkResult
+from dotenv import load_dotenv
+from stats import BenchmarkResult, Timer
 
 load_dotenv()
 
@@ -21,7 +20,7 @@ QUERY_ROUNDS = 50
 
 
 async def run_async():
-    from moss import MossClient, DocumentInfo, QueryOptions
+    from moss import DocumentInfo, MossClient, QueryOptions
 
     queries = get_queries()
 

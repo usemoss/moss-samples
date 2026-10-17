@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from collections import Counter
-from typing import List
 
 import typer
 from rich.console import Console
@@ -34,7 +33,7 @@ def validate_command(
         _report(json_mode, valid=False, doc_count=0, issues=[str(e)])
         raise typer.Exit(1)
 
-    issues: List[str] = []
+    issues: list[str] = []
 
     if not docs:
         issues.append("File contains 0 documents")
@@ -60,7 +59,7 @@ def validate_command(
         raise typer.Exit(1)
 
 
-def _report(json_mode: bool, valid: bool, doc_count: int, issues: List[str]) -> None:
+def _report(json_mode: bool, valid: bool, doc_count: int, issues: list[str]) -> None:
     if json_mode:
         print(json.dumps({"valid": valid, "doc_count": doc_count, "issues": issues}, indent=2))
         return

@@ -33,7 +33,6 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 from livekit.agents import (
@@ -46,7 +45,6 @@ from livekit.agents import (
     function_tool,
 )
 from livekit.plugins import cartesia, deepgram, openai, silero
-
 from moss import MossClient, QueryOptions
 
 load_dotenv()
@@ -110,12 +108,12 @@ class ScreeningSessionData:
 
     candidate_id: str
     role_id: str
-    consent_to_record: Optional[bool] = None
+    consent_to_record: bool | None = None
     started_at: float = field(default_factory=time.time)
     rubric: dict[str, RubricEntry] = field(default_factory=dict)
     candidate_questions: list[CandidateQuestion] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
-    moss_client: Optional[MossClient] = None
+    moss_client: MossClient | None = None
 
 
 # ---------------------------------------------------------------------------

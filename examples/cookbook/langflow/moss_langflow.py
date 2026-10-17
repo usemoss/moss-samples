@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from typing import Any, Optional
+from typing import Any
 
 from langflow.custom import Component
 from langflow.io import (
@@ -34,7 +34,6 @@ from langflow.io import (
 from langflow.schema import Data
 from langflow.schema.message import Message
 from moss import MossClient, QueryOptions
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -59,7 +58,7 @@ def _run_async(coro: Any) -> Any:
         raise
 
 
-def _parse_filter(raw: str) -> Optional[dict]:
+def _parse_filter(raw: str) -> dict | None:
     """Parse an optional JSON filter string into a dict.
 
     Returns ``None`` when *raw* is empty or whitespace-only.

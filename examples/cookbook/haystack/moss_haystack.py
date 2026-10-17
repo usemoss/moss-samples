@@ -17,7 +17,7 @@ server-side.
 import asyncio
 import json
 import os
-from typing import Any, Optional
+from typing import Any
 
 from haystack import Document, component, default_from_dict, default_to_dict
 from haystack.document_stores.types import DocumentStore, DuplicatePolicy
@@ -47,7 +47,7 @@ def _run_async(coro: Any) -> Any:
 _MOSS_TYPED_PREFIX = "__moss_typed__:"
 
 
-def _serialize_metadata(meta: Optional[dict]) -> Optional[dict]:
+def _serialize_metadata(meta: dict | None) -> dict | None:
     """Convert arbitrary-typed metadata to Moss string-only metadata.
 
     Moss only accepts string values in metadata. Non-string values are
@@ -66,7 +66,7 @@ def _serialize_metadata(meta: Optional[dict]) -> Optional[dict]:
     return result
 
 
-def _deserialize_metadata(meta: Optional[dict]) -> dict:
+def _deserialize_metadata(meta: dict | None) -> dict:
     """Convert Moss string metadata back to original types.
 
     Values prefixed with ``__moss_typed__:`` are JSON-decoded to restore
@@ -98,7 +98,7 @@ def _haystack_doc_to_moss(doc: Document) -> DocumentInfo:
     )
 
 
-def _moss_doc_to_haystack(doc: Any, score: Optional[float] = None) -> Document:
+def _moss_doc_to_haystack(doc: Any, score: float | None = None) -> Document:
     """Convert Moss DocumentInfo/QueryResultDocumentInfo to Haystack Document."""
     return Document(
         id=doc.id,
@@ -115,8 +115,8 @@ class MossDocumentStore(DocumentStore):
 
     def __init__(
         self,
-        project_id: Optional[str] = None,
-        project_key: Optional[Secret] = None,
+        project_id: str | None = None,
+        project_key: Secret | None = None,
         index_name: str = "default",
         model_id: str = "moss-minilm",
     ):
@@ -208,7 +208,7 @@ class MossDocumentStore(DocumentStore):
         _run_async(self.client.delete_docs(self.index_name, document_ids))
         self._index_loaded = False
 
-    def filter_documents(self, filters: Optional[dict] = None) -> list[Document]:
+    def filter_documents(self, filters: dict | None = None) -> list[Document]:
         """Return documents from the index.
 
         When ``filters`` is None, returns every document in the index — the
@@ -277,7 +277,7 @@ class MossRetriever:
     def run(
         self,
         query: str,
-        top_k: Optional[int] = None,
+        top_k: int | None = None,
     ) -> dict[str, list[Document]]:
         """Run semantic search against Moss index.
 

@@ -48,7 +48,6 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 from livekit.agents import (
@@ -63,7 +62,6 @@ from livekit.agents import (
     function_tool,
 )
 from livekit.plugins import cartesia, deepgram, openai, silero
-
 from moss import MossClient, QueryOptions
 
 load_dotenv()
@@ -140,8 +138,8 @@ class CallSessionData:
 
     started_at: float = field(default_factory=time.time)
 
-    active_pnr: Optional[str] = None
-    active_index: Optional[str] = None
+    active_pnr: str | None = None
+    active_index: str | None = None
     bookings_loaded: list[str] = field(default_factory=list)  # all PNRs touched in this call
 
     caller_verified: bool = False
@@ -152,7 +150,7 @@ class CallSessionData:
     change_requests: list[ChangeRequest] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
-    moss_client: Optional[MossClient] = None
+    moss_client: MossClient | None = None
 
 
 # ---------------------------------------------------------------------------

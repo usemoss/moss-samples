@@ -80,7 +80,7 @@ def _discover_policies() -> dict[str, Path]:
             text = summary["text"]
             import re
 
-            m = re.search(r"Policy number\s+([\w\-]+)", text, re.I)
+            m = re.search(r"Policy number\s+([\w\-]+)", text, re.IGNORECASE)
             if m:
                 policy_num = m.group(1).strip().upper()
                 out[policy_num] = path

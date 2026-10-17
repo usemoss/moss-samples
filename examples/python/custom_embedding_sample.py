@@ -4,17 +4,15 @@
 import asyncio
 import os
 import time
-from typing import List
 
 from dotenv import load_dotenv
-from openai import OpenAI
-
 from moss import (
 	DocumentInfo,
 	MossClient,
 	MutationOptions,
 	QueryOptions,
 )
+from openai import OpenAI
 
 # ---------- Configuration ----------
 load_dotenv()
@@ -104,7 +102,7 @@ WORKFLOW_QUERY = "when does the Pine Grove gardening club meet?"
 
 
 # ---------- Helper Functions ----------
-def generate_embedding(text: str) -> List[float]:
+def generate_embedding(text: str) -> list[float]:
 	"""Generate an OpenAI embedding for the provided text."""
 
 	response = openai_client.embeddings.create(

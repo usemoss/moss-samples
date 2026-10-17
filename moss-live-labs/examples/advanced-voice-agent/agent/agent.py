@@ -1,17 +1,17 @@
 # Imports and setup
 import logging
 import os
+
 from dotenv import load_dotenv
-from livekit.plugins import google, deepgram, silero, cartesia
 from livekit.agents import (
+    Agent,
+    AgentSession,
     JobContext,
     WorkerOptions,
     cli,
-    Agent,
-    AgentSession,
     function_tool,
 )
-
+from livekit.plugins import cartesia, deepgram, google, silero
 from moss import MossClient, QueryOptions
 
 load_dotenv()

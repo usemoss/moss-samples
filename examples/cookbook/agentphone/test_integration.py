@@ -249,11 +249,10 @@ class WebhookRouteTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        from fastapi.testclient import TestClient
-
         # Import server only inside the test scope so env defaults above
         # are guaranteed to be set first.
         import server  # noqa: WPS433
+        from fastapi.testclient import TestClient
 
         cls.server = server
         cls.client = TestClient(server.app)

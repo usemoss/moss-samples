@@ -186,6 +186,31 @@ results = await client.query(
 
 For a complete runnable example, see [`examples/python/metadata_filtering.py`](../../examples/python/metadata_filtering.py).
 
+### Reranking (High Precision)
+
+If you need higher precision at the top of the result list than first-stage retrieval gives, you can enable the optional local cross-encoder reranker.
+
+When `rerank=True` is provided, Moss will fetch a larger pool of candidates (`rerank_top_k`, default 50) and locally re-score them using a `sentence-transformers` cross-encoder before returning the final `top_k` results.
+
+First, install the optional dependencies:
+```bash
+pip install 'moss[rerank]'
+```
+
+Then, enable it in your query:
+```python
+results = await client.query(
+    "my-docs",
+    "How to process a refund?",
+    QueryOptions(
+        top_k=5, 
+        rerank=True, 
+        rerank_top_k=50, # Optional: number of candidates to fetch for reranking
+        # rerank_model="cross-encoder/ms-marco-MiniLM-L-6-v2" # Optional override
+    ),
+)
+```
+
 ## 🧠 Providing custom embeddings
 
 Already using your own embedding model? Supply vectors directly when managing

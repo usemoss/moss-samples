@@ -7,7 +7,6 @@ from haystack.components.builders import PromptBuilder
 from haystack.components.generators import OpenAIGenerator
 from haystack.components.joiners import DocumentJoiner
 from haystack.utils import Secret
-
 from moss_haystack import MossDocumentStore, MossRetriever
 
 load_dotenv()

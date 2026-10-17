@@ -11,6 +11,7 @@ Supported providers (set EMBEDDING_PROVIDER in .env):
 """
 
 import os
+
 import requests
 from openai import OpenAI
 
