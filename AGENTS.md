@@ -56,6 +56,7 @@ apps/
 packages/
   agora-moss/            — Agora Conversational AI MCP server package
   elevenlabs-moss/       — ElevenLabs integration package
+  letta-moss/            — Letta (MemGPT) archival memory integration package
   moss-cli/              — CLI for index/document management (no-code workflows)
   moss-data-connector/   — Database source connectors
     moss-connector-mongodb/  — MongoDB connector
@@ -136,6 +137,7 @@ asks for an experimental landing spot.
 | ------- | ---------- | ---------------- |
 | `agora-moss/` | (internal) | MCP server exposing Moss search to Agora Conversational AI |
 | `elevenlabs-moss/` | `elevenlabs-moss` | `MossElevenLabsTool` — drop-in knowledge-base tool for ElevenLabs agents |
+| `letta-moss/` | `letta-moss` | `MossLettaMemory` + MCP/custom-tool surfaces — Moss-backed archival memory for Letta (MemGPT) agents |
 | `moss-cli/` | `moss-cli` | CLI: `moss index`, `moss query`, `moss documents` — no-code index management |
 | `moss-connector-mongodb/` | `moss-connector-mongodb` | Sync MongoDB collections → Moss index |
 | `moss-connector-mysql/` | `moss-connector-mysql` | Sync MySQL / MariaDB tables → Moss index |
