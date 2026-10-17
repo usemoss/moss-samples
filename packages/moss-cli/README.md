@@ -99,6 +99,13 @@ moss doc add my-index -f new-docs.json
 # Add with upsert (update existing, insert new)
 moss doc add my-index -f docs.json --upsert --wait
 
+# Import a file whose columns use different names
+moss documents import my-index -f products.csv \
+  --id-column sku \
+  --text-column description \
+  --metadata-columns category,price \
+  --upsert --wait
+
 # Get all documents
 moss doc get my-index
 
@@ -220,11 +227,36 @@ doc2,Deep learning with neural networks,
 doc3,Natural language processing,"{""topic"": ""nlp""}"
 ```
 
+For CSV or JSON data that does not use the standard `id` and `text` field
+names, use `moss documents import` (or the shorter `moss doc import`) to map
+source columns. Repeat `--metadata-column` or pass a comma-separated list to
+`--metadata-columns`; non-empty values from those columns are stored as string
+metadata.
+
+```csv
+sku,description,category,price
+A-100,Lightweight trail running shoe,footwear,89.99
+A-200,Waterproof hiking boot,footwear,129.99
+```
+
+```bash
+moss documents import products -f products.csv \
+  --id-column sku \
+  --text-column description \
+  --metadata-column category \
+  --metadata-column price
+```
+
+Column mapping also works with top-level fields in JSON and JSONL documents.
+IDs are never generated automatically: every record must have a non-empty
+value in the mapped ID and text columns.
+
 ### stdin
 
 ```bash
 cat docs.json | moss index create my-index -f -
 cat docs.json | moss doc add my-index -f -
+cat docs.json | moss documents import my-index -f - --id-column doc_id --text-column body
 ```
 
 ## Global Options

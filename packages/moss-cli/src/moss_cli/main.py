@@ -29,6 +29,11 @@ app = typer.Typer(
 # Register subgroups
 app.add_typer(index_app, name="index", help="Manage indexes")
 app.add_typer(doc_app, name="doc", help="Manage documents")
+app.add_typer(
+    doc_app,
+    name="documents",
+    help="Manage documents (alias for 'doc')",
+)
 app.add_typer(job_app, name="job", help="Track background jobs")
 app.add_typer(profile_app, name="profile", help="Manage auth profiles")
 

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Bulk document import: `moss documents import` / `moss doc import` can map
+  custom ID, text, and metadata columns from CSV, JSON, and JSONL files
 - Shell completions: `moss completions bash` and `moss completions zsh` output
   completion scripts covering commands, subcommands, and global flags, with
   dynamic completion of index names
