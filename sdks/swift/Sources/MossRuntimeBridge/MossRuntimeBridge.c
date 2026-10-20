@@ -260,7 +260,8 @@ const char *moss_runtime_bridge_load_indexes_failed_error_at(const void *result,
 }
 
 int32_t moss_runtime_bridge_load_indexes_failed_code_at(const void *result, uintptr_t i) {
-#if defined(MOSS_ERROR_DETAIL_API_VERSION) && MOSS_ERROR_DETAIL_API_VERSION >= 1
+#if defined(MOSS_MULTI_INDEX_API_VERSION) && MOSS_MULTI_INDEX_API_VERSION >= 1 \
+    && defined(MOSS_ERROR_DETAIL_API_VERSION) && MOSS_ERROR_DETAIL_API_VERSION >= 1
     const MossLoadIndexesResult *r = (const MossLoadIndexesResult *)result;
     if (r == NULL || r->failed_codes == NULL || i >= r->failed_count) {
         return 0;
