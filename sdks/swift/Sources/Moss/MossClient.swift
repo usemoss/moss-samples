@@ -25,11 +25,9 @@ public final class MossClient: @unchecked Sendable {
     /// `borrowHandle()` which both reads it and increments `inFlight` in
     /// a single critical section.
     private var handle: OpaquePointer?
-    /// Authenticator-backed clients retain an opaque pointer to an
-    /// `AuthenticatorBox` (`Unmanaged.passRetained`) as the native side's
-    /// user_data. `close()` releases it once, after the in-flight count
-    /// has drained.
-    private var authUserData: UnsafeMutableRawPointer?
+    /// The authenticator the native side calls through its user_data pointer.
+    /// The client and every session opened from it hold it until their native free.
+    private var authBox: AuthenticatorBox?
     /// Number of operations that have called `borrowHandle()` but not yet
     /// `returnHandle()`. `close()` waits on `stateCond` until this drops
     /// to zero before freeing the native handle, so an in-flight call
@@ -38,7 +36,7 @@ public final class MossClient: @unchecked Sendable {
     /// Once true, no new `borrowHandle()` succeeds. Set by `close()`
     /// before it begins waiting for `inFlight` to drain.
     private var closed: Bool = false
-    /// Mutex + condition variable guarding `handle`, `authUserData`,
+    /// Mutex + condition variable guarding `handle`, `authBox`,
     /// `inFlight`, and `closed`. `close()` signals here when ops finish.
     private let stateCond = NSCondition()
 
@@ -64,7 +62,7 @@ public final class MossClient: @unchecked Sendable {
         try Self.throwIfErr(r)
         guard let raw else { throw Self.missingResult() }
         self.handle = raw
-        self.authUserData = nil
+        self.authBox = nil
     }
 
     /// Construct a client whose bearer tokens come from [authenticator].
@@ -76,10 +74,7 @@ public final class MossClient: @unchecked Sendable {
     ) throws {
         try Self.ensureModelCacheDir()
         let box = AuthenticatorBox(authenticator)
-        // Retain the box and pass its raw pointer as user_data. The native
-        // side stores it for the client's lifetime. `close()` releases the
-        // retained reference exactly once.
-        let userData = Unmanaged.passRetained(box).toOpaque()
+        let userData = Unmanaged.passUnretained(box).toOpaque()
         let did = Self.stableDeviceId()
 
         var raw: OpaquePointer?
@@ -97,17 +92,10 @@ public final class MossClient: @unchecked Sendable {
                 }
             }
         }
-        if r != 0 {
-            // Ownership returns to us so the box is freed on the error path.
-            Unmanaged<AuthenticatorBox>.fromOpaque(userData).release()
-            try Self.throwIfErr(r)
-        }
-        guard let raw else {
-            Unmanaged<AuthenticatorBox>.fromOpaque(userData).release()
-            throw Self.missingResult()
-        }
+        try Self.throwIfErr(r)
+        guard let raw else { throw Self.missingResult() }
         self.handle = raw
-        self.authUserData = userData
+        self.authBox = box
     }
 
     deinit { close() }
@@ -131,12 +119,13 @@ public final class MossClient: @unchecked Sendable {
         }
         let h = handle
         handle = nil
-        let ud = authUserData
-        authUserData = nil
+        let box = authBox
+        authBox = nil
         stateCond.unlock()
 
-        if let h { moss_client_free(h) }
-        if let ud { Unmanaged<AuthenticatorBox>.fromOpaque(ud).release() }
+        withExtendedLifetime(box) {
+            if let h { moss_client_free(h) }
+        }
     }
 
     public static var sdkVersion: String {
@@ -668,6 +657,7 @@ public final class MossClient: @unchecked Sendable {
         return try await Task.detached { [self] () throws -> MossSession in
             let h = try borrowHandle()
             defer { returnHandle() }
+            let box = authenticatorBox()
             return try name.withCString { cname in
                 try withOptionalCString(opts.modelId) { cmodel in
                     var raw: UnsafeMutableRawPointer?
@@ -681,7 +671,7 @@ public final class MossClient: @unchecked Sendable {
                     )
                     try Self.throwIfErr(r)
                     guard let raw else { throw Self.missingResult() }
-                    return MossSession(takingOwnershipOf: OpaquePointer(raw))
+                    return MossSession(takingOwnershipOf: OpaquePointer(raw), authBox: box)
                 }
             }
         }.value
@@ -694,6 +684,12 @@ public final class MossClient: @unchecked Sendable {
     }
 
     // ── Internals ────────────────────────────────────────────────────
+
+    private func authenticatorBox() -> AuthenticatorBox? {
+        stateCond.lock()
+        defer { stateCond.unlock() }
+        return authBox
+    }
 
     /// Throws for a name or document id holding U+0000.
     /// Names, and ids outside the JSON calls, reach libmoss as C strings

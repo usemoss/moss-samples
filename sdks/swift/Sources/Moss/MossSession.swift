@@ -38,14 +38,17 @@ public final class MossSessionEmbedding: @unchecked Sendable {
 /// native pointer, mirroring the contract in `MossClient.close()`.
 public final class MossSession: @unchecked Sendable {
     private var handle: OpaquePointer?
+    /// The client's authenticator, which the native session can call until `moss_session_free`.
+    private var authBox: AuthenticatorBox?
     private var inFlight: Int = 0
     private var closed: Bool = false
     private let stateCond = NSCondition()
 
-    /// Used by `MossClient.session(...)` only — the C API hands us a
-    /// strong, transferable pointer and we take exclusive ownership.
-    init(takingOwnershipOf raw: OpaquePointer) {
+    /// Used by `MossClient.session(...)` only. The C API hands over a
+    /// strong, transferable pointer, and the session takes exclusive ownership.
+    init(takingOwnershipOf raw: OpaquePointer, authBox: AuthenticatorBox?) {
         self.handle = raw
+        self.authBox = authBox
     }
 
     public static var supportsIdentityBoundTextInference: Bool {
@@ -80,9 +83,11 @@ public final class MossSession: @unchecked Sendable {
         }
         let h = handle
         handle = nil
+        let box = authBox
+        authBox = nil
         stateCond.unlock()
-        if let h {
-            moss_session_free(h)
+        withExtendedLifetime(box) {
+            if let h { moss_session_free(h) }
         }
     }
 
@@ -517,11 +522,16 @@ public final class MossSession: @unchecked Sendable {
     /// be re-opened via `loadFromDisk` on the next app launch without
     /// re-embedding. Vector precision matches the `vectorQuantization`
     /// passed to `MossClient.session(_:options:)`.
-    public func save(toCachePath cachePath: String) async throws {
+    ///
+    /// With `cachePath` nil the snapshot goes in `sessions/<project id>/`
+    /// under the `MOSS_SESSION_CACHE_PATH` environment variable, which only
+    /// session snapshots read, or else in the app's cache directory, at
+    /// `Library/Caches/moss/sessions/<project id>/`, which the system may purge.
+    public func save(toCachePath cachePath: String? = nil) async throws {
         try await Task.detached { [self] () throws -> Void in
             let h = try borrowHandle()
             defer { returnHandle() }
-            try cachePath.withCString { cpath in
+            try withOptionalCString(cachePath) { cpath in
                 let r = moss_session_save_to_disk(h, cpath)
                 try MossClient.throwIfErr(r)
             }
@@ -529,7 +539,8 @@ public final class MossSession: @unchecked Sendable {
     }
 
     /// Restore a session from a previous `save(toCachePath:)` at
-    /// `cachePath`. Returns the doc count restored.
+    /// `cachePath`, or with `cachePath` nil from the directory that a
+    /// `save(toCachePath:)` without one picks. Returns the doc count restored.
     ///
     /// The session adopts the model the snapshot records, except that a
     /// session opened with `modelId: "custom"` and `autoLoadOnInit: false`
@@ -539,11 +550,11 @@ public final class MossSession: @unchecked Sendable {
     /// match the one used at save time — it's part of the on-disk
     /// directory path.
     @discardableResult
-    public func loadFromDisk(cachePath: String) async throws -> Int {
+    public func loadFromDisk(cachePath: String? = nil) async throws -> Int {
         try await Task.detached { [self] () throws -> Int in
             let h = try borrowHandle()
             defer { returnHandle() }
-            return try cachePath.withCString { cpath in
+            return try withOptionalCString(cachePath) { cpath in
                 var docCount: UInt = 0
                 let r = moss_session_load_from_disk(h, cpath, &docCount)
                 try MossClient.throwIfErr(r)
