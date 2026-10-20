@@ -1,4 +1,4 @@
-Copyright (c) 2025 InferEdge Inc.
+Copyright (c) 2025-2026 InferEdge Inc.
 Required Notice: Copyright InferEdge Inc. (https://www.moss.dev/)
 Licensor Line of Business: InferEdge MOSS Runtime (https://www.moss.dev/)
 
