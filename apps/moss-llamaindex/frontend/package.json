@@ -8,7 +8,7 @@
     "start": "next start --port 3001"
   },
   "dependencies": {
-    "next": "^16.2.6",
+    "next": "^16.2.12",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "geist": "^1.7.0",
@@ -31,6 +31,6 @@
     "@tailwindcss/typography": "^0.5.19"
   },
   "overrides": {
-    "postcss": "^8.5.19"
+    "postcss": "^8.5.25"
   }
 }

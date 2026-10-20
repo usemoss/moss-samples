@@ -15,7 +15,7 @@
     "framer-motion": "^12.38.0",
     "geist": "^1.7.0",
     "lucide-react": "^0.563.0",
-    "next": "16.2.6",
+    "next": "16.2.12",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "styled-jsx": "^5.1.6"
@@ -34,6 +34,6 @@
     "vitest": "^4.1.8"
   },
   "overrides": {
-    "postcss": "^8.5.19"
+    "postcss": "^8.5.25"
   }
 }
