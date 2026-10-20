@@ -236,6 +236,12 @@ asyncio.run(main())
 Leaving the model argument undefined defaults to `moss-minilm`.
 Pass `QueryOptions` to reuse your own embeddings or to override `top_k` on a per-query basis.
 
+> **Normalize your vectors.** Moss does not normalize caller-provided embeddings, so
+> rankings match cosine similarity only when document and query vectors are unit
+> length (L2-normalized). Hosted embedding APIs such as OpenAI return normalized
+> vectors already; local models often do not. Un-normalized vectors still return
+> results, but the order can differ from what you would compute with cosine similarity.
+
 ## 📄 License
 
 [BSD 2-Clause License](./LICENSE)

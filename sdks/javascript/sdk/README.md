@@ -117,6 +117,12 @@ const results = await mossClient.query("custom-embeddings", "", {
 
 Leaving `modelId` undefined defaults to `moss-minilm`. You can still pass `{ modelId: "moss-mediumlm" }` or another supported identifier if you want the service to generate embeddings for documents without the optional `embedding` field.
 
+> **Normalize your vectors.** Moss does not normalize caller-provided embeddings, so
+> rankings match cosine similarity only when document and query vectors are unit
+> length (L2-normalized). Hosted embedding APIs such as OpenAI return normalized
+> vectors already; local models often do not. Un-normalized vectors still return
+> results, but the order can differ from what you would compute with cosine similarity.
+
 ## Metadata filtering
 
 You can pass a metadata filter in `query` options after loading an index locally:
