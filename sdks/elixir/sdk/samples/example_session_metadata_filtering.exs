@@ -1,6 +1,6 @@
 # Example: Metadata Filtering in a Session Index
 #
-# Counterpart to python/user-facing-with-local-indexes-support/samples/metadata_filtering.py
+# Counterpart to samples/session_metadata_filtering.py of the Python SDK
 #
 # Demonstrates querying a local session index with metadata filters.
 # All filter operations run in-memory — no cloud round trips during the session.
@@ -10,7 +10,7 @@
 # Usage:
 #   mix run samples/example_session_metadata_filtering.exs
 
-# Load credentials from sdk/.env if present.
+# Load credentials from elixir/.env if present.
 env_path = Path.join(__DIR__, "../.env")
 if File.exists?(env_path) do
   env_path |> File.read!() |> String.split("\n", trim: true)

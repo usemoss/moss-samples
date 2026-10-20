@@ -1,6 +1,6 @@
 # Example: Live Call Session Indexing with moss Elixir SDK
 #
-# Counterpart to python/user-facing-with-local-indexes-support/samples/example_usage.py
+# Counterpart to samples/example_session_usage.py of the Python SDK
 #
 # Demonstrates the full session workflow:
 #   1. Open a session — auto-loads from cloud if the index exists, starts fresh if not
@@ -12,7 +12,7 @@
 # Usage:
 #   mix run samples/example_session_usage.exs
 
-# Load credentials from sdk/.env if present.
+# Load credentials from elixir/.env if present.
 env_path = Path.join(__DIR__, "../.env")
 if File.exists?(env_path) do
   env_path |> File.read!() |> String.split("\n", trim: true)

@@ -1,6 +1,6 @@
 # Example: Resume an existing cloud index, extend it in-session, push the update.
 #
-# Counterpart to python/user-facing-with-local-indexes-support/samples/example_extend_index.py
+# Counterpart to samples/example_extend_index.py of the Python SDK
 #
 # session() automatically loads from cloud if the index exists, or starts fresh
 # if it doesn't — the workflow is identical in both cases.
@@ -11,7 +11,7 @@
 # Usage:
 #   MOSS_EXISTING_INDEX=my-session-index mix run samples/example_extend_index.exs
 
-# Load credentials from sdk/.env if present.
+# Load credentials from elixir/.env if present.
 env_path = Path.join(__DIR__, "../.env")
 if File.exists?(env_path) do
   env_path |> File.read!() |> String.split("\n", trim: true)

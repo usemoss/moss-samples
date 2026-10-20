@@ -1,6 +1,6 @@
 # Example: Metadata filtering with Moss.Client
 #
-# Counterpart to python/user-facing-sdk/samples/metadata_filtering.py
+# Counterpart to samples/metadata_filtering.py of the Python SDK
 #
 # Demonstrates metadata-filtered queries on a locally loaded cloud index.
 # Filter operators shown: $eq, $and, $in, $near
@@ -8,7 +8,7 @@
 # Usage:
 #   mix run samples/example_manage_metadata_filtering.exs
 
-# Load credentials from sdk/.env if present.
+# Load credentials from elixir/.env if present.
 env_path = Path.join(__DIR__, "../.env")
 if File.exists?(env_path) do
   env_path |> File.read!() |> String.split("\n", trim: true)
