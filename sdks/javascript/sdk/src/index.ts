@@ -1,3 +1,4 @@
+/// <reference lib="esnext.disposable" preserve="true" />
 /**
  * Moss Semantic Search SDK
  *
@@ -5,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { MossClient } from '@moss-dev/moss';
+ * import { MossClient } from '@moss-js/moss';
  *
  * const client = new MossClient('your-project-id', 'your-project-key');
  *
@@ -22,12 +23,40 @@
  */
 
 export { MossClient } from "./client/mossClient";
+export { SessionIndex } from "./client/sessionIndex";
+export { ManageApiError } from "./utils/manageHttp";
+export { isMossError } from "./errors";
+export type { MossError, MossErrorCode } from "./errors";
+export type { IAuthenticator, AuthToken } from "./auth/authenticator.interface";
 
 // SDK-specific types
-export type { ISODate, MossModel, CreateIndexOptions } from "./models";
+export type {
+  ISODate,
+  ModelArtifactIdentity,
+  MossIdentity,
+  MossModel,
+  CreateIndexOptions,
+  ParseFileInput,
+  ParseOptions,
+  CreateIndexFromFilesOptions,
+  WebSource,
+  WebSourceStatus,
+  WebSourceRefreshCadence,
+  CreateWebSourceResult,
+  CreateWebSourceOptions,
+  UpdateWebSourceResult,
+  UpdateWebSourceOptions,
+  ResyncWebSourceResult,
+  DeleteWebSourceResult,
+} from "./models";
+
+// Status values ship as plain objects, so a file transpiled on its own can read their members
+export { IndexStatus, JobStatus, JobPhase } from "./models";
 
 // Re-export moss-core types directly
 export type {
+  IndexInfo,
+  ModelRef,
   DocumentInfo,
   QueryResultDocumentInfo,
   SearchResult,
@@ -36,13 +65,17 @@ export type {
   MutationResult,
   RefreshResult,
   JobStatusResponse,
-  JobStatus,
-  JobPhase,
-} from "@moss-dev/moss-core";
+  PushIndexResult,
+  LoadSessionOptions,
+  LoadFromDiskOptions,
+  SnapshotInfo,
+} from "@moss-js/moss-core";
 
 // SDK-specific types (extended or unique to SDK)
 export type {
   LoadIndexOptions,
+  LoadIndexesResult,
+  MossClientOptions,
   MutationOptions,
   JobProgress,
 } from "./models";

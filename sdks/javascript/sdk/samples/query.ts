@@ -62,6 +62,8 @@ async function main() {
 
   } catch (error) {
     console.error('Error occurred:', error instanceof Error ? error.message : String(error));
+  } finally {
+    await mossClient.close();
   }
 }
 

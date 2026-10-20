@@ -148,6 +148,8 @@ async function exampleUsage() {
     if (error instanceof Error) {
       console.error('Error message:', error.message);
     }
+  } finally {
+    await client.close();
   }
 }
 
