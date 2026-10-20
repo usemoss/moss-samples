@@ -4,6 +4,8 @@ version = "0.0.1"
 description = "Moss semantic search integration for Strands Agents"
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
+license = "BSD-2-Clause"
+license-files = ["LICENSE"]
 dependencies = [
     "moss>=1.1.1",
     "strands-agents>=0.1.0",
@@ -44,7 +46,7 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 

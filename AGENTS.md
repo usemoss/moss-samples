@@ -56,7 +56,6 @@ apps/
 packages/
   agora-moss/            — Agora Conversational AI MCP server package
   elevenlabs-moss/       — ElevenLabs integration package
-  moss-cli/              — CLI for index/document management (no-code workflows)
   moss-data-connector/   — Database source connectors
     moss-connector-mongodb/  — MongoDB connector
     moss-connector-mysql/    — MySQL / MariaDB connector
@@ -136,7 +135,6 @@ asks for an experimental landing spot.
 | ------- | ---------- | ---------------- |
 | `agora-moss/` | (internal) | MCP server exposing Moss search to Agora Conversational AI |
 | `elevenlabs-moss/` | `elevenlabs-moss` | `MossElevenLabsTool` — drop-in knowledge-base tool for ElevenLabs agents |
-| `moss-cli/` | `moss-cli` | CLI: `moss index`, `moss query`, `moss documents` — no-code index management |
 | `moss-connector-mongodb/` | `moss-connector-mongodb` | Sync MongoDB collections → Moss index |
 | `moss-connector-mysql/` | `moss-connector-mysql` | Sync MySQL / MariaDB tables → Moss index |
 | `moss-connector-sqlite/` | `moss-connector-sqlite` | Sync SQLite tables → Moss index |
@@ -183,46 +181,15 @@ directories. Examples here may move, change shape, or be removed.
 
 ## Commands
 
-### Python SDK (`sdks/python/sdk/`)
+### SDK folders (`sdks/javascript/sdk/`, `sdks/python/sdk/`, `sdks/elixir/sdk/`)
 
-```bash
-cd sdks/python/sdk
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-
-pytest tests/                    # run all tests (E2E tests auto-skip without credentials)
-pytest tests/test_client.py      # run a single test file
-black src/ tests/                # format
-isort src/ tests/                # sort imports
-mypy --ignore-missing-imports src/  # type check
-ruff check .                     # lint (used in CI)
-```
-
-### JavaScript/TypeScript SDK (`sdks/javascript/sdk/`)
-
-```bash
-cd sdks/javascript/sdk
-npm install
-npm run build      # compile TS → dist/
-npm test           # vitest run
-npm run test:watch # vitest watch mode
-npm run lint       # eslint
-npm run format     # prettier
-```
+These hold the source and samples of each SDK release, for reading, with no build or test setup. [CONTRIBUTING.md](CONTRIBUTING.md#sdks) covers how releases update them and how a pull request against them reaches a release.
 
 ### Root (examples only — not the SDK)
 
 ```bash
 npm run type-check  # TS type check across examples/javascript and apps/next-js
 npm run lint        # eslint across examples/javascript and apps/next-js
-```
-
-### Elixir SDK (`sdks/elixir/sdk/`)
-
-```bash
-cd sdks/elixir/sdk
-mix deps.get
-mix test
 ```
 
 ## Architecture: Two-Layer Design
@@ -232,7 +199,7 @@ Every SDK has the same two-layer structure:
 ```
 Your Code
    ↓
-SDK layer (pure language, open source)
+SDK layer (pure language, source available)
    └─ MossClient — async API surface for index and document operations
    └─ Communicates with Moss Cloud (HTTPS) for mutations and distribution
    ↓
@@ -265,7 +232,6 @@ When adding examples or cookbook integrations, follow the existing patterns:
 ## Testing Notes
 
 - E2E and integration tests require `MOSS_PROJECT_ID` and `MOSS_PROJECT_KEY`; they auto-skip gracefully when credentials are absent
-- CI runs Python SDK tests across versions 3.10–3.14 in a GitHub Actions matrix using `pytest` directly
 - CI lints Python with `ruff` and type-checks with `mypy`; format locally with `black` + `isort`
 - JS tests use Vitest; CI runs on Node 20
 
@@ -273,7 +239,7 @@ When adding examples or cookbook integrations, follow the existing patterns:
 
 The `.github/workflows/ci.yml` pipeline runs on push to `main` and on PRs:
 - `python-lint` — ruff on examples and apps
-- `python-sdk-test` — matrix over Python 3.10–3.14
+- `python-sdk-test` — compiles the Python SDK source and samples on Python 3.10–3.14
 - `javascript-lint` — eslint
 - `agora-ten-samples-smoke` — TEN graph contract + `bench/run.py --echo-grounding` + custom-llm mock/doctor (no Agora/LLM keys)
 - Separate release workflows publish to PyPI / npm on tagged releases

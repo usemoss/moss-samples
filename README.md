@@ -6,7 +6,7 @@
 
 <br /><br />
 
-[![License](https://img.shields.io/badge/License-BSD_2--Clause-orange.svg)](https://opensource.org/licenses/BSD-2-Clause)
+[![License](https://img.shields.io/badge/License-BSD_2--Clause_%2B_PolyForm_Shield-orange.svg)](#license)
 [![PyPI](https://img.shields.io/pypi/v/moss?color=deepgreen)](https://pypi.org/project/moss/)
 [![PyPI downloads](https://static.pepy.tech/personalized-badge/inferedge-moss-core?period=total&units=international_system&left_color=grey&right_color=blue&left_text=pypi+downloads)](https://pepy.tech/project/inferedge-moss-core)
 [![npm](https://img.shields.io/npm/v/@moss-js/moss?color=deepgreen)](https://www.npmjs.com/package/@moss-js/moss)
@@ -115,7 +115,7 @@ Moss isn't a database! It's a **search runtime**. You don't manage clusters, tun
 - **Metadata filtering** - `$eq`, `$and`, `$in`, `$near` operators
 - **Runs in the browser too** - separate WebAssembly SDK ([`@moss-dev/moss-web`](https://www.npmjs.com/package/@moss-dev/moss-web)) for client-side semantic search with no server
 - **Database connectors** - ingest directly from SQLite, MongoDB, MySQL, and Supabase ([`packages/moss-data-connector/`](packages/moss-data-connector/))
-- **CLI** - manage indexes and query from the terminal ([`packages/moss-cli/`](packages/moss-cli/))
+- **CLI** - manage indexes and query from the terminal ([`moss-cli`](https://docs.moss.dev/docs/integrations/moss-cli))
 - **SDKs** - Python (3.10+), TypeScript / Node.js (20+), Elixir, and C ([`libmoss`](https://github.com/usemoss/moss/releases))
 - **Framework integrations** - LangChain, DSPy, LlamaIndex, Pipecat, LiveKit, Vapi, ElevenLabs, Strands Agents
 
@@ -266,7 +266,7 @@ Once an index is loaded, queries don't leave your process - that's where the sub
 - **Server-side** - `moss` (Python) and `@moss-js/moss` (Node.js 20+) embed the runtime in your backend. Use this when your agent runs on a server.
 - **Browser** - `@moss-dev/moss-web` is a WebAssembly build that downloads the index and runs queries entirely client-side, no server required. Use this for static sites, browser extensions, and offline-first apps. See [`examples/javascript-web/`](examples/javascript-web/).
 
-Full Python SDK source code is available at [`sdks/python/`](sdks/python/).
+The source and samples of each JavaScript, Python and Elixir SDK release are in [`sdks/`](sdks/).
 
 ## Contributing
 
@@ -298,7 +298,7 @@ Check out issues labeled [`good first issue`](https://github.com/usemoss/moss/la
 
 ## License
 
-[BSD 2-Clause License](LICENSE) — the SDKs, examples, and integrations in this repo are fully open source.
+The SDKs that Moss releases sync into [`sdks/`](sdks/) are licensed under the [PolyForm Shield License 1.0.0](https://polyformproject.org/licenses/shield/1.0.0/): Swift now, as its `LICENSE.txt` states, and JavaScript, Python and Elixir from their next release, which replaces each folder's BSD `LICENSE` with a PolyForm Shield `LICENSE.txt`. The Go SDK in `sdks/go`, and code already contributed under the BSD 2-Clause License, stay under it. Everything else in this repository is under the [BSD 2-Clause License](LICENSE).
 
 ---
 

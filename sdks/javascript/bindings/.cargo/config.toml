@@ -1,4 +1,0 @@
-# Linker configuration is provided by the surrounding build environment
-# (CI workflows use native runners, no cross-compilation).
-# Note: Do NOT use crt-static for Windows — Node.js and ONNX Runtime (ort_sys)
-# both require the dynamic MSVC runtime.

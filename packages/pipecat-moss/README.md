@@ -100,7 +100,7 @@ python examples/moss-retrieval-demo.py
 
 ## License
 
-This integration is provided under a permissive open source license (BSD-2 or equivalent).
+This integration is licensed under the BSD 2-Clause License. See `LICENSE`.
 
 ## Support
 
