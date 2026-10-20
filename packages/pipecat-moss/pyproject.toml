@@ -4,6 +4,8 @@ version = "0.0.5"
 description = "Moss vector search integration for Pipecat"
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
+license = "BSD-2-Clause"
+license-files = ["LICENSE"]
 dependencies = [
     "moss>=1.1.1",
     "loguru>=0.7.0",
@@ -57,7 +59,7 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 

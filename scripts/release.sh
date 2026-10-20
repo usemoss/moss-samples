@@ -22,7 +22,6 @@ NPM_PACKAGES=(
 
 PYPI_PACKAGES=(
   "elevenlabs-moss"
-  "moss-cli"
   "pipecat-moss"
   "strands-agents-moss"
   "vapi-moss"
@@ -231,7 +230,7 @@ Options:
 Packages:
   If no packages specified, all packages are released.
   Specify package directory names to release selectively:
-    $(basename "$0") vercel-sdk moss-cli
+    $(basename "$0") vercel-sdk pipecat-moss
 
 Examples:
   $(basename "$0") --dry-run                    # Dry run all packages
