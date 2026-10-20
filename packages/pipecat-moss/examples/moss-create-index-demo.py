@@ -1,3 +1,9 @@
+#
+# Copyright (c) 2026, Moss Team
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
 import asyncio
 import os
 

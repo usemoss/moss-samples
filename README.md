@@ -115,7 +115,7 @@ Moss isn't a database! It's a **search runtime**. You don't manage clusters, tun
 - **Metadata filtering** - `$eq`, `$and`, `$in`, `$near` operators
 - **Runs in the browser too** - separate WebAssembly SDK ([`@moss-dev/moss-web`](https://www.npmjs.com/package/@moss-dev/moss-web)) for client-side semantic search with no server
 - **Database connectors** - ingest directly from SQLite, MongoDB, MySQL, and Supabase ([`packages/moss-data-connector/`](packages/moss-data-connector/))
-- **CLI** - manage indexes and query from the terminal ([`packages/moss-cli/`](packages/moss-cli/))
+- **CLI** - manage indexes and query from the terminal ([`moss-cli`](https://docs.moss.dev/docs/integrations/moss-cli))
 - **SDKs** - Python (3.10+), TypeScript / Node.js (20+), Elixir, and C ([`libmoss`](https://github.com/usemoss/moss/releases))
 - **Framework integrations** - LangChain, DSPy, LlamaIndex, Pipecat, LiveKit, Vapi, ElevenLabs, Strands Agents
 

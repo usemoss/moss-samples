@@ -1,7 +1,8 @@
 #
 # Copyright (c) 2024-2025, Daily
+# Copyright (c) 2026, Moss Team
 #
-# SPDX-License-Identifier: BSD 2-Clause License
+# SPDX-License-Identifier: BSD-2-Clause
 #
 
 """Pipeline processor that handles retrieval for a specific Moss index."""

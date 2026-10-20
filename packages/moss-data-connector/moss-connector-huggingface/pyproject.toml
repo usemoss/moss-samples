@@ -4,13 +4,13 @@ version = "0.0.1"
 description = "HuggingFace Datasets source connector for moss-connectors."
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
-license = { text = "BSD-2-Clause" }
+license = "BSD-2-Clause"
+license-files = ["LICENSE"]
 authors = [{ name = "InferEdge Inc.", email = "contact@moss.dev" }]
 keywords = ["moss", "connectors", "huggingface", "datasets", "nlp", "ingest", "etl"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: BSD License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -38,7 +38,7 @@ Repository = "https://github.com/usemoss/moss"
 Source = "https://github.com/usemoss/moss/tree/main/packages/moss-data-connector/moss-connector-huggingface"
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 # Flat layout: src/ itself IS the package `moss_connector_huggingface`.

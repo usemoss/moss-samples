@@ -56,7 +56,6 @@ apps/
 packages/
   agora-moss/            — Agora Conversational AI MCP server package
   elevenlabs-moss/       — ElevenLabs integration package
-  moss-cli/              — CLI for index/document management (no-code workflows)
   moss-data-connector/   — Database source connectors
     moss-connector-mongodb/  — MongoDB connector
     moss-connector-mysql/    — MySQL / MariaDB connector
@@ -136,7 +135,6 @@ asks for an experimental landing spot.
 | ------- | ---------- | ---------------- |
 | `agora-moss/` | (internal) | MCP server exposing Moss search to Agora Conversational AI |
 | `elevenlabs-moss/` | `elevenlabs-moss` | `MossElevenLabsTool` — drop-in knowledge-base tool for ElevenLabs agents |
-| `moss-cli/` | `moss-cli` | CLI: `moss index`, `moss query`, `moss documents` — no-code index management |
 | `moss-connector-mongodb/` | `moss-connector-mongodb` | Sync MongoDB collections → Moss index |
 | `moss-connector-mysql/` | `moss-connector-mysql` | Sync MySQL / MariaDB tables → Moss index |
 | `moss-connector-sqlite/` | `moss-connector-sqlite` | Sync SQLite tables → Moss index |
