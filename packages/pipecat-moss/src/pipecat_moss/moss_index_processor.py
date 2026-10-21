@@ -127,12 +127,10 @@ class MossIndexProcessor(FrameProcessor):
 
                     self._last_query = latest_user_message
 
-            if messages is not None:
-                await self.push_frame(LLMMessagesUpdateFrame(messages=context.get_messages()))
-            elif isinstance(frame, LLMContextFrame):
-                await self.push_frame(LLMContextFrame(context=context))
-            else:
-                await self.push_frame(frame)
+            if isinstance(frame, LLMMessagesUpdateFrame):
+                frame.messages = context.get_messages()
+            # Forward the frame itself, so fields such as `speculation` and `run_llm` survive.
+            await self.push_frame(frame, direction)
 
         except Exception as exc:  # pragma: no cover - defensive logging
             logger.exception(f"{self}: error while running retrieval: {exc}")

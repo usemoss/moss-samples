@@ -19,6 +19,7 @@ Required AI services:
 - Cartesia (Text-to-Speech)
 """
 
+import asyncio
 import os
 
 from dotenv import load_dotenv
@@ -47,7 +48,28 @@ load_dotenv(override=True)
 print("Starting Customer Support Voice AI Bot...")
 logger.debug("All components loaded successfully!")
 
-async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
+# One Moss service per process. Every bot this process runs shares its client,
+# its embedding model and its loaded index, so only the first bot waits for a load.
+_moss_service: MossRetrievalService | None = None
+
+
+def get_moss_service() -> MossRetrievalService:
+    """Return the process-wide Moss service, creating it on first use."""
+    global _moss_service
+    if _moss_service is None:
+        _moss_service = MossRetrievalService(
+            project_id=os.getenv("MOSS_PROJECT_ID"),
+            project_key=os.getenv("MOSS_PROJECT_KEY"),
+            system_prompt="Relevant passages from the Moss knowledge base:\n\n",
+            # Persistent storage in production: a new process then reads the index from disk.
+            cache_path=os.getenv("MOSS_CACHE_PATH", "./moss-cache"),
+        )
+    return _moss_service
+
+
+async def run_bot(
+    transport: BaseTransport, runner_args: RunnerArguments, moss_loading: asyncio.Task
+):
     """Run the customer support bot pipeline."""
     # Initialize stt, tts, llm services
     logger.debug("Starting customer support bot")
@@ -61,21 +83,14 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
         model=os.getenv("OPENAI_MODEL", "gpt-4"),
     )
 
-    # Configure Moss retrieval credentials and settings
-    project_id = os.getenv("MOSS_PROJECT_ID")
-    project_key = os.getenv("MOSS_PROJECT_KEY")
+    # Moss retrieval settings
     index_name = os.getenv("MOSS_INDEX_NAME")
     top_k = int(os.getenv("MOSS_TOP_K", "5"))
 
-    moss_service = MossRetrievalService(
-        project_id=project_id,
-        project_key=project_key,
-        system_prompt="Relevant passages from the Moss knowledge base:\n\n",
-    )
-
-    # Load the Moss index
-    await moss_service.load_index(index_name)
-    logger.debug(f"Moss retrieval service initialized (index: {index_name})")
+    # The load started before the transport connected; it is instant once loaded.
+    moss_service = get_moss_service()
+    await moss_loading
+    logger.debug(f"Moss retrieval service ready (index: {index_name})")
 
     # System prompt with semantic retrieval support
     system_content = """You are a helpful customer support voice assistant.
@@ -190,9 +205,13 @@ async def bot(runner_args: RunnerArguments):
         ),
     }
 
+    # Start loading the index while the transport connects.
+    moss_loading = asyncio.ensure_future(
+        get_moss_service().load_index(os.getenv("MOSS_INDEX_NAME"), auto_refresh=True)
+    )
     transport = await create_transport(runner_args, transport_params)
 
-    await run_bot(transport, runner_args)
+    await run_bot(transport, runner_args, moss_loading)
 
 
 if __name__ == "__main__":

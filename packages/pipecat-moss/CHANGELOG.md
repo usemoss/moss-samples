@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `MossRetrievalService(cache_path=...)` keeps downloaded indexes on disk, so a load in a new process reads an unchanged index from disk instead of downloading it.
+- `load_index(index_name, auto_refresh=...)`.
+
+### Changed
+- `load_index` loads each index once per service. Later and concurrent calls wait for that same load, and a failed load is retried by the next call, so one service per process can serve every bot.
+- Requires `moss` 1.14.0 or later.
+
+### Fixed
+- `MossIndexProcessor` forwards the frame it received instead of building a new one, so `LLMContextFrame.speculation` and `LLMMessagesUpdateFrame.run_llm` reach the LLM.
+- `project_id` and `project_key` fall back to `MOSS_PROJECT_ID` and `MOSS_PROJECT_KEY` as documented. Missing credentials raise `ValueError`.
+
 ## [0.0.5] - 2026-07-14
 
 ### Changed
