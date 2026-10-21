@@ -31,11 +31,11 @@ moss_service = MossRetrievalService(
     cache_path=os.getenv("MOSS_CACHE_PATH", "./moss-cache"),
 )
 
-async def run_bot(transport, stt, llm, tts, context_aggregator):
+async def build_pipeline(transport, stt, llm, tts, context_aggregator) -> Pipeline:
     # Before the pipeline starts. Only the first call in a process loads the index.
     await moss_service.load_index(os.getenv("MOSS_INDEX_NAME"), auto_refresh=True)
 
-    pipeline = Pipeline([
+    return Pipeline([
         transport.input(),               # audio/user input
         stt,                             # speech to text
         context_aggregator.user(),       # add user text to context
@@ -45,6 +45,9 @@ async def run_bot(transport, stt, llm, tts, context_aggregator):
         transport.output(),              # stream audio back to user
         context_aggregator.assistant(),  # store assistant response
     ])
+
+# In each bot: pipeline = await build_pipeline(...), then run it with a
+# PipelineTask and PipelineRunner, as examples/moss-retrieval-demo.py does.
 ```
 
 Await `load_index` before the pipeline starts. A service loads each index once: later and concurrent calls wait for that same load, so every bot in the process shares one copy of the index and the embedding model. A new service, or a new process, holds its own copy. See `examples/moss-retrieval-demo.py` for a complete working example, which starts the load while the transport connects.
