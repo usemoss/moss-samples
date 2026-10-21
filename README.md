@@ -174,6 +174,7 @@ moss-live-labs/              # Experimental zone: prototypes and community demos
 │   ├── advanced-voice-agent/ # Persona impersonator built on a PDF knowledge base
 │   └── image-search/        # FastAPI + React image search over COCO
 └── community-demos/         # Community-contributed projects
+    ├── coding-agents/       # moss-reflex
     └── voice-agents/        # bharat-benefits, shoplabs-voice-agent
 ```
 
@@ -233,6 +234,7 @@ Full API reference: [docs.moss.dev](https://docs.moss.dev).
 | [LlamaIndex](https://github.com/run-llama/llama_index) | Available | [`apps/moss-llamaindex/`](apps/moss-llamaindex/) |
 | [CrewAI](https://github.com/crewAIInc/crewAI) | Available | [`examples/cookbook/crewai/`](examples/cookbook/crewai/) |
 | [AutoGen](https://github.com/microsoft/autogen) | Available | [`examples/cookbook/autogen/`](examples/cookbook/autogen/) |
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) | Available | [`moss-live-labs/community-demos/coding-agents/moss-reflex/`](moss-live-labs/community-demos/coding-agents/moss-reflex/) |
 | [Haystack](https://github.com/deepset-ai/haystack) | Available | [`examples/cookbook/haystack/`](examples/cookbook/haystack/) |
 | [Mastra](https://mastra.ai) | Available | [`examples/cookbook/mastra/`](examples/cookbook/mastra/) |
 | [Pydantic AI](https://ai.pydantic.dev) | Available | [`examples/cookbook/pydantic-ai/`](examples/cookbook/pydantic-ai/) |
