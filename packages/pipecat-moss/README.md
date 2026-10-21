@@ -20,6 +20,7 @@ Pipecat-Moss integrates seamlessly into a Pipecat pipeline, enabling efficient r
 
 ```python
 import os
+from pipecat.pipeline.pipeline import Pipeline
 from pipecat_moss import MossRetrievalService
 
 # One service per process, shared by every bot the process runs.
