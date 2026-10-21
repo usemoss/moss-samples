@@ -27,22 +27,24 @@ moss_service = MossRetrievalService(
     project_id=os.getenv("MOSS_PROJECT_ID"),
     project_key=os.getenv("MOSS_PROJECT_KEY"),
     system_prompt="Relevant passages from the Moss knowledge base:\n\n",
-    cache_path="/var/cache/moss",  # persistent storage, so a new process reads the index from disk
+    # A writable directory; use persistent storage in production so a new process reads from disk.
+    cache_path=os.getenv("MOSS_CACHE_PATH", "./moss-cache"),
 )
 
-# In each bot, before the pipeline starts. Only the first call in a process loads the index.
-await moss_service.load_index(os.getenv("MOSS_INDEX_NAME"), auto_refresh=True)
+async def run_bot(transport, stt, llm, tts, context_aggregator):
+    # Before the pipeline starts. Only the first call in a process loads the index.
+    await moss_service.load_index(os.getenv("MOSS_INDEX_NAME"), auto_refresh=True)
 
-pipeline = Pipeline([
-    transport.input(),               # audio/user input
-    stt,                             # speech to text
-    context_aggregator.user(),       # add user text to context
-    moss_service.query(os.getenv("MOSS_INDEX_NAME"), top_k=5, alpha=0.8),  # retrieve relevant docs from Moss
-    llm,                             # LLM generates response
-    tts,                             # TTS synthesis
-    transport.output(),              # stream audio back to user
-    context_aggregator.assistant(),  # store assistant response
-])
+    pipeline = Pipeline([
+        transport.input(),               # audio/user input
+        stt,                             # speech to text
+        context_aggregator.user(),       # add user text to context
+        moss_service.query(os.getenv("MOSS_INDEX_NAME"), top_k=5, alpha=0.8),  # retrieve relevant docs from Moss
+        llm,                             # LLM generates response
+        tts,                             # TTS synthesis
+        transport.output(),              # stream audio back to user
+        context_aggregator.assistant(),  # store assistant response
+    ])
 ```
 
 Await `load_index` before the pipeline starts. A service loads each index once: later and concurrent calls wait for that same load, so every bot in the process shares one copy of the index and the embedding model. A new service, or a new process, holds its own copy. See `examples/moss-retrieval-demo.py` for a complete working example, which starts the load while the transport connects.

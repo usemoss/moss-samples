@@ -209,9 +209,13 @@ async def bot(runner_args: RunnerArguments):
     moss_loading = asyncio.ensure_future(
         get_moss_service().load_index(os.getenv("MOSS_INDEX_NAME"), auto_refresh=True)
     )
-    transport = await create_transport(runner_args, transport_params)
-
-    await run_bot(transport, runner_args, moss_loading)
+    try:
+        transport = await create_transport(runner_args, transport_params)
+        await run_bot(transport, runner_args, moss_loading)
+    finally:
+        # If setup failed first, stop waiting. The shared load itself keeps running for later bots.
+        moss_loading.cancel()
+        await asyncio.gather(moss_loading, return_exceptions=True)
 
 
 if __name__ == "__main__":

@@ -63,6 +63,8 @@ class MossRetrievalService:
         task = self._loads.get(index_name)
         if task is None or (task.done() and (task.cancelled() or task.exception() is not None)):
             task = asyncio.ensure_future(self._load(index_name, auto_refresh))
+            # `_load` logs a failure and the next call retries, so no caller has to retrieve it.
+            task.add_done_callback(lambda done: done.cancelled() or done.exception())
             self._loads[index_name] = task
         # A bot that disconnects mid-load must not cancel the load other bots share.
         await asyncio.shield(task)
