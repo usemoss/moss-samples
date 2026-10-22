@@ -292,6 +292,69 @@ re-embedding the stored documents with the current model and saving the snapshot
 back, which needs the cloud for the model. Pass `rebuild_legacy: false` to load
 such a snapshot as a custom-model session instead.
 
+## Inference
+
+`Moss.Inference` is a client for OpenAI's chat completions call, answered by Moss inference
+at `https://inference.moss.dev/v1`. Moss searches your indexes, adds what it finds to the prompt
+and streams the model's reply. `params` is the OpenAI request body, so code written for
+OpenAI only adds `:indexes`.
+
+```elixir
+alias Moss.Inference.Chat.Completions
+
+client = Moss.Inference.new("project-id", "project-key")
+messages = [%{role: "user", content: "Do you ship to Canada?"}]
+
+# Streamed: chunks arrive as the model writes them
+{:ok, stream} = Completions.create(client, %{messages: messages, stream: true}, indexes: ["faq"])
+
+for chunk <- stream, choice <- chunk["choices"] do
+  IO.write(choice["delta"]["content"] || "")
+end
+
+# Not streamed: one completion with the whole reply
+{:ok, completion} = Completions.create(client, %{messages: messages}, indexes: ["faq"])
+IO.puts(hd(completion["choices"])["message"]["content"])
+```
+
+`model` defaults to `"moss"`, Moss's own model.
+`Moss.Inference.new/3` checks the credentials and options and raises `Moss.Inference.Error`
+for a bad one. It takes `:api_key`, `:timeout` (milliseconds for a whole call, default
+`:infinity`) and `:idle_timeout` (milliseconds Moss may stay silent, default `120_000`).
+A call takes `:api_key`, `:timeout` and `:idle_timeout` too, over the client's, plus
+`retrieve: false` to skip the search. A call's options go in its last argument, and
+`params` that hold one return an error.
+
+`:api_key` is optional: your own OpenAI, Anthropic or Google key, for a vendor model such as
+`gpt-4o-mini`. `moss` ignores it, and a vendor model without one is refused. An empty key, or
+one that starts or ends with a space, is an error, and no key appears in an error or in `inspect/2`.
+
+```elixir
+# A vendor model, with your own OpenAI key for this call
+api_key = System.fetch_env!("OPENAI_API_KEY")
+params = %{model: "gpt-4o-mini", messages: messages}
+{:ok, completion} = Completions.create(client, params, api_key: api_key)
+```
+
+Chunks and completions are maps with OpenAI's field names as string keys.
+
+A failure before the reply starts returns `{:error, %Moss.Inference.Error{}}` with `status`,
+`type` and `message`, plus the gateway's `code`, the reply's `request_id` and an error reply's
+`retry_after` in milliseconds, when they are known. A stream raises `Moss.Inference.Error` if
+the reply fails after it starts. Read a stream in the process that created it. Stopping early,
+for example with `Enum.take/2`, closes the connection and stops the model.
+`Moss.Inference.ChatCompletionStream.close/1` does the same from any process, and the stream
+then ends without an error.
+
+Calls reuse idle connections, from any process. A reply read to its end gives its connection
+back, and a stream that stops early or fails closes its own. No call is sent twice: a pooled
+connection found closed is replaced before the call is written to it. The pool keeps up to
+100 idle connections, each for at most 4 seconds.
+
+To call another gateway, set `MOSS_INFERENCE_URL` to its base URL,
+such as `https://gateway.example.com/v1`. `Moss.Inference.new/3` reads it, and raises an error
+for a value that is not an `http` or `https` URL with a host and no user info, query or fragment.
+
 ## Telemetry
 
 `moss` always sends usage telemetry to the Moss cloud. See [Telemetry](https://docs.moss.dev/docs/reference/telemetry) for what it contains and when it is sent.

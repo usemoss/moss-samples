@@ -29,6 +29,33 @@ export { isMossError } from "./errors";
 export type { MossError, MossErrorCode } from "./errors";
 export type { IAuthenticator, AuthToken } from "./auth/authenticator.interface";
 
+// Chat completions through the Moss inference gateway, in OpenAI's shape
+export { MossInference, inference } from "./inference";
+export type { ChatCompletions } from "./inference";
+export { ChatCompletionStream } from "./inference/stream";
+export { InferenceError } from "./inference/error";
+export type { InferenceErrorType } from "./inference/error";
+export type {
+  ChatCompletion,
+  ChatCompletionChoice,
+  ChatCompletionChunk,
+  ChatCompletionChunkChoice,
+  ChatCompletionChunkDelta,
+  ChatCompletionChunkToolCall,
+  ChatCompletionContentPart,
+  ChatCompletionCreateParams,
+  ChatCompletionCreateParamsBase,
+  ChatCompletionCreateParamsNonStreaming,
+  ChatCompletionCreateParamsStreaming,
+  ChatCompletionMessage,
+  ChatCompletionMessageParam,
+  ChatCompletionMessageToolCall,
+  ChatCompletionTool,
+  CompletionUsage,
+  InferenceRequestOptions,
+  MossInferenceOptions,
+} from "./inference/types";
+
 // SDK-specific types
 export type {
   ISODate,

@@ -1,6 +1,7 @@
 defmodule Moss.Error do
   @moduledoc """
-  The reason in every `{:error, reason}` this SDK returns.
+  The reason in every `{:error, reason}` this SDK returns, except from
+  `Moss.Inference.Chat.Completions.create/3`, which returns `Moss.Inference.Error`.
 
   `code` is an atom a caller can match on: `:invalid_argument`, `:not_found`,
   `:unauthorized`, `:network`, `:deserialization`, `:model_unavailable` or

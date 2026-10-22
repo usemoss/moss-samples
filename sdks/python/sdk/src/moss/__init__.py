@@ -65,6 +65,7 @@ from .client.web_source import (
     WebSource,
 )
 
+from importlib import import_module as _import_module
 from importlib.metadata import PackageNotFoundError, version as _pkg_version
 
 try:
@@ -109,4 +110,15 @@ __all__ = [
     "JobPhase",
     "JobProgress",
     "JobStatusResponse",
+    # Inference
+    "MossInference",
 ]
+
+
+def __getattr__(name: str) -> object:
+    """Load `moss.inference` on first use, so `import moss` leaves httpx unloaded."""
+    if name == "inference":
+        return _import_module(".inference", __name__)
+    if name == "MossInference":
+        return _import_module(".inference", __name__).MossInference
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

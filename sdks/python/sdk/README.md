@@ -441,6 +441,60 @@ Pass `QueryOptions` to reuse your own embeddings or to override `top_k` on a per
 > vectors already; local models often do not. Un-normalized vectors still return
 > results, but the order can differ from what you would compute with cosine similarity.
 
+## Inference
+
+`MossInference` answers chat messages with facts from your Moss indexes. It is async only, and its `chat.completions.create` takes the arguments of OpenAI's, plus an optional `indexes` list of the indexes to search. Replies have OpenAI's field names and attribute access, such as `chunk.choices[0].delta.content`, but they are dataclasses, not OpenAI's types: `dataclasses.asdict` turns one into a dict, and a chunk's `raw` holds the decoded event.
+
+```python
+from moss import MossInference
+
+async with MossInference("your-project-id", "your-project-key") as client:
+    stream = await client.chat.completions.create(
+        messages=[{"role": "user", "content": "Do you ship to Canada?"}],
+        indexes=["faq"],
+        stream=True,
+    )
+    async with stream:
+        async for chunk in stream:
+            if chunk.choices:
+                print(chunk.choices[0].delta.content or "", end="", flush=True)
+```
+
+Without `stream=True` the call returns one `ChatCompletion`:
+
+```python
+async with MossInference("your-project-id", "your-project-key") as client:
+    completion = await client.chat.completions.create(
+        messages=[{"role": "user", "content": "Do you ship to Canada?"}],
+        indexes=["faq"],
+    )
+    print(completion.choices[0].message.content)
+```
+
+With `MOSS_PROJECT_ID` and `MOSS_PROJECT_KEY` set, `from moss import inference` gives the same call on a client built from them: `await inference.chat.completions.create(messages=messages)`.
+
+`model` is `"moss"`, the Moss model, unless you pass another. `api_key` is optional: your own OpenAI, Anthropic or Google key, for a vendor model such as `gpt-4o-mini`. `moss` ignores it, and a vendor model without one is refused. Set it on the client, or pass it to `create` for one call, where it replaces the client's:
+
+```python
+async with MossInference(
+    "your-project-id", "your-project-key", api_key="your-openai-key"
+) as client:
+    completion = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": "Do you ship to Canada?"}],
+        indexes=["faq"],
+    )
+```
+
+- `api_key` is sent as the `X-Moss-Provider-Key` header, never in the body or an error message, and an empty one is an error.
+- A client checks its credentials, provider key, headers and timeouts when you build it. It keeps one connection pool, for the event loop it last ran in, until `close()` or the end of `async with`. A call in another loop drops that pool without closing it, so open and close a client in the loop that uses it.
+- Other OpenAI arguments, such as `temperature`, `tools` or `stream_options`, reach the model unchanged, and a reply's `message` can go back into `messages`.
+- Without `indexes`, every index of the project is searched, and `retrieve=False` skips the search. `default_headers` go with every call and `extra_headers` with one. Neither can set `Host`, `Content-Length` or `Transfer-Encoding`.
+- `timeout` limits a whole call, stream included, and `idle_timeout` limits the wait for the reply and each pause in it. Both are in seconds, and 0 or less turns one off. On the client, `timeout` is off by default and `idle_timeout` is 120, also when you pass `None`. `create` can change either for one call, where `None` keeps the client's.
+- Leaving a stream early, with `break` or `aclose()`, closes the connection and stops the model. A cancelled task does the same and raises `CancelledError`.
+- Failures raise `inference.InferenceError` with `status`, `type` (such as `authentication_error`, `rate_limit_error`, `model_error`, `timeout`, `connection_error` or `incomplete_stream`) and `message`. Once the service has answered, `request_id` holds its `X-Moss-Request-Id`, `code` its error code, such as `rate_limit_exceeded`, and `retry_after` the seconds an error response asks you to wait in `Retry-After`. Each is `None` when absent. A redirect is an error too, so your credentials never reach another URL.
+- Calls go to `https://inference.moss.dev/v1`. To call another gateway, set `MOSS_INFERENCE_URL` to its base URL, such as `https://gateway.example.com/v1`, and `/chat/completions` goes after it. A client reads the variable when you build it, and raises `InferenceError` for a value that is not an `http` or `https` URL with a host and no user info, query or fragment.
+
 ## Telemetry
 
 The SDK always sends usage telemetry to the Moss cloud, and there is no option
