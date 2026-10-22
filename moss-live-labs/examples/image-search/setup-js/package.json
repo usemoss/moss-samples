@@ -41,7 +41,7 @@
   ],
   "overrides": {
     "onnxruntime-node": {
-      "tar": "^7.5.13"
+      "tar": "^7.5.21"
     },
     "onnxruntime-web": {
       "protobufjs": "^7.5.5"
