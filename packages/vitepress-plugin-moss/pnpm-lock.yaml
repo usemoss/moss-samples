@@ -55,13 +55,13 @@ importers:
         version: 8.1.5(@types/node@20.19.43)(esbuild@0.28.1)
       vite-plugin-dts:
         specifier: ^5.0.0
-        version: 5.0.3(@microsoft/api-extractor@7.58.12(@types/node@20.19.43))(@vue/language-core@3.3.8)(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.2)(typescript@5.9.3)(vite@8.1.5(@types/node@20.19.43)(esbuild@0.28.1))
+        version: 5.0.3(@microsoft/api-extractor@7.58.12(@types/node@20.19.43))(@vue/language-core@3.3.8)(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.2)(supports-color@8.1.1)(typescript@5.9.3)(vite@8.1.5(@types/node@20.19.43)(esbuild@0.28.1))
       vitepress:
         specifier: ^1.5.0
         version: 1.6.4(@algolia/client-search@5.56.0)(@types/node@20.19.43)(lightningcss@1.33.0)(postcss@8.5.23)(search-insights@2.17.3)(typescript@5.9.3)
       vitest:
         specifier: ^3.1.1
-        version: 3.2.7(@types/node@20.19.43)(lightningcss@1.33.0)
+        version: 3.2.7(@types/node@20.19.43)(lightningcss@1.33.0)(supports-color@8.1.1)
       vue:
         specifier: ^3.5.0
         version: 3.5.40(typescript@5.9.3)
@@ -1022,8 +1022,8 @@ packages:
   boolbase@1.0.0:
     resolution: {integrity: sha512-JZOSA7Mo9sNGB8+UjSgzdLtokWAky1zbztM3WRLCbZ70/3cTANmQmOdR7y2g+J0e2WXywy1yS468tY+IruqEww==}
 
-  brace-expansion@5.0.8:
-    resolution: {integrity: sha512-JZyDyq3D4AUifKTPOB7DELf6XsB3WdPuNxCtob1vFXPsSXhdAiHBWJ/tJ8HAc9aH84BK+5JFZLNkJKx3G9kzQg==}
+  brace-expansion@5.0.12:
+    resolution: {integrity: sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==}
     engines: {node: 20 || >=22}
 
   cac@6.7.14:
@@ -1564,8 +1564,8 @@ packages:
   siginfo@2.0.0:
     resolution: {integrity: sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g==}
 
-  source-map-js@1.2.1:
-    resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
+  source-map-js@1.2.2:
+    resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
     engines: {node: '>=0.10.0'}
 
   source-map@0.6.1:
@@ -2609,7 +2609,7 @@ snapshots:
       '@vue/shared': 3.5.40
       entities: 7.0.1
       estree-walker: 2.0.2
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
 
   '@vue/compiler-dom@3.5.40':
     dependencies:
@@ -2626,7 +2626,7 @@ snapshots:
       estree-walker: 2.0.2
       magic-string: 0.30.21
       postcss: 8.5.23
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
 
   '@vue/compiler-ssr@3.5.40':
     dependencies:
@@ -2788,7 +2788,7 @@ snapshots:
 
   boolbase@1.0.0: {}
 
-  brace-expansion@5.0.8:
+  brace-expansion@5.0.12:
     dependencies:
       balanced-match: 4.0.4
 
@@ -2857,9 +2857,11 @@ snapshots:
 
   csstype@3.2.3: {}
 
-  debug@4.4.3:
+  debug@4.4.3(supports-color@8.1.1):
     dependencies:
       ms: 2.1.3
+    optionalDependencies:
+      supports-color: 8.1.1
 
   deep-eql@5.0.2: {}
 
@@ -3167,7 +3169,7 @@ snapshots:
 
   minimatch@10.2.3:
     dependencies:
-      brace-expansion: 5.0.8
+      brace-expansion: 5.0.12
 
   minisearch@7.2.0: {}
 
@@ -3260,7 +3262,7 @@ snapshots:
     dependencies:
       nanoid: 3.3.16
       picocolors: 1.1.1
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
 
   preact@10.29.7: {}
 
@@ -3379,7 +3381,7 @@ snapshots:
 
   siginfo@2.0.0: {}
 
-  source-map-js@1.2.1: {}
+  source-map-js@1.2.2: {}
 
   source-map@0.6.1: {}
 
@@ -3471,12 +3473,12 @@ snapshots:
 
   universalify@2.0.1: {}
 
-  unplugin-dts@1.0.3(@microsoft/api-extractor@7.58.12(@types/node@20.19.43))(@vue/language-core@3.3.8)(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.2)(typescript@5.9.3)(vite@8.1.5(@types/node@20.19.43)(esbuild@0.28.1)):
+  unplugin-dts@1.0.3(@microsoft/api-extractor@7.58.12(@types/node@20.19.43))(@vue/language-core@3.3.8)(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.2)(supports-color@8.1.1)(typescript@5.9.3)(vite@8.1.5(@types/node@20.19.43)(esbuild@0.28.1)):
     dependencies:
       '@rollup/pluginutils': 5.4.0(rollup@4.62.2)
       '@volar/typescript': 2.4.28
       compare-versions: 6.1.1
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
       kolorist: 1.8.0
       local-pkg: 1.2.1
       magic-string: 0.30.21
@@ -3509,10 +3511,10 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vite-node@3.2.4(@types/node@20.19.43)(lightningcss@1.33.0):
+  vite-node@3.2.4(@types/node@20.19.43)(lightningcss@1.33.0)(supports-color@8.1.1):
     dependencies:
       cac: 6.7.14
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
       es-module-lexer: 1.7.0
       pathe: 2.0.3
       vite: 7.3.6(@types/node@20.19.43)(lightningcss@1.33.0)
@@ -3530,9 +3532,9 @@ snapshots:
       - tsx
       - yaml
 
-  vite-plugin-dts@5.0.3(@microsoft/api-extractor@7.58.12(@types/node@20.19.43))(@vue/language-core@3.3.8)(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.2)(typescript@5.9.3)(vite@8.1.5(@types/node@20.19.43)(esbuild@0.28.1)):
+  vite-plugin-dts@5.0.3(@microsoft/api-extractor@7.58.12(@types/node@20.19.43))(@vue/language-core@3.3.8)(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.2)(supports-color@8.1.1)(typescript@5.9.3)(vite@8.1.5(@types/node@20.19.43)(esbuild@0.28.1)):
     dependencies:
-      unplugin-dts: 1.0.3(@microsoft/api-extractor@7.58.12(@types/node@20.19.43))(@vue/language-core@3.3.8)(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.2)(typescript@5.9.3)(vite@8.1.5(@types/node@20.19.43)(esbuild@0.28.1))
+      unplugin-dts: 1.0.3(@microsoft/api-extractor@7.58.12(@types/node@20.19.43))(@vue/language-core@3.3.8)(esbuild@0.28.1)(rolldown@1.1.5)(rollup@4.62.2)(supports-color@8.1.1)(typescript@5.9.3)(vite@8.1.5(@types/node@20.19.43)(esbuild@0.28.1))
     optionalDependencies:
       '@microsoft/api-extractor': 7.58.12(@types/node@20.19.43)
       rollup: 4.62.2
@@ -3631,7 +3633,7 @@ snapshots:
       - typescript
       - universal-cookie
 
-  vitest@3.2.7(@types/node@20.19.43)(lightningcss@1.33.0):
+  vitest@3.2.7(@types/node@20.19.43)(lightningcss@1.33.0)(supports-color@8.1.1):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.7
@@ -3642,7 +3644,7 @@ snapshots:
       '@vitest/spy': 3.2.7
       '@vitest/utils': 3.2.7
       chai: 5.3.3
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@8.1.1)
       expect-type: 1.4.0
       magic-string: 0.30.21
       pathe: 2.0.3
@@ -3654,7 +3656,7 @@ snapshots:
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
       vite: 7.3.6(@types/node@20.19.43)(lightningcss@1.33.0)
-      vite-node: 3.2.4(@types/node@20.19.43)(lightningcss@1.33.0)
+      vite-node: 3.2.4(@types/node@20.19.43)(lightningcss@1.33.0)(supports-color@8.1.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 20.19.43
