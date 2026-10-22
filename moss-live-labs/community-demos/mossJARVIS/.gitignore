@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.desktop-server/
+.pnpm-store/
+tsconfig.tsbuildinfo
+.jarvis-data/
+src-tauri/target/
+src-tauri/resources/node
+src-tauri/gen/
+.env*
+!.env.example
+!.env.local.example
