@@ -101,7 +101,7 @@ python examples/moss-retrieval-demo.py
 - `project_key` (required): Moss project key (defaults to env var `MOSS_PROJECT_KEY`)
 - `system_prompt` (default: "Here is additional context retrieved from database:\n\n"): Prefix added ahead of retrieved documents
 - `cache_path` (default: none): Directory that keeps downloaded indexes on disk, so a load in a new process reads an unchanged index from disk instead of downloading it
-- `load_index(index_name, *, auto_refresh=False)`: Awaitable method that loads the given index once per service; later calls wait for the same load. `auto_refresh` keeps the index on the latest cloud version while the process runs. The first call for an index sets `auto_refresh`; later calls for that index reuse the load and cannot change it
+- `load_index(index_name, *, auto_refresh=False)`: Awaitable method that loads the given index once per service; later calls wait for the same load. `auto_refresh` keeps the index on the latest cloud version while the process runs. The first successful load of an index sets `auto_refresh`; a retry after a failed load uses the retry's options
 - `query(index_name, *, top_k=5)`: Returns a `MossIndexProcessor` for the specified index; `top_k` controls result count, `alpha` blends semantic vs keyword scoring (0.0 keyword-only, 1.0 semantic-only)
 
 ## License
