@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-07-12T21:37:35.757Z",
+  "draftPool": {
+    "source": "The Fjelstul World Cup Database v1.2.0 (CC-BY-SA 4.0)",
+    "repository": "https://github.com/jfjelstul/worldcup",
+    "squads": 489,
+    "players": 10973,
+    "nations": 85,
+    "tournaments": 22
+  },
+  "wc2026": {
+    "drawSource": "https://en.wikipedia.org/wiki/2026_FIFA_World_Cup",
+    "officialDrawCrossCheck": "https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/final-draw-results",
+    "rankingSource": "https://inside.fifa.com/api/ranking-overview?locale=en&dateId=id15136",
+    "teams": 48,
+    "rankingDate": "2026-06-11"
+  }
+}

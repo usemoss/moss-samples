@@ -1,0 +1,338 @@
+[
+  {
+    "team": "Mexico",
+    "group": "A",
+    "fifaRanking": 14,
+    "fifaPoints": 1687.48,
+    "strengthRating": 85
+  },
+  {
+    "team": "South Africa",
+    "group": "A",
+    "fifaRanking": 60,
+    "fifaPoints": 1428.38,
+    "strengthRating": 73
+  },
+  {
+    "team": "Korea Republic",
+    "group": "A",
+    "fifaRanking": 25,
+    "fifaPoints": 1591.63,
+    "strengthRating": 81
+  },
+  {
+    "team": "Czechia",
+    "group": "A",
+    "fifaRanking": 40,
+    "fifaPoints": 1505.74,
+    "strengthRating": 77
+  },
+  {
+    "team": "Canada",
+    "group": "B",
+    "fifaRanking": 30,
+    "fifaPoints": 1559.48,
+    "strengthRating": 79
+  },
+  {
+    "team": "Bosnia and Herzegovina",
+    "group": "B",
+    "fifaRanking": 64,
+    "fifaPoints": 1387.22,
+    "strengthRating": 71
+  },
+  {
+    "team": "Qatar",
+    "group": "B",
+    "fifaRanking": 56,
+    "fifaPoints": 1450.31,
+    "strengthRating": 74
+  },
+  {
+    "team": "Switzerland",
+    "group": "B",
+    "fifaRanking": 19,
+    "fifaPoints": 1650.06,
+    "strengthRating": 83
+  },
+  {
+    "team": "Brazil",
+    "group": "C",
+    "fifaRanking": 6,
+    "fifaPoints": 1765.86,
+    "strengthRating": 89
+  },
+  {
+    "team": "Morocco",
+    "group": "C",
+    "fifaRanking": 7,
+    "fifaPoints": 1755.1,
+    "strengthRating": 88
+  },
+  {
+    "team": "Scotland",
+    "group": "C",
+    "fifaRanking": 42,
+    "fifaPoints": 1503.34,
+    "strengthRating": 77
+  },
+  {
+    "team": "Haiti",
+    "group": "C",
+    "fifaRanking": 83,
+    "fifaPoints": 1293.1,
+    "strengthRating": 67
+  },
+  {
+    "team": "USA",
+    "group": "D",
+    "fifaRanking": 17,
+    "fifaPoints": 1671.23,
+    "strengthRating": 84
+  },
+  {
+    "team": "Paraguay",
+    "group": "D",
+    "fifaRanking": 41,
+    "fifaPoints": 1505.35,
+    "strengthRating": 77
+  },
+  {
+    "team": "Australia",
+    "group": "D",
+    "fifaRanking": 27,
+    "fifaPoints": 1579.34,
+    "strengthRating": 80
+  },
+  {
+    "team": "Türkiye",
+    "group": "D",
+    "fifaRanking": 22,
+    "fifaPoints": 1605.73,
+    "strengthRating": 81
+  },
+  {
+    "team": "Germany",
+    "group": "E",
+    "fifaRanking": 10,
+    "fifaPoints": 1735.77,
+    "strengthRating": 87
+  },
+  {
+    "team": "Côte d'Ivoire",
+    "group": "E",
+    "fifaRanking": 33,
+    "fifaPoints": 1540.87,
+    "strengthRating": 78
+  },
+  {
+    "team": "Ecuador",
+    "group": "E",
+    "fifaRanking": 23,
+    "fifaPoints": 1598.52,
+    "strengthRating": 81
+  },
+  {
+    "team": "Curaçao",
+    "group": "E",
+    "fifaRanking": 82,
+    "fifaPoints": 1294.77,
+    "strengthRating": 67
+  },
+  {
+    "team": "Netherlands",
+    "group": "F",
+    "fifaRanking": 8,
+    "fifaPoints": 1753.57,
+    "strengthRating": 88
+  },
+  {
+    "team": "Japan",
+    "group": "F",
+    "fifaRanking": 18,
+    "fifaPoints": 1661.58,
+    "strengthRating": 84
+  },
+  {
+    "team": "Sweden",
+    "group": "F",
+    "fifaRanking": 38,
+    "fifaPoints": 1509.79,
+    "strengthRating": 77
+  },
+  {
+    "team": "Tunisia",
+    "group": "F",
+    "fifaRanking": 45,
+    "fifaPoints": 1476.41,
+    "strengthRating": 75
+  },
+  {
+    "team": "Belgium",
+    "group": "G",
+    "fifaRanking": 9,
+    "fifaPoints": 1742.24,
+    "strengthRating": 88
+  },
+  {
+    "team": "Egypt",
+    "group": "G",
+    "fifaRanking": 29,
+    "fifaPoints": 1562.37,
+    "strengthRating": 79
+  },
+  {
+    "team": "IR Iran",
+    "group": "G",
+    "fifaRanking": 20,
+    "fifaPoints": 1619.58,
+    "strengthRating": 82
+  },
+  {
+    "team": "New Zealand",
+    "group": "G",
+    "fifaRanking": 85,
+    "fifaPoints": 1275.58,
+    "strengthRating": 66
+  },
+  {
+    "team": "Spain",
+    "group": "H",
+    "fifaRanking": 2,
+    "fifaPoints": 1874.71,
+    "strengthRating": 94
+  },
+  {
+    "team": "Cabo Verde",
+    "group": "H",
+    "fifaRanking": 67,
+    "fifaPoints": 1371.11,
+    "strengthRating": 71
+  },
+  {
+    "team": "Saudi Arabia",
+    "group": "H",
+    "fifaRanking": 61,
+    "fifaPoints": 1423.88,
+    "strengthRating": 73
+  },
+  {
+    "team": "Uruguay",
+    "group": "H",
+    "fifaRanking": 16,
+    "fifaPoints": 1673.07,
+    "strengthRating": 84
+  },
+  {
+    "team": "France",
+    "group": "I",
+    "fifaRanking": 3,
+    "fifaPoints": 1870.7,
+    "strengthRating": 94
+  },
+  {
+    "team": "Senegal",
+    "group": "I",
+    "fifaRanking": 15,
+    "fifaPoints": 1684.07,
+    "strengthRating": 85
+  },
+  {
+    "team": "Norway",
+    "group": "I",
+    "fifaRanking": 31,
+    "fifaPoints": 1557.44,
+    "strengthRating": 79
+  },
+  {
+    "team": "Iraq",
+    "group": "I",
+    "fifaRanking": 57,
+    "fifaPoints": 1446.28,
+    "strengthRating": 74
+  },
+  {
+    "team": "Argentina",
+    "group": "J",
+    "fifaRanking": 1,
+    "fifaPoints": 1877.27,
+    "strengthRating": 94
+  },
+  {
+    "team": "Algeria",
+    "group": "J",
+    "fifaRanking": 28,
+    "fifaPoints": 1571.03,
+    "strengthRating": 80
+  },
+  {
+    "team": "Austria",
+    "group": "J",
+    "fifaRanking": 24,
+    "fifaPoints": 1597.4,
+    "strengthRating": 81
+  },
+  {
+    "team": "Jordan",
+    "group": "J",
+    "fifaRanking": 63,
+    "fifaPoints": 1387.74,
+    "strengthRating": 71
+  },
+  {
+    "team": "Portugal",
+    "group": "K",
+    "fifaRanking": 5,
+    "fifaPoints": 1767.85,
+    "strengthRating": 89
+  },
+  {
+    "team": "Congo DR",
+    "group": "K",
+    "fifaRanking": 46,
+    "fifaPoints": 1474.43,
+    "strengthRating": 75
+  },
+  {
+    "team": "Uzbekistan",
+    "group": "K",
+    "fifaRanking": 50,
+    "fifaPoints": 1458.73,
+    "strengthRating": 75
+  },
+  {
+    "team": "Colombia",
+    "group": "K",
+    "fifaRanking": 13,
+    "fifaPoints": 1698.35,
+    "strengthRating": 86
+  },
+  {
+    "team": "England",
+    "group": "L",
+    "fifaRanking": 4,
+    "fifaPoints": 1828.02,
+    "strengthRating": 92
+  },
+  {
+    "team": "Croatia",
+    "group": "L",
+    "fifaRanking": 11,
+    "fifaPoints": 1714.87,
+    "strengthRating": 86
+  },
+  {
+    "team": "Ghana",
+    "group": "L",
+    "fifaRanking": 73,
+    "fifaPoints": 1346.88,
+    "strengthRating": 69
+  },
+  {
+    "team": "Panama",
+    "group": "L",
+    "fifaRanking": 34,
+    "fifaPoints": 1539.16,
+    "strengthRating": 78
+  }
+]
