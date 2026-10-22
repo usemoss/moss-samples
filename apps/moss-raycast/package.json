@@ -1,0 +1,67 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "moss-search",
+  "title": "Moss Search",
+  "description": "Semantic search over a Moss index, right from Raycast.",
+  "icon": "icon.png",
+  "author": "usemoss",
+  "license": "BSD-2-Clause",
+  "categories": [
+    "Productivity",
+    "Developer Tools"
+  ],
+  "commands": [
+    {
+      "name": "search-index",
+      "title": "Search Moss Index",
+      "subtitle": "Moss",
+      "description": "Semantic search over a Moss index",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "projectId",
+      "title": "Project ID",
+      "type": "textfield",
+      "required": true,
+      "description": "Your Moss project ID"
+    },
+    {
+      "name": "projectKey",
+      "title": "Project Key",
+      "type": "password",
+      "required": true,
+      "description": "Your Moss project key"
+    },
+    {
+      "name": "indexName",
+      "title": "Index Name",
+      "type": "textfield",
+      "required": true,
+      "description": "Name of the Moss index to query"
+    }
+  ],
+  "dependencies": {
+    "@moss-dev/moss": "^1.3.2",
+    "@raycast/api": "^1.94.0",
+    "@raycast/utils": "^1.19.1"
+  },
+  "external": [
+    "@moss-dev/moss-core"
+  ],
+  "devDependencies": {
+    "@raycast/eslint-config": "^1.0.11",
+    "@types/node": "^22.18.3",
+    "@types/react": "^19.0.10",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.8.3"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "fix-lint": "ray lint --fix"
+  }
+}
