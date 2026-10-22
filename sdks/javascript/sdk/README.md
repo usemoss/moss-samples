@@ -314,6 +314,85 @@ const results = await mossClient.query("my-docs", "running shoes", {
 });
 ```
 
+## Inference
+
+`MossInference` answers OpenAI's `chat.completions.create`, with the same
+arguments and return shapes, through the Moss inference gateway. The gateway
+searches the `indexes` you pass and adds what it finds to the prompt, so code
+written for OpenAI swaps its client for `MossInference` and adds `indexes`.
+
+```typescript
+import { MossInference } from "@moss-js/moss";
+
+const client = new MossInference("your-project-id", "your-project-key");
+
+const stream = await client.chat.completions.create({
+  messages: [{ role: "user", content: "Do you ship to Canada?" }],
+  indexes: ["faq"],
+  stream: true,
+});
+for await (const chunk of stream) {
+  process.stdout.write(chunk.choices[0]?.delta.content ?? "");
+}
+```
+
+`model` is optional and defaults to `"moss"`, Moss's own model. Without
+`stream: true` the call reads the whole stream and returns one completion:
+
+```typescript
+const completion = await client.chat.completions.create(
+  {
+    messages: [{ role: "user", content: "Do you ship to Canada?" }],
+    indexes: ["faq"],
+  },
+  { timeout: 30_000 },
+);
+console.log(completion.choices[0].message.content);
+```
+
+With `MOSS_PROJECT_ID` and `MOSS_PROJECT_KEY` set,
+`inference.chat.completions.create(...)` takes the same arguments without a client.
+
+`apiKey` is optional: your own OpenAI, Anthropic or Google key, for a vendor
+model such as `gpt-4o-mini`. `moss` ignores it, and a vendor model without one
+is refused. Set it on the client, or pass it with one call, where it wins over
+the client's:
+
+```typescript
+const keyed = new MossInference("your-project-id", "your-project-key", {
+  apiKey: "your-openai-key",
+});
+const reply = await keyed.chat.completions.create(
+  { model: "gpt-4o-mini", messages: [{ role: "user", content: "Hi" }] },
+  { apiKey: "your-other-openai-key" },
+);
+```
+
+The other client options are `timeout` for each whole call (no limit by
+default), `idleTimeout` for the longest wait for response headers or for more of
+the body (120 000 ms by default, `null` for none) and `headers`. Node's built-in
+`fetch` also ends a silence of 300 000 ms, unless its global dispatcher allows
+more. Each call takes `apiKey`, `signal`, `timeout`, `idleTimeout` and
+`headers`, which replace or add to the client's for that call. Neither `headers`
+can set `Host`, `Content-Length` or `Transfer-Encoding`. `retrieve: false` skips
+the search.
+
+To call another gateway, set `MOSS_INFERENCE_URL` to
+its base URL, up to and including `/v1`, before you build the client. A
+`baseURL` or `baseUrl` option, on the client or a call, is an error.
+
+Leaving the `for await` loop early, or calling `stream.controller.abort()`,
+closes the connection, stops the model and ends the loop quietly. An abort with
+any other reason, such as the `TimeoutError` of `AbortSignal.timeout()`, throws
+that reason. Without `stream: true`, an abort rejects with the signal's reason,
+an `AbortError` for a plain `abort()`. Every other failure throws
+`InferenceError` with `status`, `type` and a Moss `code` that `isMossError`
+accepts, including an error the model reports mid-stream, a stream that ends
+early (`incomplete_stream`), a broken connection (`connection_error`) and a
+timeout (`timeout`). It also carries the gateway's `errorCode`, the response's
+`requestId` and, for a `429` or another error that sends `Retry-After`,
+`retryAfter` in milliseconds. The client does not follow redirects.
+
 ## 📄 License
 
 This package is licensed under the [PolyForm Shield License 1.0.0](./LICENSE.txt).

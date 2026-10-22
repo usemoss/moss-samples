@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-10-22
+
+### Added
+
+- `MossInference(project_id, project_key)` answers chat messages with facts from your Moss indexes. `await client.chat.completions.create(...)` takes the arguments of OpenAI's `chat.completions.create` plus `indexes` and `retrieve`, and returns a `ChatCompletionStream` of `ChatCompletionChunk` with `stream=True`, else one `ChatCompletion`, with OpenAI's field names. `model` is `"moss"` by default. `api_key`, on the client or for one call of `create`, is optional: your own OpenAI, Anthropic or Google key, for a vendor model such as `gpt-4o-mini`. `moss` ignores it, and a vendor model without one is refused. The client also takes `timeout` for a whole call, `idle_timeout` for each wait for data or a free connection (120 seconds by default or when `None`), and `default_headers`. A timeout of 0 or less is off. `create` can change the key and both timeouts for one call, and `None` there keeps the client's. The client checks its arguments when built, keeps one connection pool, and closes it with `close()` or `async with`. Failures raise `moss.inference.InferenceError` with `status`, `type` and `message`, and, once the service has answered, its `request_id`, error `code` and `retry_after` in seconds. A redirect is one of those failures, so credentials never reach another URL. Calls go to `https://inference.moss.dev/v1`, or to the base URL in `MOSS_INFERENCE_URL`, which a client reads when built. `moss.inference.chat.completions.create` makes the same call on a client built from `MOSS_PROJECT_ID`, `MOSS_PROJECT_KEY` and `MOSS_INFERENCE_URL`.
+
+### Changed
+
+- Requires `httpx`, which `moss.inference` streams replies with, along with `h11` 0.16 or later and `anyio` 4.14.2 or later, the first releases of each without published advisories.
+- Requires `inferedge-moss-core` 0.34.0. Every native object shares one process-wide async runtime instead of starting its own 18 threads, so a process keeps the same few threads however many clients and sessions it opens. `MOSS_TOKIO_WORKER_THREADS` sets its worker count, by default the number of CPU cores, at least 2 and at most 4, and a forked child builds its own. The background flush a dropped object starts runs to the end.
+- A `429` with the code `USAGE_LIMIT_EXCEEDED`, which Moss sends while a project is paused, fails on the first response with the code `UNAUTHORIZED` and the message "The project's usage limit has been reached; billing must be updated before it can be used.", instead of retrying for about 90 seconds and failing with `NETWORK`. A cold start with a committed snapshot on disk fails the same way rather than serving the snapshot. Any other `429` still retries.
+
 ## [1.19.0] - 2026-10-20
 
 ### Added

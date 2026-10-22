@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.20.0] - 2026-10-22
+
+### Added
+
+- `MossInference` answers OpenAI's `chat.completions.create` through the Moss inference gateway, which adds what it finds in the `indexes` you pass to the prompt. `new MossInference(projectId, projectKey, { apiKey, timeout, idleTimeout, headers })` checks its arguments when it is built, and `client.chat.completions.create(params, { apiKey, signal, timeout, idleTimeout, headers })` takes OpenAI's parameters plus `indexes` and `retrieve`, with `model` set to `"moss"` when it is left out. With `stream: true` it returns a `ChatCompletionStream` of `ChatCompletionChunk`s, and otherwise one `ChatCompletion`. `apiKey` is optional: your own OpenAI, Anthropic or Google key, for a vendor model such as `gpt-4o-mini`. `moss` ignores it, and a vendor model without one is refused. A call's `apiKey` wins over the client's, and an empty one is an error, as is `apiKey` or `api_key` among the parameters. Neither the client's nor a call's `headers` can set `Host`, `Content-Length` or `Transfer-Encoding`. `idleTimeout` limits the wait for response headers or for more of the body, 120 seconds by default. The client does not follow redirects. A client built with `MOSS_INFERENCE_URL` set calls that gateway instead of production, and a `baseURL` or `baseUrl` option is an error. `inference.chat.completions.create` uses a client built from `MOSS_PROJECT_ID`, `MOSS_PROJECT_KEY` and `MOSS_INFERENCE_URL`. Failures throw `InferenceError`, which carries a Moss `code` that `isMossError` accepts, and the gateway's `errorCode`, the `requestId` and `retryAfter` in milliseconds when the response has them. See the Inference section of the README.
+
+### Changed
+
+- Requires `@moss-js/moss-core` 0.35.0. A `429` with the code `USAGE_LIMIT_EXCEEDED`, which Moss sends while a project is paused, fails on the first response with the code `UNAUTHORIZED` and the message "The project's usage limit has been reached; billing must be updated before it can be used.", instead of retrying for about 90 seconds and failing with `NETWORK`. A cold start with a committed snapshot on disk fails the same way rather than serving the snapshot. Any other `429` still retries.
+
 ## [1.19.0] - 2026-10-20
 
 ### Added

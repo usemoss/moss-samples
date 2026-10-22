@@ -19,6 +19,8 @@ from typing import (
     overload,
 )
 
+from .inference import MossInference as MossInference
+
 DocsInput = Union[
     Iterable[DocumentInfo],
     Iterable[Mapping[str, Any]],
@@ -839,4 +841,6 @@ __all__ = [
     "JobPhase",
     "JobProgress",
     "JobStatusResponse",
+    # Inference
+    "MossInference",
 ]
