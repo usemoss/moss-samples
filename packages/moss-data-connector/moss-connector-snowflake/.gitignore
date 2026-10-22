@@ -1,0 +1,16 @@
+# Local secrets
+.env
+rsa_key.p8
+
+# Local dev / recording helpers
+demo_ingest.py
+test_output.txt
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.venv/

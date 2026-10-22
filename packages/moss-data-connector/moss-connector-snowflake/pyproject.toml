@@ -1,0 +1,56 @@
+[project]
+name = "moss-connector-snowflake"
+version = "0.0.1"
+description = "Snowflake source connector for moss-connectors."
+readme = "README.md"
+requires-python = ">=3.10,<3.15"
+license = { text = "BSD-2-Clause" }
+authors = [{ name = "InferEdge Inc.", email = "contact@moss.dev" }]
+keywords = ["moss", "connectors", "snowflake", "ingest", "etl"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+]
+dependencies = [
+    "moss>=1.1.1",
+    "snowflake-connector-python>=3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "python-dotenv>=1.0.0",
+    "ruff>=0.5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/usemoss/moss"
+Repository = "https://github.com/usemoss/moss"
+Source = "https://github.com/usemoss/moss/tree/main/packages/moss-data-connector/moss-connector-snowflake"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+# Flat layout: src/ itself IS the package `moss_connector_snowflake`.
+[tool.setuptools]
+packages = ["moss_connector_snowflake"]
+package-dir = { "moss_connector_snowflake" = "src" }
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

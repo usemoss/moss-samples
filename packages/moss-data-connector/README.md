@@ -45,6 +45,7 @@ Use `auto_id=True` when your mapper does not have a stable primary key and you w
 | [`moss-connector-mysql`](moss-connector-mysql)             | MySQL         | `pymysql`    |
 | [`moss-connector-supabase`](moss-connector-supabase)       | Supabase      | `supabase`   |
 | [`moss-connector-dynamodb`](moss-connector-dynamodb)       | Amazon DynamoDB | `boto3`    |
+| [`moss-connector-snowflake`](moss-connector-snowflake)     | Snowflake     | `snowflake-connector-python` |
 | [`moss-connector-huggingface`](moss-connector-huggingface) | Hugging Face datasets | `datasets` |
 | [`moss-connector-s3`](moss-connector-s3)                   | Amazon S3     | `boto3`      |
 | [`moss-connector-zeroentropy`](moss-connector-zeroentropy) | ZeroEntropy   | `zeroentropy` |
