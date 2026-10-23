@@ -9,7 +9,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import os
 
 from loguru import logger
@@ -50,26 +49,13 @@ class MossRetrievalService:
             )
         self._client = MossClient(project_id, project_key, cache_path=cache_path)
         self._system_prompt = system_prompt
-        self._loads: dict[str, asyncio.Task[None]] = {}
         logger.debug("Initialized MossRetrievalService for project")
 
     async def load_index(self, index_name: str, *, auto_refresh: bool = False) -> None:
-        """Load an index into memory once for this service.
+        """Load an index into memory, or check a loaded one for a newer cloud version.
 
-        Later and concurrent calls wait for that same load.
-        A failed load is retried by the next call, and the first call's options apply.
         With `auto_refresh`, the index follows new cloud versions while the process runs.
         """
-        task = self._loads.get(index_name)
-        if task is None or (task.done() and (task.cancelled() or task.exception() is not None)):
-            task = asyncio.ensure_future(self._load(index_name, auto_refresh))
-            # `_load` logs a failure and the next call retries, so no caller has to retrieve it.
-            task.add_done_callback(lambda done: done.cancelled() or done.exception())
-            self._loads[index_name] = task
-        # A bot that disconnects mid-load must not cancel the load other bots share.
-        await asyncio.shield(task)
-
-    async def _load(self, index_name: str, auto_refresh: bool) -> None:
         try:
             logger.debug(f"Loading index: {index_name}")
             await self._client.load_index(index_name, auto_refresh=auto_refresh)

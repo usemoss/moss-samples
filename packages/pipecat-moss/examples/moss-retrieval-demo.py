@@ -19,7 +19,6 @@ Required AI services:
 - Cartesia (Text-to-Speech)
 """
 
-import asyncio
 import os
 
 from dotenv import load_dotenv
@@ -67,9 +66,7 @@ def get_moss_service() -> MossRetrievalService:
     return _moss_service
 
 
-async def run_bot(
-    transport: BaseTransport, runner_args: RunnerArguments, moss_loading: asyncio.Task
-):
+async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
     """Run the customer support bot pipeline."""
     # Initialize stt, tts, llm services
     logger.debug("Starting customer support bot")
@@ -87,9 +84,9 @@ async def run_bot(
     index_name = os.getenv("MOSS_INDEX_NAME")
     top_k = int(os.getenv("MOSS_TOP_K", "5"))
 
-    # The load started before the transport connected; it is instant once loaded.
+    # Loads the index, or checks a loaded one for a newer cloud version.
     moss_service = get_moss_service()
-    await moss_loading
+    await moss_service.load_index(index_name)
     logger.debug(f"Moss retrieval service ready (index: {index_name})")
 
     # System prompt with semantic retrieval support
@@ -205,18 +202,8 @@ async def bot(runner_args: RunnerArguments):
         ),
     }
 
-    # Start loading the index while the transport connects.
-    moss_loading = asyncio.ensure_future(
-        get_moss_service().load_index(os.getenv("MOSS_INDEX_NAME"), auto_refresh=True)
-    )
-    try:
-        transport = await create_transport(runner_args, transport_params)
-        await run_bot(transport, runner_args, moss_loading)
-    finally:
-        # If setup failed first, stop waiting. The shared load itself keeps running for later bots.
-        moss_loading.cancel()
-        await asyncio.gather(moss_loading, return_exceptions=True)
-
+    transport = await create_transport(runner_args, transport_params)
+    await run_bot(transport, runner_args)
 
 if __name__ == "__main__":
     runner_main()

@@ -33,8 +33,8 @@ moss_service = MossRetrievalService(
 )
 
 async def build_pipeline(transport, stt, llm, tts, context_aggregator) -> Pipeline:
-    # Before the pipeline starts. Only the first call in a process loads the index.
-    await moss_service.load_index(os.getenv("MOSS_INDEX_NAME"), auto_refresh=True)
+    # Before the pipeline starts: loads the index, or checks a loaded one for a newer version.
+    await moss_service.load_index(os.getenv("MOSS_INDEX_NAME"))
 
     return Pipeline([
         transport.input(),               # audio/user input
@@ -101,7 +101,7 @@ python examples/moss-retrieval-demo.py
 - `project_key` (required): Moss project key (defaults to env var `MOSS_PROJECT_KEY`)
 - `system_prompt` (default: "Here is additional context retrieved from database:\n\n"): Prefix added ahead of retrieved documents
 - `cache_path` (default: none): Directory that keeps downloaded indexes on disk, so a load in a new process reads an unchanged index from disk instead of downloading it
-- `load_index(index_name, *, auto_refresh=False)`: Awaitable method that loads the given index once per service; later calls wait for the same load. `auto_refresh` keeps the index on the latest cloud version while the process runs. The first successful load of an index sets `auto_refresh`; a retry after a failed load uses the retry's options
+- `load_index(index_name, *, auto_refresh=False)`: Awaitable method that loads the given index, or checks a loaded one for a newer cloud version. `auto_refresh=True` keeps the index on the latest version while the process runs, but its periodic refresh counts as session time, so a long-running process with it on is billed for session minutes around the clock, calls or not. Leave it off unless the index must follow edits between calls
 - `query(index_name, *, top_k=5)`: Returns a `MossIndexProcessor` for the specified index; `top_k` controls result count, `alpha` blends semantic vs keyword scoring (0.0 keyword-only, 1.0 semantic-only)
 
 ## License

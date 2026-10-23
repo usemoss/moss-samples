@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `load_index(index_name, auto_refresh=...)`.
 
 ### Changed
-- `load_index` loads each index once per service. Later and concurrent calls wait for that same load, and a failed load is retried by the next call, so one service per process can serve every bot.
 - Requires `moss` 1.14.0 or later.
 
 ### Fixed
