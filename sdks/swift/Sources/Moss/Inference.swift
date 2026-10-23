@@ -18,6 +18,7 @@ public final class MossInference: Sendable {
     let headers: [String: String]
     let timeout: TimeInterval?
     let idleTimeout: TimeInterval?
+    let maxRetries: Int
     /// The session of every call, with room for 64 streams to one host,
     /// since a call that waits for a free connection uses up its connect limit.
     /// Its request timeout is 60 seconds because URLSession reads a request's 60,
@@ -31,12 +32,15 @@ public final class MossInference: Sendable {
     /// or Google key, for a vendor model such as `gpt-4o-mini`. `moss` ignores it, and a vendor model without one is refused.
     /// `idleTimeout` ends a call when the gateway sends nothing for that many seconds, before the reply or between any two of its bytes.
     /// `timeout` limits each whole call, stream included. For either limit, `nil` or `.infinity` means none, the default for `timeout`.
+    /// `maxRetries` (0 for none) sends a call again after a connection failure or a status of 408, 409, 429 or 500 and above,
+    /// waiting a `Retry-After` of 60 seconds or less, else a backoff from 0.5 up to 8 seconds, within `timeout`. A stream that started is never retried.
     public init(
         projectId: String,
         projectKey: String,
         apiKey: String? = nil,
         timeout: TimeInterval? = nil,
-        idleTimeout: TimeInterval? = 120
+        idleTimeout: TimeInterval? = 120,
+        maxRetries: Int = 2
     ) throws {
         try Self.checkValue("projectId", projectId)
         try Self.checkValue("projectKey", projectKey)
@@ -45,6 +49,7 @@ public final class MossInference: Sendable {
         url = try Self.endpoint(ProcessInfo.processInfo.environment["MOSS_INFERENCE_URL"])
         self.timeout = try Self.limit(timeout, "timeout")
         self.idleTimeout = try Self.limit(idleTimeout, "idleTimeout")
+        self.maxRetries = try Self.retries(maxRetries)
         var headers = [
             "Authorization": "Bearer \(projectId):\(projectKey)", "Content-Type": "application/json", "Accept": "text/event-stream",
         ]
@@ -66,11 +71,13 @@ public final class MossInference: Sendable {
 
     /// Chat completions in the shape of OpenAI's `chat.completions`.
     ///
-    /// `indexes` names the indexes to search, or all of the project's when empty.
-    /// `retrieve: false` skips the search, and `extra` holds the other OpenAI body fields.
+    /// `tools` offers functions you run and MCP servers the gateway calls, and `toolChoice` and `parallelToolCalls`
+    /// steer them. Each is sent only when given and wins over the same key in `extra`, which holds the other OpenAI body fields.
+    /// `indexes` names the indexes to search, all of the project's when `nil` and none when empty, as with `retrieve: false`.
+    /// Moss can answer an identical request from its reply cache, and `cache: false` always asks the model.
     /// `model` is `moss`, Moss's model, unless you name a vendor model such as `gpt-4o-mini`.
     /// `apiKey` replaces the client's provider key for one call, and an empty one is refused.
-    /// `timeout` and `idleTimeout` replace the client's for one call. `nil` keeps the client's, and `.infinity` lifts a limit.
+    /// `timeout`, `idleTimeout` and `maxRetries` replace the client's for one call. `nil` keeps the client's, and `.infinity` lifts a limit.
     public struct Completions: Sendable {
         let client: MossInference
 
@@ -78,16 +85,22 @@ public final class MossInference: Sendable {
         public func create(
             model: String = "moss",
             messages: [ChatMessage],
-            indexes: [String] = [],
+            tools: [Tool] = [],
+            toolChoice: ToolChoice? = nil,
+            parallelToolCalls: Bool? = nil,
+            indexes: [String]? = nil,
             retrieve: Bool = true,
+            cache: Bool = true,
             apiKey: String? = nil,
             timeout: TimeInterval? = nil,
             idleTimeout: TimeInterval? = nil,
+            maxRetries: Int? = nil,
             extra: [String: JSONValue] = [:]
         ) async throws -> ChatCompletion {
             let stream = try await createStreaming(
-                model: model, messages: messages, indexes: indexes, retrieve: retrieve, apiKey: apiKey,
-                timeout: timeout, idleTimeout: idleTimeout, extra: extra
+                model: model, messages: messages, tools: tools, toolChoice: toolChoice, parallelToolCalls: parallelToolCalls,
+                indexes: indexes, retrieve: retrieve, cache: cache, apiKey: apiKey, timeout: timeout, idleTimeout: idleTimeout,
+                maxRetries: maxRetries, extra: extra
             )
             return try await ChatCompletion(gathering: stream, model: model)
         }
@@ -96,21 +109,30 @@ public final class MossInference: Sendable {
         public func createStreaming(
             model: String = "moss",
             messages: [ChatMessage],
-            indexes: [String] = [],
+            tools: [Tool] = [],
+            toolChoice: ToolChoice? = nil,
+            parallelToolCalls: Bool? = nil,
+            indexes: [String]? = nil,
             retrieve: Bool = true,
+            cache: Bool = true,
             apiKey: String? = nil,
             timeout: TimeInterval? = nil,
             idleTimeout: TimeInterval? = nil,
+            maxRetries: Int? = nil,
             extra: [String: JSONValue] = [:]
         ) async throws -> ChatCompletionStream {
-            if let name = indexes.first(where: { $0.isEmpty || $0.contains(",") }) {
+            if let name = indexes?.first(where: { $0.isEmpty || $0.contains(",") }) {
                 throw InferenceError.invalidRequest("Index names must not be empty or contain ',': \"\(name)\"")
             }
-            try indexes.forEach { try MossInference.checkHeader("Index names", $0) }
+            try indexes?.forEach { try MossInference.checkHeader("Index names", $0) }
             try apiKey.map { try MossInference.checkValue("apiKey", $0) }
             let timeout = try timeout.map { try MossInference.limit($0, "timeout") } ?? client.timeout
             let idleTimeout = try idleTimeout.map { try MossInference.limit($0, "idleTimeout") } ?? client.idleTimeout
+            let maxRetries = try maxRetries.map(MossInference.retries) ?? client.maxRetries
             var body = extra
+            if !tools.isEmpty { body["tools"] = .array(tools.map(\.json)) }
+            if let toolChoice { body["tool_choice"] = toolChoice.json }
+            if let parallelToolCalls { body["parallel_tool_calls"] = .bool(parallelToolCalls) }
             body["model"] = .string(model)
             body["messages"] = .array(messages.map(\.json))
             body["stream"] = true
@@ -120,10 +142,13 @@ public final class MossInference: Sendable {
             request.httpMethod = "POST"
             request.httpBody = try JSONEncoder().encode(body)
             client.headers.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
-            if !indexes.isEmpty { request.setValue(indexes.joined(separator: ","), forHTTPHeaderField: "X-Moss-Indexes") }
-            if !retrieve { request.setValue("off", forHTTPHeaderField: "X-Moss-Retrieve") }
+            if let indexes, !indexes.isEmpty { request.setValue(indexes.joined(separator: ","), forHTTPHeaderField: "X-Moss-Indexes") }
+            if !retrieve || indexes?.isEmpty == true { request.setValue("off", forHTTPHeaderField: "X-Moss-Retrieve") }
+            if !cache { request.setValue("off", forHTTPHeaderField: "X-Moss-Cache") }
             if let apiKey { request.setValue(apiKey, forHTTPHeaderField: "X-Moss-Provider-Key") }
-            return try await ChatCompletionStream.open(request, in: client.session, timeout: timeout, idleTimeout: idleTimeout)
+            return try await ChatCompletionStream.open(
+                request, in: client.session, timeout: timeout, idleTimeout: idleTimeout, maxRetries: maxRetries
+            )
         }
     }
 
@@ -180,6 +205,12 @@ public final class MossInference: Sendable {
         guard seconds > 0 else { throw InferenceError.invalidRequest("\(name) must be above zero") }
         return seconds
     }
+
+    /// `count` as a number of retries, or an error when it is below zero.
+    static func retries(_ count: Int) throws -> Int {
+        guard count >= 0 else { throw InferenceError.invalidRequest("maxRetries must not be below zero") }
+        return count
+    }
 }
 
 /// A streamed chat completion, an `AsyncSequence` of chunks to iterate once.
@@ -203,6 +234,9 @@ public final class ChatCompletionStream: AsyncSequence, @unchecked Sendable {
 
     public func makeAsyncIterator() -> AsyncIterator { AsyncIterator(reader) }
 
+    /// The gateway's `X-Moss-Request-Id` for the call, or `nil` when the response has none.
+    public var requestId: String? { reader.requestId }
+
     /// Closes the connection. A loop over the stream then ends without an error.
     public func cancel() { reader.cancel() }
 
@@ -220,12 +254,32 @@ public final class ChatCompletionStream: AsyncSequence, @unchecked Sendable {
         public func next() async throws -> ChatCompletionChunk? { try await reader.next() }
     }
 
-    /// Sends `request` and returns the stream once the response headers arrive.
-    /// A non-2xx answer throws its status, unless a limit passes or the task is cancelled while its body is read.
+    /// Sends `request`, again up to `maxRetries` times after a `Retryable` failure, and returns the stream.
+    /// A wait that would pass `timeout` throws that failure at once instead, and cancelling the task ends a wait.
+    /// Each wait is a `Retry-After` of 60 seconds or less, else 0.5 seconds doubled per retry, capped at 8, with up to 25 percent jitter.
     static func open(
-        _ request: URLRequest, in session: URLSession, timeout: TimeInterval?, idleTimeout: TimeInterval?
+        _ request: URLRequest, in session: URLSession, timeout: TimeInterval?, idleTimeout: TimeInterval?, maxRetries: Int
     ) async throws -> ChatCompletionStream {
-        let call = CallDelegate(timeout: timeout, idleTimeout: idleTimeout)
+        let start = DispatchTime.now()
+        var retries = 0
+        while true {
+            do {
+                return try await send(request, in: session, call: CallDelegate(timeout: timeout, idleTimeout: idleTimeout, start: start))
+            } catch let failure as Retryable {
+                let backoff = Swift.min(0.5 * pow(2, Double(retries)), 8) * .random(in: 0.75...1)
+                let wait = failure.error.retryAfter.flatMap { $0 <= 60 ? $0 : nil } ?? backoff
+                guard retries < maxRetries, timeout.map({ DispatchTime.now() + wait < start + $0 }) ?? true else { throw failure.error }
+                try await Task.sleep(nanoseconds: UInt64(wait * 1e9))
+                retries += 1
+            }
+        }
+    }
+
+    /// Sends `request` once and returns the stream when its response headers arrive.
+    /// A failure to connect, or a connection lost before the headers, throws as `Retryable`.
+    /// A non-2xx answer throws its status, unless a limit passes or the task is cancelled while its body is read,
+    /// as `Retryable` for 408, 409, 429 or 500 and above unless `x-should-retry` is `false`, or for any when it is `true`.
+    private static func send(_ request: URLRequest, in session: URLSession, call: CallDelegate) async throws -> ChatCompletionStream {
         let sending = Task { try await session.bytes(for: request, delegate: call) }
         call.onExpiry { sending.cancel() }
         let (bytes, response): (URLSession.AsyncBytes, URLResponse)
@@ -233,7 +287,11 @@ public final class ChatCompletionStream: AsyncSequence, @unchecked Sendable {
             (bytes, response) = try await withTaskCancellationHandler { try await sending.value } onCancel: { sending.cancel() }
         } catch {
             call.stop()
-            throw call.failure(error, requestId: nil)
+            let failure = call.failure(error, requestId: nil)
+            if let failure = failure as? InferenceError, failure.type == "connection_error" || call.connectFailed {
+                throw Retryable(error: failure)
+            }
+            throw failure
         }
         call.sent()
         call.onExpiry { bytes.task.cancel() }
@@ -247,10 +305,21 @@ public final class ChatCompletionStream: AsyncSequence, @unchecked Sendable {
             bytes.task.cancel()
             call.stop()
             if let failure, failure is CancellationError || (failure as? InferenceError)?.type == "timeout" { throw failure }
-            throw InferenceError(response: http, body: body)
+            let status = http?.statusCode ?? 0
+            let shouldRetry = http?.value(forHTTPHeaderField: "x-should-retry")
+            let error = InferenceError(response: http, body: body)
+            if shouldRetry == "true" || shouldRetry != "false" && ([408, 409, 429].contains(status) || status >= 500) {
+                throw Retryable(error: error)
+            }
+            throw error
         }
         return ChatCompletionStream(reader: EventReader(bytes, call, http.requestId))
     }
+}
+
+/// A failed attempt that another attempt may follow.
+private struct Retryable: Error {
+    let error: InferenceError
 }
 
 /// Reads server-sent events from a response body and decodes each into a chunk.
@@ -267,9 +336,13 @@ final class EventReader: @unchecked Sendable {
     private let task: URLSessionDataTask
     private let call: CallDelegate
     /// The response's `X-Moss-Request-Id`, which every failure of the stream carries.
-    private let requestId: String?
+    let requestId: String?
     private let lock = NSLock()
     private var finished = false
+    /// Whether a chunk has carried an MCP tool step, after which every failure has the code `failed_after_tool_call`.
+    private var toolRan = false
+    /// The tool calls of each choice so far, by choice index.
+    private var slots: [Int: ToolSlots] = [:]
     var iterated = false
 
     init(_ bytes: URLSession.AsyncBytes, _ call: CallDelegate, _ requestId: String?) {
@@ -289,7 +362,10 @@ final class EventReader: @unchecked Sendable {
             finish()
             task.cancel()
             if cancelled { return nil }
-            throw error is InferenceError ? error : call.failure(error, requestId: requestId)
+            let failure = error is InferenceError ? error : call.failure(error, requestId: requestId)
+            guard toolRan, var stepped = failure as? InferenceError else { throw failure }
+            stepped.code = "failed_after_tool_call"
+            throw stepped
         }
     }
 
@@ -313,7 +389,9 @@ final class EventReader: @unchecked Sendable {
             let type = error["type"]?.string ?? "model_error"
             throw failure(type, error["message"]?.string ?? "The stream failed", code: InferenceError.code(Data(data.utf8)))
         }
-        return ChatCompletionChunk(event)
+        let chunk = ChatCompletionChunk(event, slots: &slots)
+        toolRan = toolRan || chunk.toolStep != nil
+        return chunk
     }
 
     private func failure(_ type: String, _ message: String, code: String? = nil) -> InferenceError {
@@ -387,30 +465,32 @@ final class CallDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable 
     private var timers: [DispatchWorkItem] = []
     private var cancelCall: (() -> Void)?
     private var requestSent = false
-    private var expiry: String?
+    /// The message of the limit that ended the call, and whether it was the connect limit.
+    private var expiry: (message: String, connecting: Bool)?
 
-    init(timeout: TimeInterval?, idleTimeout: TimeInterval?) {
+    /// Starts the connect limit now and the `timeout` of a call that began at `start`.
+    init(timeout: TimeInterval?, idleTimeout: TimeInterval?, start: DispatchTime) {
         self.idleTimeout = idleTimeout
         super.init()
         let connect = MossInference.connectTimeout
-        schedule(connect, connecting: true, "Could not connect and send the request within \(connect) seconds")
-        if let timeout { schedule(timeout, connecting: false, "The call did not finish within \(timeout) seconds") }
+        schedule(.now() + connect, connecting: true, "Could not connect and send the request within \(connect) seconds")
+        if let timeout { schedule(start + timeout, connecting: false, "The call did not finish within \(timeout) seconds") }
     }
 
     private func locked<T>(_ body: () -> T) -> T { lock.locked(body) }
 
-    private func schedule(_ seconds: TimeInterval, connecting: Bool, _ message: String) {
+    private func schedule(_ deadline: DispatchTime, connecting: Bool, _ message: String) {
         let timer = DispatchWorkItem { [weak self] in
             guard let self else { return }
             let cancel = self.locked { () -> (() -> Void)? in
                 guard self.expiry == nil, !(connecting && self.requestSent) else { return nil }
-                self.expiry = message
+                self.expiry = (message, connecting)
                 return self.cancelCall
             }
             cancel?()
         }
         timers.append(timer)
-        DispatchQueue.global().asyncAfter(deadline: .now() + seconds, execute: timer)
+        DispatchQueue.global().asyncAfter(deadline: deadline, execute: timer)
     }
 
     /// Sets what to cancel when a limit passes, and cancels it at once when one already has.
@@ -419,6 +499,9 @@ final class CallDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable 
     }
 
     func sent() { locked { requestSent = true } }
+
+    /// Whether the call failed before it sent its request, with `timeout` not yet passed.
+    var connectFailed: Bool { locked { !requestSent && expiry?.connecting != false } }
 
     func stop() {
         locked {
@@ -444,7 +527,7 @@ final class CallDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable 
         let code = (error as? URLError)?.code
         let (type, message): (String, String)
         if let expiry = locked({ expiry }) {
-            (type, message) = ("timeout", expiry)
+            (type, message) = ("timeout", expiry.message)
         } else if error is CancellationError || code == .cancelled {
             return CancellationError()
         } else if code == .timedOut {
