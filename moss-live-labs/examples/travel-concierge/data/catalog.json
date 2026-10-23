@@ -1,0 +1,16 @@
+[
+  { "id": "amalfi", "text": "Amalfi Coast, Italy — romantic cliffside villages, boat trips, and long seafood lunches. Best April to June or September. Around $3,500 per person for a week. Great for couples and honeymoons." },
+  { "id": "tulum", "text": "Tulum, Mexico — white-sand beaches, cenotes, and Mayan ruins. Warm and dry November to April. About $2,200 per person. Works for both families and couples." },
+  { "id": "kyoto", "text": "Kyoto, Japan — temples, gardens, and food. Cherry blossoms in spring, red foliage in autumn. Roughly $3,000 per person. A calm, cultural trip." },
+  { "id": "banff", "text": "Banff, Canada — turquoise lakes, hiking, and mountain gondolas. Best June to September. Around $2,600 per person. Excellent for active families." },
+  { "id": "santorini", "text": "Santorini, Greece — whitewashed cliffs, sunsets, and volcanic beaches. Ideal May to September. About $3,200 per person. A romantic favorite." },
+  { "id": "lisbon", "text": "Lisbon, Portugal — hilly old town, pastéis de nata, and day trips to Sintra. Mild most of the year. A budget-friendly city break at about $1,800 per person." },
+  { "id": "costa-rica", "text": "Manuel Antonio, Costa Rica — rainforest meets the beach, with sloths and zip-lines. Dry season December to April. Around $2,400 per person. Big hit with families." },
+  { "id": "iceland", "text": "Iceland Ring Road — waterfalls, geysers, and black-sand beaches. Northern lights in winter, midnight sun in summer. About $3,300 per person. A nature road trip." },
+  { "id": "bali", "text": "Bali, Indonesia — beaches, rice terraces, and wellness retreats. Dry season April to October. A mid-budget escape around $1,900 per person." },
+  { "id": "marrakech", "text": "Marrakech, Morocco — souks, riads, and desert excursions. Best in spring or autumn. Around $2,000 per person. Vibrant and full of color." },
+  { "id": "maui", "text": "Maui, Hawaii — beaches, the road to Hana, and snorkeling. Good year-round. A splurge at roughly $3,800 per person. Family-friendly." },
+  { "id": "prague", "text": "Prague, Czechia — medieval old town, castles, and river walks. Lovely in spring and autumn. A budget city trip around $1,700 per person." },
+  { "id": "queenstown", "text": "Queenstown, New Zealand — lakes, peaks, and adventure sports. Best November to April. About $3,400 per person. For thrill-seekers and hikers." },
+  { "id": "cape-town", "text": "Cape Town, South Africa — Table Mountain, beaches, and wine country. Best November to March. Around $2,700 per person. Scenic and varied." }
+]

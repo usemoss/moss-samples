@@ -1,0 +1,12 @@
+[project]
+name = "travel-concierge"
+version = "0.1.0"
+description = "Moss travel concierge — pre-loaded catalog + live session voice agent"
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "moss>=1.1.1",
+    "openai>=1.0",
+    "livekit-agents[openai,deepgram,silero,turn-detector,cartesia]>=1.0",
+]
