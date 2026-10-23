@@ -54,6 +54,19 @@ Provision a fresh index (using the name supplied via `MOSS_INDEX_NAME`), push do
 npx tsx custom_embedding_sample.ts
 ```
 
+### Metadata Filter Operator Samples
+
+Create a temporary index with metadata-rich product documents, load it locally,
+run one filtered query, then delete the temporary index. Each script focuses on
+one operator so the filter object is easy to copy into another app.
+
+```bash
+npm run metadata:eq
+npm run metadata:and
+npm run metadata:in
+npm run metadata:near
+```
+
 ### Session Sample
 
 Open a local-first `SessionIndex`, add documents in real time (no cloud round trip), query the in-memory index, then `pushIndex` to the cloud so another agent or device can resume it. This is how Moss indexes a live conversation.

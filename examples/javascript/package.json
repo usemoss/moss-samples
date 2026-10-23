@@ -39,6 +39,10 @@
     "session": "tsx session_sample.ts",
     "session-cache": "tsx session_cache_sample.ts",
     "session-custom-auth": "tsx session_custom_auth_sample.ts",
+    "metadata:eq": "tsx metadata-filters/eq.ts",
+    "metadata:and": "tsx metadata-filters/and.ts",
+    "metadata:in": "tsx metadata-filters/in.ts",
+    "metadata:near": "tsx metadata-filters/near.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
