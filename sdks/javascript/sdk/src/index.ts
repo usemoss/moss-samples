@@ -47,13 +47,17 @@ export type {
   ChatCompletionCreateParamsBase,
   ChatCompletionCreateParamsNonStreaming,
   ChatCompletionCreateParamsStreaming,
+  ChatCompletionLogprobs,
   ChatCompletionMessage,
   ChatCompletionMessageParam,
   ChatCompletionMessageToolCall,
+  ChatCompletionTokenLogprob,
   ChatCompletionTool,
   CompletionUsage,
   InferenceRequestOptions,
+  McpServer,
   MossInferenceOptions,
+  ToolStep,
 } from "./inference/types";
 
 // SDK-specific types

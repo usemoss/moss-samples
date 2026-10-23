@@ -11,6 +11,7 @@ import ipaddress
 import json
 import math
 import os
+import random
 import re
 from dataclasses import dataclass, field, fields, is_dataclass
 from functools import partial
@@ -47,6 +48,8 @@ _BAD_URL = (
     "and no user info, query or fragment"
 )
 _HTTP_HEADERS = frozenset({"host", "content-length", "transfer-encoding"})
+_RETRY_STATUSES = frozenset({408, 409, 429})
+_RETRY_ERRORS = (httpx.NetworkError, httpx.RemoteProtocolError, httpx.ConnectTimeout)
 _LIMITS = httpx.Limits(max_connections=1000, max_keepalive_connections=100)
 _ERROR_BODY_BYTES = 65_536
 _EVENT_BYTES = 1_048_576
@@ -74,7 +77,9 @@ class InferenceError(RuntimeError):
         message: What failed, the text of `str(error)`.
         status: The HTTP status of a refused request, else None.
         type: The error type, such as `authentication_error` or `model_error`.
-        code: The service's error code, such as `rate_limit_exceeded`, else None.
+        code: The error code, such as `rate_limit_exceeded`, else None.
+            It is `failed_after_tool_call` for any error after a tool step,
+            since a tool may have changed data, so do not replay the call blindly.
         request_id: The `X-Moss-Request-Id` of the response, when one arrived.
         retry_after: The seconds an error response asks to wait in `Retry-After`.
     """
@@ -103,12 +108,51 @@ class InferenceError(RuntimeError):
 
 
 @dataclass(frozen=True, kw_only=True)
+class CompletionTokensDetails:
+    """Token counts of the parts of a reply, such as its reasoning."""
+
+    accepted_prediction_tokens: int | None = None
+    audio_tokens: int | None = None
+    reasoning_tokens: int | None = None
+    rejected_prediction_tokens: int | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class PromptTokensDetails:
+    """Token counts of the parts of a prompt, such as its cached tokens."""
+
+    audio_tokens: int | None = None
+    cached_tokens: int | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
 class CompletionUsage:
     """Token counts of a reply."""
 
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
+    completion_tokens_details: CompletionTokensDetails | None = None
+    prompt_tokens_details: PromptTokensDetails | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class ChatCompletionTokenLogprob:
+    """A token of a reply with its log probability.
+    `top_logprobs` holds the likeliest tokens at its place, in the same type."""
+
+    token: str | None = None
+    logprob: float | None = None
+    bytes: list[int] | None = None
+    top_logprobs: list["ChatCompletionTokenLogprob"] | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class ChoiceLogprobs:
+    """The log probabilities of the tokens of a choice's text and refusal."""
+
+    content: list[ChatCompletionTokenLogprob] | None = None
+    refusal: list[ChatCompletionTokenLogprob] | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -121,12 +165,15 @@ class ChoiceDeltaToolCallFunction:
 
 @dataclass(frozen=True, kw_only=True)
 class ChoiceDeltaToolCall:
-    """A piece of tool call `index` of a choice."""
+    """A piece of tool call `index` of a choice.
+    `raw` is the decoded piece, with the fields these types leave out.
+    Without an `index`, it joins the latest call, or starts one with a new `id`."""
 
     index: int = 0
     id: str | None = None
     type: str | None = None
     function: ChoiceDeltaToolCallFunction | None = None
+    raw: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -145,6 +192,36 @@ class ChunkChoice:
     index: int = 0
     delta: ChoiceDelta = field(default_factory=ChoiceDelta)
     finish_reason: str | None = None
+    logprobs: ChoiceLogprobs | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class ToolStep:
+    """One step of an MCP tool call that Moss runs during a reply.
+
+    `raw` is the decoded step, for the fields these types leave out.
+    A `call` step comes before the tool runs, and a `result` step after it.
+
+    Attributes:
+        type: `call` or `result`.
+        id: The ID that ties a call to its result.
+        server_label: The `server_label` of the tool's server.
+        name: The name of the tool.
+        arguments: The JSON arguments, on a `call` step.
+        is_error: Whether the tool failed, on a `result` step.
+        duration_ms: The milliseconds the tool took, on a `result` step.
+        output: The tool's output, on a `result` step.
+    """
+
+    type: str = ""
+    id: str = ""
+    server_label: str = ""
+    name: str = ""
+    arguments: str | None = None
+    is_error: bool | None = None
+    duration_ms: float | None = None
+    output: str | None = None
+    raw: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -153,6 +230,7 @@ class ChatCompletionChunk:
 
     The last chunk can carry `usage` and no choices.
     `raw` is the decoded event, for the fields these types leave out.
+    A chunk of an MCP tool call has an empty delta and its step in `tool_step`.
     """
 
     id: str = ""
@@ -161,6 +239,7 @@ class ChatCompletionChunk:
     model: str = ""
     choices: list[ChunkChoice] = field(default_factory=list)
     usage: CompletionUsage | None = None
+    tool_step: ToolStep | None = None
     raw: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
 
@@ -174,16 +253,20 @@ class Function:
 
 @dataclass(frozen=True, kw_only=True)
 class ChatCompletionMessageToolCall:
-    """A tool call of a whole reply."""
+    """A tool call of a whole reply.
+    `raw` is the call joined from its pieces, with the fields these types leave out.
+    It is what goes back into `messages`, so a changed call needs a changed `raw`."""
 
     id: str
     type: str = "function"
     function: Function
+    raw: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
 
 @dataclass(frozen=True, kw_only=True)
 class ChatCompletionMessage:
-    """The message of a whole reply. It can go back into `messages` as is."""
+    """The message of a whole reply. It can go back into `messages` as is.
+    In a joined reply with no text, `content` is None with tool calls, else `""`."""
 
     role: str = "assistant"
     content: str | None = None
@@ -197,11 +280,14 @@ class Choice:
     index: int = 0
     message: ChatCompletionMessage
     finish_reason: str | None = None
+    logprobs: ChoiceLogprobs | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
 class ChatCompletion:
-    """A whole reply, joined from the chunks of its stream."""
+    """A whole reply, joined from the chunks of its stream.
+    `tool_steps` holds the steps of the MCP tool calls, in the order they came,
+    and `request_id` the `X-Moss-Request-Id` of the response, when it had one."""
 
     id: str
     object: str = "chat.completion"
@@ -209,10 +295,44 @@ class ChatCompletion:
     model: str
     choices: list[Choice]
     usage: CompletionUsage | None = None
+    tool_steps: list[ToolStep] = field(default_factory=list)
+    request_id: str | None = field(default=None, repr=False, compare=False)
+
+
+@dataclass(frozen=True, kw_only=True)
+class McpServer:
+    """An MCP server whose tools the model can call, as an entry of `tools`.
+
+    Moss connects to it and runs its tools during the reply.
+    `server_url` and `headers` never show in a repr, since either can hold a secret.
+
+    Attributes:
+        type: Always `mcp`.
+        server_label: The server's name.
+        server_url: The server's https URL.
+        headers: Headers for the server, such as its `Authorization`.
+        allowed_tools: The names of the tools the model can call, else all of them.
+        transport: `streamable_http`, the default, or `sse`.
+    """
+
+    type: Literal["mcp"] = field(default="mcp", init=False)
+    server_label: str
+    server_url: str = field(repr=False)
+    headers: dict[str, str] | None = field(default=None, repr=False)
+    allowed_tools: list[str] | None = None
+    transport: Literal["streamable_http", "sse"] | None = None
 
 
 ChatCompletionMessageParam = Mapping[str, Any] | ChatCompletionMessage
 """A message of `messages`: an OpenAI message dict, or a `ChatCompletionMessage`."""
+
+ChatCompletionToolParam = Mapping[str, Any] | McpServer
+"""An entry of `tools`: an `McpServer`, or a tool dict such as a function tool."""
+
+ChatCompletionToolChoiceOptionParam = (
+    Literal["none", "auto", "required"] | Mapping[str, Any]
+)
+"""A `tool_choice`: `none`, `auto`, `required`, or a dict such as a function to call."""
 
 
 class ChatCompletionStream:
@@ -227,13 +347,22 @@ class ChatCompletionStream:
     Args:
         response: The HTTP response of the call, open on its body.
         deadline: The event loop time the call must end by, or None for no limit.
+
+    Attributes:
+        request_id: The `X-Moss-Request-Id` of the response, else None.
     """
 
     def __init__(self, response: httpx.Response, deadline: float | None) -> None:
+        self.request_id: str | None = response.headers.get("x-moss-request-id") or None
         self._response = response
         self._lines = self._split(response.aiter_bytes())
         self._deadline = deadline
         self._closed = False
+        self._chunks: list[ChatCompletionChunk] = []
+        self._calls: dict[int, dict[int, str]] = {}
+        self._done = False
+        self._final: ChatCompletion | None = None
+        self._failure: Exception | None = None
 
     async def __aiter__(self) -> AsyncIterator[ChatCompletionChunk]:
         try:
@@ -256,13 +385,45 @@ class ChatCompletionStream:
             await self.aclose()
             if closed_by_caller and isinstance(error, Exception):
                 raise StopAsyncIteration from None
+            failure = error
             if isinstance(error, (httpx.RequestError, asyncio.TimeoutError)):
-                raise _transport_error(error, self._response) from error
-            raise
+                failure = _transport_error(error, self._response)
+            self._mark(failure)
+            if isinstance(failure, Exception):
+                self._failure = failure
+            if failure is error:
+                raise
+            raise failure from error
         if chunk is None:
+            self._done = True
             await self._finish()
             raise StopAsyncIteration
+        self._chunks.append(chunk)
         return chunk
+
+    async def get_final_completion(self) -> ChatCompletion:
+        """The whole reply, joined from every chunk.
+        It reads the rest first and fails as iteration would,
+        or with `incomplete_stream` for a stream closed before `[DONE]`."""
+        async for _ in self:
+            pass
+        if self._failure is not None:
+            raise self._failure
+        if not self._done:
+            error = self._error(
+                "The stream was closed before [DONE]", "incomplete_stream"
+            )
+            self._mark(error)
+            raise error
+        if self._final is None:
+            self._final = _join(self._chunks, self.request_id)
+        return self._final
+
+    def _mark(self, failure: BaseException) -> None:
+        """Mark `failure` with the code `failed_after_tool_call` after a step."""
+        stepped = any(chunk.tool_step for chunk in self._chunks)
+        if stepped and isinstance(failure, InferenceError):
+            failure.code = "failed_after_tool_call"
 
     async def _finish(self) -> None:
         """Close the stream after `[DONE]`.
@@ -310,7 +471,7 @@ class ChatCompletionStream:
             message = str(error.get("message") or "The reply failed")
             kind = str(error.get("type") or "model_error")
             raise self._error(message, kind, _code(error))
-        return _chunk(event)
+        return _chunk(event, self._calls)
 
     def _error(
         self, message: str, kind: str, code: str | None = None
@@ -382,6 +543,7 @@ class MossInference:
         api_key: Your own key for a vendor model such as `gpt-4o-mini`, or None.
         timeout: The limit of a whole call, stream included. None turns it off.
         idle_timeout: The limit of each wait for data or a free connection, 120 if None.
+        max_retries: The retries of a call that fails before its reply, 2 by default.
         default_headers: Headers for every call, under the headers the SDK sets.
 
     Attributes:
@@ -396,6 +558,7 @@ class MossInference:
         api_key: str | None = None,
         timeout: float | None = None,
         idle_timeout: float | None = None,
+        max_retries: int = 2,
         default_headers: Mapping[str, str] | None = None,
     ) -> None:
         self._authorization = _authorization(project_id, project_key)
@@ -404,6 +567,7 @@ class MossInference:
         self._default_headers = _header_map(default_headers)
         self._timeout = _limit("timeout", timeout, None)
         self._idle_timeout = _limit("idle_timeout", idle_timeout, _DEFAULT_IDLE_TIMEOUT)
+        self._max_retries = _retries(max_retries)
         self._state: tuple[asyncio.AbstractEventLoop, httpx.AsyncClient] | None = None
         self.chat: _Chat = _Chat(self)
 
@@ -440,8 +604,10 @@ class MossInference:
         content: bytes,
         deadline: float | None,
         idle_timeout: float | None,
+        retries: int,
     ) -> ChatCompletionStream:
-        """Send a call, with `headers` over `extra_headers` over the client's."""
+        """Send a call, with `headers` over `extra_headers` over the client's.
+        A failure before the reply starts sends it again, up to `retries` times."""
         merged = self._default_headers.copy()
         merged.update(_header_map(extra_headers))
         merged.update({**headers, "Authorization": self._authorization})
@@ -455,14 +621,21 @@ class MossInference:
         request = http.build_request(
             "POST", self._url, headers=merged, content=content, timeout=timeout
         )
-        try:
-            response = await _within(deadline, http.send(request, stream=True))
-        except httpx.LocalProtocolError:
-            raise _invalid("The headers are not valid HTTP") from None
-        except (httpx.RequestError, asyncio.TimeoutError) as error:
-            raise _transport_error(error) from error
-        if response.is_success:
-            return ChatCompletionStream(response, deadline)
+        for attempt in range(retries + 1):
+            try:
+                response = await _within(deadline, http.send(request, stream=True))
+            except httpx.LocalProtocolError:
+                raise _invalid("The headers are not valid HTTP") from None
+            except (httpx.RequestError, asyncio.TimeoutError) as error:
+                again = isinstance(error, _RETRY_ERRORS)
+                if again and await _retry(attempt, retries, deadline, None):
+                    continue
+                raise _transport_error(error) from error
+            if response.is_success:
+                return ChatCompletionStream(response, deadline)
+            if await _retry(attempt, retries, deadline, response):
+                continue
+            break
         try:
             body = await _within(deadline, _error_body(response))
         except (httpx.TimeoutException, asyncio.TimeoutError) as error:
@@ -485,11 +658,16 @@ class _Completions:
         model: str = "moss",
         messages: Iterable[ChatCompletionMessageParam],
         stream: Literal[True],
+        tools: Sequence[ChatCompletionToolParam] | None = None,
+        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
+        parallel_tool_calls: bool | None = None,
         indexes: Sequence[str] | None = None,
         retrieve: bool = True,
+        cache: bool = True,
         api_key: str | None = None,
         timeout: float | None = None,
         idle_timeout: float | None = None,
+        max_retries: int | None = None,
         extra_headers: Mapping[str, str] | None = None,
         extra_body: Mapping[str, Any] | None = None,
         **kwargs: Any,
@@ -502,11 +680,16 @@ class _Completions:
         model: str = "moss",
         messages: Iterable[ChatCompletionMessageParam],
         stream: Literal[False] = False,
+        tools: Sequence[ChatCompletionToolParam] | None = None,
+        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
+        parallel_tool_calls: bool | None = None,
         indexes: Sequence[str] | None = None,
         retrieve: bool = True,
+        cache: bool = True,
         api_key: str | None = None,
         timeout: float | None = None,
         idle_timeout: float | None = None,
+        max_retries: int | None = None,
         extra_headers: Mapping[str, str] | None = None,
         extra_body: Mapping[str, Any] | None = None,
         **kwargs: Any,
@@ -519,11 +702,16 @@ class _Completions:
         model: str = "moss",
         messages: Iterable[ChatCompletionMessageParam],
         stream: bool,
+        tools: Sequence[ChatCompletionToolParam] | None = None,
+        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
+        parallel_tool_calls: bool | None = None,
         indexes: Sequence[str] | None = None,
         retrieve: bool = True,
+        cache: bool = True,
         api_key: str | None = None,
         timeout: float | None = None,
         idle_timeout: float | None = None,
+        max_retries: int | None = None,
         extra_headers: Mapping[str, str] | None = None,
         extra_body: Mapping[str, Any] | None = None,
         **kwargs: Any,
@@ -535,29 +723,40 @@ class _Completions:
         model: str = "moss",
         messages: Iterable[ChatCompletionMessageParam],
         stream: bool = False,
+        tools: Sequence[ChatCompletionToolParam] | None = None,
+        tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
+        parallel_tool_calls: bool | None = None,
         indexes: Sequence[str] | None = None,
         retrieve: bool = True,
+        cache: bool = True,
         api_key: str | None = None,
         timeout: float | None = None,
         idle_timeout: float | None = None,
+        max_retries: int | None = None,
         extra_headers: Mapping[str, str] | None = None,
         extra_body: Mapping[str, Any] | None = None,
         **kwargs: Any,
     ) -> ChatCompletion | ChatCompletionStream:
         """Answer `messages` with facts from your Moss indexes.
 
-        None as `timeout` or `idle_timeout` keeps the client's value,
-        and a value of 0 or less turns that limit off for this call only.
+        None as `timeout`, `idle_timeout` or `max_retries` keeps the client's value,
+        and a timeout of 0 or less turns it off for this call only.
 
         Args:
             model: The model to answer with, `moss` by default, or a vendor model.
             messages: The chat so far, as OpenAI message dicts or reply messages.
             stream: True streams the reply in chunks, else it comes back whole.
+            tools: The tools the model can call: OpenAI function tools and `McpServer`s.
+            tool_choice: `none`, `auto`, `required`, or a dict naming a function.
+            parallel_tool_calls: Whether the model can call more than one tool at once.
             indexes: The indexes to search, by default every index of the project.
+                An empty list searches none.
             retrieve: False skips the search.
+            cache: False always asks the model, never Moss's reply cache.
             api_key: Your vendor model key for this call, in place of the client's.
             timeout: The seconds the whole call can last, stream included.
             idle_timeout: The seconds each wait for data or a free connection can last.
+            max_retries: The retries of this call, in place of the client's.
             extra_headers: Headers over `default_headers`, under the SDK's own.
             extra_body: More request body fields, over `model`, `messages` and `kwargs`.
             **kwargs: Other OpenAI arguments, such as `temperature`, sent as is.
@@ -575,10 +774,14 @@ class _Completions:
         api_key = client._api_key if api_key is None else _provider_key(api_key)
         timeout = _limit("timeout", timeout, client._timeout)
         idle_timeout = _limit("idle_timeout", idle_timeout, client._idle_timeout)
-        headers = _call_headers(indexes, retrieve, api_key)
+        retries = client._max_retries if max_retries is None else _retries(max_retries)
+        headers = _call_headers(indexes, retrieve, cache, api_key)
+        typed: dict[str, Any] = {"tools": tools, "tool_choice": tool_choice}
+        typed["parallel_tool_calls"] = parallel_tool_calls
         body = {
             "model": model,
             "messages": list(messages),
+            **{name: value for name, value in typed.items() if value is not None},
             **kwargs,
             **(extra_body or {}),
             "stream": True,
@@ -592,12 +795,11 @@ class _Completions:
         loop = asyncio.get_running_loop()
         deadline = None if timeout is None else loop.time() + timeout
         reply = await client._post(
-            headers, extra_headers, text.encode(), deadline, idle_timeout
+            headers, extra_headers, text.encode(), deadline, idle_timeout, retries
         )
         if stream:
             return reply
-        async with reply:
-            return await _join(reply)
+        return await reply.get_final_completion()
 
 
 class _Chat:
@@ -690,7 +892,7 @@ def _provider_key(api_key: str) -> str:
 
 
 def _call_headers(
-    indexes: Sequence[str] | None, retrieve: bool, api_key: str | None
+    indexes: Sequence[str] | None, retrieve: bool, cache: bool, api_key: str | None
 ) -> dict[str, str]:
     names = [indexes] if isinstance(indexes, str) else list(indexes or ())
     for name in names:
@@ -699,11 +901,13 @@ def _call_headers(
                 f"Invalid index name {name!r}: it is empty, has a ',' "
                 "or is not printable ASCII"
             )
+    retrieve = retrieve and (indexes is None or bool(names))
     headers = {
         "Content-Type": "application/json",
         "Accept": "text/event-stream",
         "X-Moss-Indexes": ",".join(names) or None,
         "X-Moss-Retrieve": None if retrieve else "off",
+        "X-Moss-Cache": None if cache else "off",
         "X-Moss-Provider-Key": api_key,
     }
     return {name: value for name, value in headers.items() if value is not None}
@@ -753,6 +957,43 @@ def _limit(name: str, value: float | None, default: float | None) -> float | Non
     if math.isnan(seconds):
         raise _invalid(f"{name} must be a number of seconds, or None")
     return seconds if seconds > 0 else None
+
+
+def _retries(value: int) -> int:
+    """`value`, when it is a whole number of retries."""
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise _invalid("max_retries must be a whole number, 0 or more")
+    return value
+
+
+async def _retry(
+    attempt: int, retries: int, deadline: float | None, response: httpx.Response | None
+) -> bool:
+    """Whether a call that failed before its reply goes again, after a wait.
+
+    `response` is None for a connection failure, else it is closed to go again.
+    `x-should-retry` decides when it is `true` or `false`, and else its status.
+    The wait is a `Retry-After` of at most 60 s, else 0.5 s doubled for each attempt,
+    at most 8 s and up to a quarter less at random. A wait past `deadline` gives False.
+    """
+    if attempt >= retries:
+        return False
+    after = None
+    if response is not None:
+        status = response.status_code
+        again = status in _RETRY_STATUSES or status >= 500
+        should = response.headers.get("x-should-retry", "")
+        if not {"true": True, "false": False}.get(should, again):
+            return False
+        after = _seconds(response.headers.get("retry-after", ""))
+    wait = min(0.5 * 2 ** min(attempt, 4), 8.0) * (1 - random.random() / 4)
+    wait = after if after is not None and after <= 60 else wait
+    if deadline is not None and asyncio.get_running_loop().time() + wait >= deadline:
+        return False
+    if response is not None:
+        await response.aclose()
+    await asyncio.sleep(wait)
+    return True
 
 
 async def _within(deadline: float | None, step: Awaitable[_T]) -> _T:
@@ -863,27 +1104,25 @@ def _status_error(response: httpx.Response, body: bytes) -> InferenceError:
     return _response_error(response, message, kind, status=status, code=_code(error))
 
 
-async def _join(stream: ChatCompletionStream) -> ChatCompletion:
+def _join(chunks: list[ChatCompletionChunk], request_id: str | None) -> ChatCompletion:
     """One completion from every chunk of a stream, grouped by choice and tool call."""
-    first: ChatCompletionChunk | None = None
-    usage: CompletionUsage | None = None
     parts: dict[int, list[ChunkChoice]] = {}
     calls: dict[int, dict[int, list[ChoiceDeltaToolCall]]] = {}
-    async for chunk in stream:
-        first = first or chunk
-        usage = chunk.usage or usage
+    for chunk in chunks:
         for choice in chunk.choices:
             parts.setdefault(choice.index, []).append(choice)
             choice_calls = calls.setdefault(choice.index, {})
             for piece in choice.delta.tool_calls or ():
                 choice_calls.setdefault(piece.index, []).append(piece)
-    first = first or ChatCompletionChunk()
+    first = chunks[0] if chunks else ChatCompletionChunk()
     return ChatCompletion(
         id=first.id,
         created=first.created,
         model=first.model,
         choices=[_join_choice(i, part, calls[i]) for i, part in sorted(parts.items())],
-        usage=usage,
+        usage=next((chunk.usage for chunk in reversed(chunks) if chunk.usage), None),
+        tool_steps=[chunk.tool_step for chunk in chunks if chunk.tool_step],
+        request_id=request_id,
     )
 
 
@@ -892,26 +1131,53 @@ def _join_choice(
 ) -> Choice:
     """Choice `index` of a whole reply, from its pieces in the order they came."""
     deltas = [part.delta for part in parts]
+    tool_calls = [_join_call(call) for _, call in sorted(calls.items())] or None
+    text = "".join(d.content or "" for d in deltas)
     # A stream can leave the role out, and OpenAI's reply role is always "assistant".
     message = ChatCompletionMessage(
         role=next((d.role for d in reversed(deltas) if d.role), "assistant"),
-        content="".join(d.content or "" for d in deltas) or None,
-        tool_calls=[_join_call(call) for _, call in sorted(calls.items())] or None,
+        content=text or (None if tool_calls else ""),
+        tool_calls=tool_calls,
     )
     finish = next((p.finish_reason for p in reversed(parts) if p.finish_reason), None)
-    return Choice(index=index, message=message, finish_reason=finish)
+    logprobs = _join_logprobs(parts)
+    return Choice(index=index, message=message, finish_reason=finish, logprobs=logprobs)
+
+
+def _join_logprobs(parts: list[ChunkChoice]) -> ChoiceLogprobs | None:
+    """The logprobs of a choice: each key's lists from its chunks, joined in order."""
+    logs = [part.logprobs for part in parts if part.logprobs is not None]
+    joined: dict[str, list[ChatCompletionTokenLogprob]] = {}
+    for log in logs:
+        for key in ("content", "refusal"):
+            tokens = getattr(log, key)
+            if tokens is not None:
+                joined.setdefault(key, []).extend(tokens)
+    return ChoiceLogprobs(**joined) if logs else None
 
 
 def _join_call(pieces: list[ChoiceDeltaToolCall]) -> ChatCompletionMessageToolCall:
-    """One tool call of a whole reply, from its pieces in the order they came."""
-    functions = [p.function for p in pieces if p.function]
+    """One tool call of a whole reply, from its pieces in the order they came.
+
+    A truthy `id`, `type` or `name` replaces and `arguments` append.
+    Other fields replace unless null, or merge one level deep when both are objects.
+    """
+    function = {"name": "", "arguments": ""}
+    call: dict[str, Any] = {"id": "", "type": "function", "function": function}
+    for piece in pieces:
+        part = _dict(piece.raw.get("function"))
+        call["id"] = piece.raw.get("id") or call["id"]
+        call["type"] = piece.raw.get("type") or call["type"]
+        function["name"] = part.get("name") or function["name"]
+        if isinstance(part.get("arguments"), str):
+            function["arguments"] += part["arguments"]
+        for key, value in piece.raw.items():
+            if key in ("index", "id", "type", "function") or value is None:
+                continue
+            both = isinstance(value, dict) and isinstance(call.get(key), dict)
+            call[key] = {**call[key], **value} if both else value
     return ChatCompletionMessageToolCall(
-        id=next((p.id for p in pieces if p.id), ""),
-        type=next((p.type for p in reversed(pieces) if p.type), "function"),
-        function=Function(
-            name=next((f.name for f in functions if f.name), ""),
-            arguments="".join(f.arguments or "" for f in functions),
-        ),
+        id=call["id"], type=call["type"], function=Function(**function), raw=call
     )
 
 
@@ -923,31 +1189,99 @@ def _list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
 
 
-def _chunk(event: dict[str, Any]) -> ChatCompletionChunk:
-    """A chunk from a decoded event, without its unknown or null keys."""
-    choices = [_chunk_choice(_dict(choice)) for choice in _list(event.get("choices"))]
+def _chunk(
+    event: dict[str, Any], calls: dict[int, dict[int, str]]
+) -> ChatCompletionChunk:
+    """A chunk from a decoded event, without its unknown or null keys.
+    `calls` holds the tool calls of the stream so far, for each choice."""
+    choices = [
+        _chunk_choice(_dict(item), calls) for item in _list(event.get("choices"))
+    ]
     usage = event.get("usage")
     if usage is not None:
-        names = "prompt_tokens", "completion_tokens", "total_tokens"
-        usage = CompletionUsage(**_known(usage, *names))
+        counts = _dict(usage)
+        completion = counts.get("completion_tokens_details")
+        prompt = counts.get("prompt_tokens_details")
+        usage = _typed(
+            CompletionUsage,
+            counts,
+            completion_tokens_details=_typed(CompletionTokensDetails, completion),
+            prompt_tokens_details=_typed(PromptTokensDetails, prompt),
+        )
     known = _known(event, "id", "object", "created", "model")
+    step = event.get("moss_tool_step")
+    known["tool_step"] = _typed(ToolStep, step, raw=step)
     return ChatCompletionChunk(**known, choices=choices, usage=usage, raw=event)
 
 
-def _chunk_choice(data: dict[str, Any]) -> ChunkChoice:
+def _chunk_choice(
+    data: dict[str, Any], calls: dict[int, dict[int, str]]
+) -> ChunkChoice:
+    known = _known(data, "index", "finish_reason")
     raw = _dict(data.get("delta"))
-    calls = raw.get("tool_calls")
-    if calls is not None:
-        calls = [_delta_call(_dict(call)) for call in _list(calls)]
-    delta = ChoiceDelta(**_known(raw, "role", "content"), tool_calls=calls)
-    return ChunkChoice(**_known(data, "index", "finish_reason"), delta=delta)
+    pieces = raw.get("tool_calls")
+    if pieces is not None:
+        ids = calls.setdefault(known.get("index", 0), {})
+        pieces = [
+            _delta_call(piece, _slot(ids, piece))
+            for piece in _list(pieces)
+            if isinstance(piece, dict)
+        ]
+    delta = ChoiceDelta(**_known(raw, "role", "content"), tool_calls=pieces)
+    logprobs = data.get("logprobs")
+    tokens = {key: _tokens(_dict(logprobs).get(key)) for key in ("content", "refusal")}
+    known["logprobs"] = _typed(ChoiceLogprobs, logprobs, **tokens)
+    return ChunkChoice(**known, delta=delta)
 
 
-def _delta_call(data: dict[str, Any]) -> ChoiceDeltaToolCall:
+def _slot(ids: dict[int, str], piece: dict[str, Any]) -> int:
+    """The tool call of its choice that `piece` is part of. It updates `ids`.
+
+    `ids` holds the id of each call so far, or "", most recent last.
+    A piece with an integer `index` is part of that call. Any other piece
+    joins the call that has its `id`. A new `id` starts the next call when
+    the most recent call has an id. Else the piece joins the most recent call.
+    """
+    index = piece.get("index")
+    new = piece.get("id") or ""
+    if not isinstance(index, int):
+        same = [slot for slot, known in ids.items() if new and known == new]
+        index = same[-1] if same else next(reversed(ids), 0)
+        if new and not same and ids.get(index):
+            index = max(ids) + 1
+    known = ids.pop(index, "")
+    ids[index] = new or known
+    return index
+
+
+def _delta_call(data: dict[str, Any], index: int) -> ChoiceDeltaToolCall:
+    """A tool call piece of call `index` of its choice."""
     function = data.get("function")
     if function is not None:
         function = ChoiceDeltaToolCallFunction(**_known(function, "name", "arguments"))
-    return ChoiceDeltaToolCall(**_known(data, "index", "id", "type"), function=function)
+    known = _known(data, "id", "type")
+    return ChoiceDeltaToolCall(index=index, **known, function=function, raw=data)
+
+
+def _tokens(data: Any) -> list[ChatCompletionTokenLogprob] | None:
+    """The tokens of a list of logprobs, each with its own `top_logprobs`."""
+    if not isinstance(data, list):
+        return None
+    return [
+        ChatCompletionTokenLogprob(
+            **_known(token, "token", "logprob", "bytes"),
+            top_logprobs=_tokens(_dict(token).get("top_logprobs")),
+        )
+        for token in data
+    ]
+
+
+def _typed(kind: Any, data: Any, **values: Any) -> Any:
+    """A `kind` from `values` and the fields `data` has, or None when not a dict."""
+    if not isinstance(data, dict):
+        return None
+    names = [item.name for item in fields(kind) if item.name not in values]
+    return kind(**_known(data, *names), **values)
 
 
 def _known(data: Any, *names: str) -> dict[str, Any]:
@@ -957,8 +1291,14 @@ def _known(data: Any, *names: str) -> dict[str, Any]:
 
 
 def _plain(value: Any) -> Any:
-    """JSON for this module's types, without the fields that are None."""
+    """JSON for this module's types: `raw` when it is set,
+    else every field that is not None, except `raw` itself.
+    A message always keeps its `content`, a None included."""
     if is_dataclass(value) and not isinstance(value, type):
-        pairs = ((f.name, getattr(value, f.name)) for f in fields(value) if f.repr)
-        return {name: item for name, item in pairs if item is not None}
+        if raw := getattr(value, "raw", None):
+            return raw
+        names = (f.name for f in fields(value) if f.name != "raw")
+        pairs = ((name, getattr(value, name)) for name in names)
+        keep = "content" if isinstance(value, ChatCompletionMessage) else None
+        return {k: v for k, v in pairs if v is not None or k == keep}
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")

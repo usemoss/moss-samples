@@ -4,7 +4,7 @@ defmodule Moss.Inference do
 
   Moss searches your indexes, adds what it finds to the prompt and streams the reply.
   A client holds the project credentials, the gateway URL, an optional provider key
-  and default timeouts. It is plain data, so build it once and pass it to any process.
+  and default timeouts and retries. It is plain data, so build it once and pass it to any process.
   Calls from any process reuse idle connections.
 
       client = Moss.Inference.new("project-id", "project-key")
@@ -18,12 +18,12 @@ defmodule Moss.Inference do
 
   alias Moss.Inference.Error
 
-  @options [:api_key, :timeout, :idle_timeout]
+  @options [:api_key, :timeout, :idle_timeout, :max_retries]
 
   @base_url "https://inference.moss.dev/v1"
 
-  @derive {Inspect, only: [:project_id, :timeout, :idle_timeout]}
-  @enforce_keys [:project_id, :endpoint, :headers, :timeout, :idle_timeout]
+  @derive {Inspect, only: [:project_id, :timeout, :idle_timeout, :max_retries]}
+  @enforce_keys [:project_id, :endpoint, :headers, :timeout, :idle_timeout, :max_retries]
   defstruct @enforce_keys
 
   @typedoc """
@@ -36,7 +36,8 @@ defmodule Moss.Inference do
           endpoint: URI.t(),
           headers: [{String.t(), String.t()}],
           timeout: timeout(),
-          idle_timeout: timeout()
+          idle_timeout: timeout(),
+          max_retries: non_neg_integer()
         }
 
   @doc """
@@ -57,6 +58,8 @@ defmodule Moss.Inference do
     - `:timeout` - milliseconds for a whole call, stream included (default `:infinity`)
     - `:idle_timeout` - milliseconds Moss may stay silent, before the reply
       headers or between two parts of the body (default `120_000`, `:infinity` disables it)
+    - `:max_retries` - how many times a failed call is sent again before its reply starts
+      (default `2`, `0` turns retries off)
   """
   @spec new(String.t(), String.t(), keyword()) :: t()
   def new(project_id, project_key, opts \\ []) do
@@ -70,13 +73,15 @@ defmodule Moss.Inference do
          {:ok, timeout} <- check_timeout(Keyword.get(opts, :timeout, :infinity), :timeout),
          {:ok, idle_timeout} <-
            check_timeout(Keyword.get(opts, :idle_timeout, 120_000), :idle_timeout),
+         {:ok, max_retries} <- check_retries(Keyword.get(opts, :max_retries, 2)),
          {:ok, endpoint} <- endpoint(System.get_env("MOSS_INFERENCE_URL", "")) do
       %__MODULE__{
         project_id: project_id,
         endpoint: endpoint,
         headers: [{"authorization", "Bearer #{project_id}:#{project_key}"} | provider],
         timeout: timeout,
-        idle_timeout: idle_timeout
+        idle_timeout: idle_timeout,
+        max_retries: max_retries
       }
     else
       {:error, error} -> raise error
@@ -145,6 +150,11 @@ defmodule Moss.Inference do
   def check_timeout(:infinity, _name), do: {:ok, :infinity}
   def check_timeout(ms, _name) when is_integer(ms) and ms > 0, do: {:ok, ms}
   def check_timeout(_ms, name), do: invalid(":#{name} must be a positive integer or :infinity.")
+
+  @doc false
+  @spec check_retries(term()) :: {:ok, non_neg_integer()} | {:error, Error.t()}
+  def check_retries(count) when is_integer(count) and count >= 0, do: {:ok, count}
+  def check_retries(_count), do: invalid(":max_retries must be a non-negative integer.")
 
   # Checked before any request, so a bad value fails without being echoed.
   # A value HTTP carries as is holds bytes Mint accepts and no space or tab at either end.

@@ -1,11 +1,11 @@
-import {
-  InferenceError,
-  codeText,
-  responseFields,
-  transportError,
-  type ResponseFields,
-} from "./error";
-import type { ChatCompletion, ChatCompletionChunk, ChatCompletionMessageToolCall } from "./types";
+import { InferenceError, codeText, transportError, type ResponseFields } from "./error";
+import type {
+  ChatCompletion,
+  ChatCompletionChunk,
+  ChatCompletionLogprobs,
+  ChatCompletionMessageToolCall,
+  ToolStep,
+} from "./types";
 
 /** The most UTF-16 code units in one line or in the data of one event. */
 const MAX_EVENT = 1 << 20;
@@ -122,12 +122,20 @@ async function* sseData(
  * Iterate it once with `for await`. Leaving the loop early, or calling
  * `controller.abort()`, ends the loop quietly, closes the connection and stops the model.
  * An abort with any other reason, such as the `TimeoutError` of `AbortSignal.timeout()`, throws it.
- * A failure inside the stream throws an {@link InferenceError} after the chunks that came before it.
+ * A failure inside the stream throws an {@link InferenceError} after the chunks that came before it,
+ * with `errorCode` `failed_after_tool_call` once a chunk carried a `moss_tool_step`.
  */
 export class ChatCompletionStream implements AsyncIterable<ChatCompletionChunk> {
   /** Aborts the request. */
   readonly controller: AbortController;
+  /** The `X-Moss-Request-Id` of the response, undefined when it has none. */
+  readonly requestId: string | undefined;
   #chunks: AsyncIterator<ChatCompletionChunk> | undefined;
+  readonly #next: () => Promise<IteratorResult<ChatCompletionChunk>>;
+  readonly #join: Join;
+  /** What reading the chunks threw, which the completion throws again. */
+  #failure: { error: unknown } | undefined;
+  #final: Promise<ChatCompletion> | undefined;
 
   /** @internal */
   constructor(
@@ -135,11 +143,25 @@ export class ChatCompletionStream implements AsyncIterable<ChatCompletionChunk> 
     controller: AbortController,
     idle: { arm(): void; clear(): void },
     onSettled: () => void,
+    fields: { requestId?: string; errorCode?: "failed_after_tool_call" },
+    model: string,
   ) {
     this.controller = controller;
-    const generator = chunks(response, controller, idle, onSettled);
+    this.requestId = fields.requestId;
+    this.#join = new Join(model);
+    const generator = chunks(response, controller, idle, onSettled, fields);
+    this.#next = async () => {
+      try {
+        const result = await generator.next();
+        if (!result.done) this.#join.add(result.value);
+        return result;
+      } catch (error) {
+        this.#failure = { error };
+        throw error;
+      }
+    };
     this.#chunks = {
-      next: () => generator.next(),
+      next: this.#next,
       return: (value?: unknown) => {
         controller.abort();
         onSettled();
@@ -155,6 +177,26 @@ export class ChatCompletionStream implements AsyncIterable<ChatCompletionChunk> 
     this.#chunks = undefined;
     return iterator;
   }
+
+  /**
+   * The whole stream joined into one completion, as a call without `stream: true` returns.
+   *
+   * Every call returns the same completion.
+   * Call it after the loop ends, or instead of one.
+   * It reads the chunks the loop has not read, then joins them with the ones it has.
+   * It rejects with what the loop throws, or with the signal's reason after an abort.
+   */
+  finalChatCompletion(): Promise<ChatCompletion> {
+    return (this.#final ??= this.#drain());
+  }
+
+  async #drain(): Promise<ChatCompletion> {
+    while (!(await this.#next()).done);
+    if (this.#failure) throw this.#failure.error;
+    const { signal } = this.controller;
+    if (signal.aborted) throw signal.reason;
+    return Object.defineProperty(this.#join.build(), "requestId", { value: this.requestId });
+  }
 }
 
 async function* chunks(
@@ -162,9 +204,9 @@ async function* chunks(
   controller: AbortController,
   idle: IdleTimer,
   onSettled: () => void,
+  fields: ResponseFields,
 ): AsyncGenerator<ChatCompletionChunk> {
   const notObject = "The gateway sent an event that is not a JSON object.";
-  const fields = responseFields(response);
   let done = false;
   try {
     if (!response.body) {
@@ -200,6 +242,7 @@ async function* chunks(
           },
         );
       }
+      if (event.moss_tool_step) fields.errorCode = "failed_after_tool_call";
       yield event as ChatCompletionChunk;
     }
     throw new InferenceError("The stream ended before [DONE].", {
@@ -229,62 +272,119 @@ async function* chunks(
 
 type ChoiceState = {
   content: string | null;
+  logprobs: ChatCompletionLogprobs | null;
   finishReason: string | null;
   toolCalls: Map<number, ChatCompletionMessageToolCall>;
+  /** The slot of the latest tool call piece, or -1 before the first. */
+  last: number;
 };
 
-/** Consumes every chunk and builds one completion, as a non-streaming call returns. */
-export async function aggregate(
-  stream: ChatCompletionStream,
-  model: string,
-): Promise<ChatCompletion> {
-  const choices = new Map<number, ChoiceState>();
-  let first: Partial<ChatCompletionChunk> | undefined;
-  let usage: ChatCompletion["usage"] = null;
-  for await (const chunk of stream) {
-    first ??= chunk;
-    if (chunk.usage) usage = chunk.usage;
-    for (const choice of chunk.choices ?? []) {
+/** True for a JSON object, not null or an array. */
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * Joins chunks as they pass into one completion, as a non-streaming call returns.
+ *
+ * It joins tool call pieces as the gateway does, keeping fields beyond OpenAI's.
+ * A piece with no integer `index` joins the call that has its `id`, else the latest call.
+ * A new `id` starts the next call instead, unless the latest call has no id yet and takes it.
+ */
+class Join {
+  readonly choices = new Map<number, ChoiceState>();
+  readonly steps: ToolStep[] = [];
+  first: Partial<ChatCompletionChunk> | undefined;
+  usage: ChatCompletion["usage"] = null;
+
+  constructor(readonly model: string) {}
+
+  add(chunk: ChatCompletionChunk): void {
+    this.first ??= chunk;
+    if (chunk.usage) this.usage = chunk.usage;
+    if (chunk.moss_tool_step) this.steps.push(chunk.moss_tool_step);
+    for (const choice of Array.isArray(chunk.choices) ? chunk.choices : []) {
+      if (!isObject(choice)) continue;
       const index = choice.index ?? 0;
-      let state = choices.get(index);
-      if (!state)
-        choices.set(index, (state = { content: null, finishReason: null, toolCalls: new Map() }));
+      let state = this.choices.get(index);
+      if (!state) {
+        state = {
+          content: null,
+          logprobs: null,
+          finishReason: null,
+          toolCalls: new Map(),
+          last: -1,
+        };
+        this.choices.set(index, state);
+      }
       const delta = choice.delta ?? {};
       if (delta.content) state.content = (state.content ?? "") + delta.content;
-      for (const part of delta.tool_calls ?? []) {
-        const call = state.toolCalls.get(part.index ?? 0) ?? {
+      if (isObject(choice.logprobs)) {
+        state.logprobs ??= { content: null, refusal: null };
+        for (const key of ["content", "refusal"] as const) {
+          const tokens = choice.logprobs[key];
+          if (Array.isArray(tokens)) (state.logprobs[key] ??= []).push(...tokens);
+        }
+      }
+      const parts = Array.isArray(delta.tool_calls) ? delta.tool_calls : [];
+      for (const part of parts) {
+        if (!isObject(part)) continue;
+        let slot = part.index;
+        if (!Number.isInteger(slot)) {
+          const known = [...state.toolCalls].find(([, joined]) => part.id && joined.id === part.id);
+          const latest = state.toolCalls.get(state.last);
+          if (known) slot = known[0];
+          else if (latest && !(part.id && latest.id)) slot = state.last;
+          else slot = Math.max(-1, ...state.toolCalls.keys()) + 1;
+        }
+        state.last = slot;
+        const call: ChatCompletionMessageToolCall = state.toolCalls.get(slot) ?? {
           id: "",
           type: "function",
           function: { name: "", arguments: "" },
         };
-        call.id ||= part.id ?? "";
-        call.function.name ||= part.function?.name ?? "";
-        call.function.arguments += part.function?.arguments ?? "";
-        state.toolCalls.set(part.index ?? 0, call);
+        if (part.id) call.id = part.id;
+        if (part.type) call.type = part.type;
+        if (part.function?.name) call.function.name = part.function.name;
+        if (typeof part.function?.arguments === "string")
+          call.function.arguments += part.function.arguments;
+        for (const [key, value] of Object.entries(part)) {
+          if (value == null || ["index", "id", "type", "function"].includes(key)) continue;
+          const merged =
+            isObject(value) && isObject(call[key]) ? { ...call[key], ...value } : value;
+          Object.defineProperty(call, key, {
+            value: merged,
+            enumerable: true,
+            writable: true,
+            configurable: true,
+          });
+        }
+        state.toolCalls.set(slot, call);
       }
       if (choice.finish_reason != null) state.finishReason = choice.finish_reason;
     }
   }
-  const byIndex = <T>(map: Map<number, T>) => [...map].sort(([a], [b]) => a - b);
-  const completion: ChatCompletion = {
-    id: first?.id ?? "",
-    object: "chat.completion",
-    created: first?.created ?? 0,
-    model: first?.model ?? model,
-    choices: byIndex(choices).map(([index, state]) => ({
-      index,
-      message: {
-        role: "assistant",
-        content: state.content,
-        ...(state.toolCalls.size > 0 && {
-          tool_calls: byIndex(state.toolCalls).map(([, call]) => call),
-        }),
-      },
-      finish_reason: state.finishReason,
-    })),
-    usage,
-  };
-  const { signal } = stream.controller;
-  if (signal.aborted) throw signal.reason;
-  return completion;
+
+  build(): ChatCompletion {
+    const byIndex = <T>(map: Map<number, T>) => [...map].sort(([a], [b]) => a - b);
+    return {
+      id: this.first?.id ?? "",
+      object: "chat.completion",
+      created: this.first?.created ?? 0,
+      model: this.first?.model ?? this.model,
+      choices: byIndex(this.choices).map(([index, state]) => ({
+        index,
+        message: {
+          role: "assistant",
+          content: state.content ?? (state.toolCalls.size > 0 ? null : ""),
+          ...(state.toolCalls.size > 0 && {
+            tool_calls: byIndex(state.toolCalls).map(([, call]) => call),
+          }),
+        },
+        logprobs: state.logprobs,
+        finish_reason: state.finishReason,
+      })),
+      usage: this.usage,
+      ...(this.steps.length > 0 && { moss_tool_steps: this.steps }),
+    };
+  }
 }

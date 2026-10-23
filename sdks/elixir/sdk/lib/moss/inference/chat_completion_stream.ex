@@ -4,8 +4,12 @@ defmodule Moss.Inference.ChatCompletionStream do
 
   Each chunk has OpenAI's `chat.completion.chunk` shape with string keys, such as
   `chunk["choices"]` and `choice["delta"]["content"]`. A final chunk may carry `"usage"`
-  with an empty `"choices"` list. A failure once the reply has started raises
-  `Moss.Inference.Error` where it happens, after the chunks that came before it.
+  with an empty `"choices"` list. A tool call piece is the map the model sent, with every field.
+  Before and after each call to an MCP server, a chunk with an empty `"delta"` carries
+  `chunk["moss_tool_step"]`: `"type"` `"call"` or `"result"`, `"id"`, `"server_label"` and `"name"`,
+  then `"arguments"` on a call, and `"is_error"`, `"duration_ms"` and `"output"` on a result.
+  A failure once the reply has started raises `Moss.Inference.Error` where it happens,
+  after the chunks that came before it, with code `"failed_after_tool_call"` once a step has come.
   An event or line over 1 MiB raises `"server_error"` and closes the connection.
   A connection reset raises `"incomplete_stream"`, since Erlang's `:ssl` reports it as a close.
 
@@ -39,10 +43,13 @@ defmodule Moss.Inference.ChatCompletionStream do
 
   # `details` holds the error fields each failure of the reply carries.
   @derive {Inspect, only: []}
-  defstruct [:conn, :received, :owner, :limits, :flags, :origin, :details]
+  defstruct [:conn, :received, :owner, :limits, :flags, :origin, :details, :request_id]
 
-  @typedoc "A stream. Its fields are internal."
-  @type t :: %__MODULE__{}
+  @typedoc """
+  A stream. `request_id` is the reply's `X-Moss-Request-Id` header, else `nil`.
+  The other fields are internal.
+  """
+  @type t :: %__MODULE__{request_id: String.t() | nil}
 
   @doc """
   Closes the connection of a stream that will not be read to the end.
@@ -60,9 +67,15 @@ defmodule Moss.Inference.ChatCompletionStream do
   # The calling process owns the connection and reads it,
   # and only a reply read to its end gives it back to the pool.
   @doc false
-  @spec open(URI.t(), [{String.t(), String.t()}], binary(), timeout(), timeout()) ::
-          {:ok, t()} | {:error, Error.t()}
-  def open(%URI{} = uri, headers, body, timeout, idle_timeout) do
+  @spec open(
+          URI.t(),
+          [{String.t(), String.t()}],
+          binary(),
+          timeout(),
+          timeout(),
+          non_neg_integer()
+        ) :: {:ok, t()} | {:error, Error.t()}
+  def open(%URI{} = uri, headers, body, timeout, idle_timeout, retries) do
     limits = {if(timeout == :infinity, do: :infinity, else: now() + timeout), idle_timeout}
     headers = [{"content-type", "application/json"} | headers]
 
@@ -77,16 +90,44 @@ defmodule Moss.Inference.ChatCompletionStream do
       ]
     ]
 
+    retry(fn -> attempt(uri, headers, body, options, limits) end, limits, retries, 0)
+  end
+
+  # Sends the call again while retries are left and the wait ends before the deadline.
+  # A wait is the reply's Retry-After up to 60 s, else 0.5 s doubled per retry up to 8 s, less up to 25%.
+  defp retry(attempt, {deadline, _idle} = limits, retries, count) do
+    with {:retry, error} <- attempt.() do
+      wait =
+        if error.retry_after in 0..60_000,
+          do: error.retry_after,
+          else: round(min(500 * 2 ** count, 8_000) * (1 - :rand.uniform() / 4))
+
+      if count < retries and wait < remaining(deadline) do
+        Process.sleep(wait)
+        retry(attempt, limits, retries, count + 1)
+      else
+        {:error, error}
+      end
+    end
+  end
+
+  # The stream, or `{:retry, error}` for a failure the call may be sent again after.
+  # A timeout while connecting is one, and its error has type "timeout" like any other timeout.
+  defp attempt(uri, headers, body, options, limits) do
     with {:ok, conn} <- connection(uri, options, limits) do
       case request(conn, uri.path, headers, body) do
         {:ok, conn} -> await_start(conn, origin(uri), limits, [])
         {:error, conn, reason} -> await_start(conn, origin(uri), limits, [{:failed, reason}])
       end
     else
-      {:error, %Mint.TransportError{reason: :timeout}} -> {:error, timeout_error()}
-      {:error, reason} -> {:error, unreachable(reason)}
+      {:error, %Mint.TransportError{reason: :timeout}} -> {:retry, timeout_error()}
+      {:error, reason} -> failed(reason)
     end
   end
+
+  # A connection that fails before the reply's headers may be retried.
+  defp failed(%Mint.TransportError{} = reason), do: {:retry, unreachable(reason)}
+  defp failed(reason), do: {:error, unreachable(reason)}
 
   # An idle connection the gateway has not closed, else a new one.
   #
@@ -181,7 +222,7 @@ defmodule Moss.Inference.ChatCompletionStream do
 
       {_head, [{:failed, reason} | _]} ->
         Mint.HTTP1.close(conn)
-        {:error, unreachable(reason)}
+        failed(reason)
 
       {_head, []} ->
         {conn, more} = recv(conn, limits)
@@ -201,6 +242,8 @@ defmodule Moss.Inference.ChatCompletionStream do
     {:status, _ref, status} = List.keyfind(head, :status, 0)
 
     if status in 200..299 do
+      id = request_id(headers)
+
       {:ok,
        %__MODULE__{
          conn: state.conn,
@@ -209,7 +252,8 @@ defmodule Moss.Inference.ChatCompletionStream do
          limits: limits,
          flags: :atomics.new(2, []),
          origin: state.origin,
-         details: %{request_id: request_id(headers)}
+         details: %{request_id: id},
+         request_id: id
        }}
     else
       {ending, body, state} = read_body(state, limits, "")
@@ -225,7 +269,19 @@ defmodule Moss.Inference.ChatCompletionStream do
           status_error(status, phrase, body)
         end
 
-      {:error, %{error | request_id: request_id(headers), retry_after: retry_after(headers)}}
+      error = %{error | request_id: request_id(headers), retry_after: retry_after(headers)}
+      {if(retry?(error, headers), do: :retry, else: :error), error}
+    end
+  end
+
+  # An error reply's x-should-retry header wins over its status.
+  defp retry?(%Error{status: nil}, _headers), do: false
+
+  defp retry?(%Error{status: status}, headers) do
+    case List.keyfind(headers, "x-should-retry", 0) do
+      {_name, "true"} -> true
+      {_name, "false"} -> false
+      _none -> status in [408, 409, 429] or status >= 500
     end
   end
 
@@ -338,6 +394,12 @@ defmodule Moss.Inference.ChatCompletionStream do
   end
 
   defp next(state), do: if(closed?(state), do: {:halt, state}, else: step(state))
+
+  # Once a tool has run, it may have changed data, and every error after it says so.
+  defp step(%{events: [{:chunk, %{"moss_tool_step" => %{}} = chunk} | rest]} = state) do
+    state = put_in(state.stream.details[:code], "failed_after_tool_call")
+    {[chunk], %{state | events: rest}}
+  end
 
   defp step(%{events: [{:chunk, chunk} | rest]} = state), do: {[chunk], %{state | events: rest}}
   defp step(%{events: [:done | _]} = state), do: {:halt, drain(state, drain_limits(state))}

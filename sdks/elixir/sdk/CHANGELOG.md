@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-23
+
+### Added
+
+- `Moss.Inference.McpServer` is an MCP server for `tools`: Moss calls its tools during the turn. It encodes to `{"type": "mcp", ...}` without its `nil` fields, and `inspect/2` leaves out `server_url` and `headers`.
+- A chunk with `"moss_tool_step"` reports an MCP call before and after it runs, and a reply without `stream` lists them in `"moss_tool_steps"`. Any failure after a step has code `"failed_after_tool_call"`, since a tool may have changed data.
+- `tools`, `tool_choice` and `parallel_tool_calls` are documented in `t:Moss.Inference.Chat.Completions.params/0`.
+- `:max_retries` on `Moss.Inference.new/3` and on each call, default `2`, `0` for none. A call whose connection fails before the reply's headers, or that gets a 408, 409, 429 or 5xx reply, is sent again after the reply's `Retry-After` seconds when they are 60 or fewer, else after 0.5 s doubled each time up to 8 s, less up to 25%. The waits count against `:timeout`, a wait that would pass it is not taken, and a reply's `x-should-retry` header of `false` forbids a retry and `true` forces one. A stream that started is never sent again. After the last attempt the last error returns unchanged.
+- `cache: false` on a call sends `X-Moss-Cache: off`, so Moss always asks the model instead of its reply cache.
+- `stream.request_id` and a joined reply's `"request_id"` are the reply's `X-Moss-Request-Id` header, else `nil`.
+
+### Changed
+
+- `indexes: []` searches no index and sends `X-Moss-Retrieve: off`. Leaving `:indexes` out still searches every index.
+- Each choice of a reply without `stream` has `"logprobs"`: `nil` when no chunk sent any, else `"content"` and `"refusal"`, each the chunks' lists joined in order, or `nil` when no chunk sent that key. Its `"usage"` keeps every field the gateway sent, such as `"completion_tokens_details"`.
+- A tool call piece without an `"index"` joins the call of its choice that has its `"id"`, else the most recent call. A new id starts a new call instead when that call has an id already. Parallel calls sent without an index stay separate, even when their pieces interleave.
+- The message of a reply without `stream` always has `"content"`: the text, else `nil` when it has tool calls and `""` when it has none, so it goes back in `messages` as it is.
+- A reply without `stream` keeps every field of each tool call the model sent, such as Gemini's `extra_content`, joined the way Moss joins them, so a reply's message appended to `messages` sends them back unchanged. A call without an id or a name has `""` for it, not `nil`.
+- `params` that give one key twice at any depth, such as `:content` and `"content"`, return an `invalid_request_error`, since JSON would send that key twice.
+- On Linux with glibc, `unload_index/2`, `unload_indexes/2`, `close/1`, each refresh or reload that installs a newer version, and a session that swaps in a refreshed version or is freed hand the freed memory back to the operating system, so a long-running node shrinks when it unloads indexes. glibc used to keep those pages until something called `malloc_trim`.
+
 ## [1.9.0] - 2026-10-22
 
 ### Added

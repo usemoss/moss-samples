@@ -7,6 +7,8 @@ export type InferenceErrorType =
   | "not_found_error"
   | "invalid_request_error"
   | "rate_limit_error"
+  | "capacity"
+  | "mcp_error"
   | "model_error"
   | "server_error"
   | "connection_error"
@@ -37,7 +39,14 @@ export class InferenceError extends Error implements MossError {
   readonly type: InferenceErrorType;
   /** The Moss code for `type`. Model, server and rate limit failures are `INTERNAL`. */
   readonly code: MossErrorCode;
-  /** The gateway's `error.code`, a string or a safe integer in decimal. Undefined otherwise. */
+  /**
+   * The gateway's `error.code`, a string or a safe integer in decimal. Undefined otherwise.
+   *
+   * `failed_after_tool_call` once the stream carried an MCP tool step.
+   * The tool may have changed data, so do not replay the call blindly.
+   * The same holds for a call you abort after a step, which has no such code,
+   * as with `stream.controller.abort()` or a signal such as `AbortSignal.timeout()`.
+   */
   readonly errorCode?: string;
   /** The `X-Moss-Request-Id` of the response. Undefined when the call failed before one arrived. */
   readonly requestId?: string;
@@ -66,10 +75,12 @@ export class InferenceError extends Error implements MossError {
   }
 }
 
-/** What an {@link InferenceError} takes from the response headers. */
+/** What every {@link InferenceError} of a call takes from its response. */
 export interface ResponseFields {
   requestId?: string;
   retryAfter?: number;
+  /** Set once the stream carries an MCP tool step. */
+  errorCode?: "failed_after_tool_call";
 }
 
 /**

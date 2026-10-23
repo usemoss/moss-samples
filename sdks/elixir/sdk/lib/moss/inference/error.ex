@@ -22,6 +22,9 @@ defmodule Moss.Inference.Error do
   start of a body that is not JSON, else the status line of the reply.
   `code` is the gateway's `error.code`, such as `"rate_limit_exceeded"`, with
   a number as its decimal text, from an error reply or an error event, else `nil`.
+  A refused or failing MCP server has type `"mcp_error"` and code `"mcp_server_error"`.
+  Any failure after a tool step has code `"failed_after_tool_call"`: the tool may have
+  changed data, so do not send the call again without checking what it did.
   `request_id` is the reply's `X-Moss-Request-Id` header, for any failure once a
   reply has come, and `nil` for a refused argument or a failure before any reply.
   `retry_after` is the error reply's `Retry-After` header in milliseconds, when it
