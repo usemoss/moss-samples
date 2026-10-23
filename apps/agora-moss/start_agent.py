@@ -98,7 +98,7 @@ def build_join_body(
                 "vendor": "cartesia",
                 "params": {
                     "api_key": cartesia_key,
-                    "model_id": "sonic-2",
+                    "model_id": "sonic-3.6",
                     "voice": {"mode": "id", "id": cartesia_voice_id},
                     "output_format": {"container": "raw", "sample_rate": 16000},
                     "language": "en",

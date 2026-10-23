@@ -87,7 +87,7 @@ We have a pre-built React frontend in the sibling directory:
 - **Voice Pipeline**:
   - **STT**: Deepgram Nova-2
   - **LLM**: OpenAI GPT-5
-  - **TTS**: Cartesia Sonic-2
+  - **TTS**: Cartesia Sonic-3.6
 
 ## 📦 Deployment
 
