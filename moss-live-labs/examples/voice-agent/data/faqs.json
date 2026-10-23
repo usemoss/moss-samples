@@ -1,0 +1,122 @@
+[
+  {
+    "id": "returns-policy",
+    "category": "returns",
+    "region": "all",
+    "text": "Northwind accepts returns for a refund as long as items are unworn, unwashed, and in their original packaging with tags attached. Start a return from the Orders page in your account and print the prepaid label."
+  },
+  {
+    "id": "return-window-us",
+    "category": "returns",
+    "region": "US",
+    "text": "In the United States, the return window is 30 days from the delivery date. Holiday orders placed in November and December can be returned until January 31. Final-sale and clearance items cannot be returned."
+  },
+  {
+    "id": "return-window-eu",
+    "category": "returns",
+    "region": "EU",
+    "text": "In the EU, you have a 14-day right of withdrawal starting the day you receive the item, in line with EU consumer law. Return shipping on withdrawals is free, and final-sale items are excluded."
+  },
+  {
+    "id": "exchange-size",
+    "category": "returns",
+    "region": "all",
+    "text": "If an item doesn't fit, you can exchange it for a different size or color at no extra cost. Choose 'Exchange' instead of 'Refund' when you start the return, and we ship the replacement as soon as the original is scanned by the carrier."
+  },
+  {
+    "id": "refund-timing",
+    "category": "returns",
+    "region": "all",
+    "text": "Refunds are issued to your original payment method within 5 to 7 business days after we receive and inspect the returned item. You'll get an email confirmation when the refund is processed."
+  },
+  {
+    "id": "shipping-times",
+    "category": "shipping",
+    "region": "all",
+    "text": "Standard shipping takes 3 to 5 business days. Express shipping arrives in 2 business days, and overnight orders placed before 12pm arrive the next business day. Orders are processed within 24 hours on business days."
+  },
+  {
+    "id": "shipping-cost-us",
+    "category": "shipping",
+    "region": "US",
+    "text": "In the United States, standard shipping is free on orders over 50 dollars, otherwise a flat 5.95 dollars. Express shipping is 12.95 dollars and overnight is 24.95 dollars."
+  },
+  {
+    "id": "shipping-cost-eu",
+    "category": "shipping",
+    "region": "EU",
+    "text": "In the EU, standard shipping is free on orders over 50 euros, otherwise a flat 4.95 euros. Express shipping is 11.95 euros. Prices include VAT."
+  },
+  {
+    "id": "international-shipping",
+    "category": "shipping",
+    "region": "all",
+    "text": "Northwind ships to over 40 countries. International delivery takes 7 to 14 business days. Duties and taxes are calculated at checkout so there are no surprise fees on delivery."
+  },
+  {
+    "id": "order-tracking",
+    "category": "orders",
+    "region": "all",
+    "text": "Once your order ships you'll receive a tracking number by email. You can also see live tracking on the Orders page in your account. Tracking updates can take up to 24 hours to appear after the label is created."
+  },
+  {
+    "id": "change-order",
+    "category": "orders",
+    "region": "all",
+    "text": "You can change or cancel an order within 60 minutes of placing it from the Orders page. After that the order enters fulfillment and can't be modified, but you can return it once it arrives."
+  },
+  {
+    "id": "change-address",
+    "category": "orders",
+    "region": "all",
+    "text": "To update the shipping address, edit the order within 60 minutes of checkout. If it's already being prepared, contact support and we'll try to reroute it with the carrier, though we can't guarantee a change once it has shipped."
+  },
+  {
+    "id": "duplicate-charge",
+    "category": "billing",
+    "region": "all",
+    "text": "If you see two charges for one order, one of them is almost always a temporary authorization hold that drops off in 3 to 5 business days. If both charges still post as completed, contact support with your order number and we'll refund the duplicate immediately."
+  },
+  {
+    "id": "payment-methods",
+    "category": "billing",
+    "region": "all",
+    "text": "We accept Visa, Mastercard, American Express, Discover, Apple Pay, Google Pay, and Northwind gift cards. Buy-now-pay-later is available through Affirm at checkout on larger orders."
+  },
+  {
+    "id": "promo-code",
+    "category": "billing",
+    "region": "all",
+    "text": "Enter promo codes in the 'Discount code' box at checkout. Only one code can be used per order, and codes can't be combined with clearance pricing. If a code won't apply, check the expiration date and any minimum-spend requirement."
+  },
+  {
+    "id": "account-password",
+    "category": "account",
+    "region": "all",
+    "text": "To reset your password, click 'Forgot password' on the sign-in page and we'll email you a reset link that's valid for one hour. If the email doesn't arrive, check spam or make sure you're using the address on file."
+  },
+  {
+    "id": "warranty",
+    "category": "product",
+    "region": "all",
+    "text": "Northwind products carry a one-year limited warranty against manufacturing defects. If something fails under normal use within a year, we'll repair or replace it for free. Wear and tear and accidental damage aren't covered."
+  },
+  {
+    "id": "damaged-item",
+    "category": "product",
+    "region": "all",
+    "text": "If your item arrives damaged or defective, contact us within 14 days with a photo and your order number. We'll send a replacement right away and cover return shipping on the damaged item, no need to wait for a refund."
+  },
+  {
+    "id": "gift-cards",
+    "category": "billing",
+    "region": "all",
+    "text": "Digital gift cards are delivered by email within minutes and never expire. They can be used across multiple orders, and any remaining balance stays on the card. Gift cards can't be redeemed for cash except where required by law."
+  },
+  {
+    "id": "support-hours",
+    "category": "support",
+    "region": "all",
+    "text": "Northwind support is available by chat and email 7 days a week, from 8am to 8pm. Phone support runs Monday through Friday, 9am to 6pm. Most email replies go out within a few hours."
+  }
+]

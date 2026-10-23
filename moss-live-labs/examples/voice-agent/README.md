@@ -1,58 +1,73 @@
 # Voice Agent
 
-A voice assistant that answers questions using your Moss knowledge base. You talk to it, it searches your data, and responds out loud.
+A customer-support **voice agent** grounded in a Moss knowledge base, with a brand-styled
+web UI that shows Moss doing the retrieval live. You talk to it, it searches your data,
+and a side panel surfaces the exact chunks Moss returned (with match scores and query
+latency) for every turn.
+
+```
+Browser (web/)  ⟷  LiveKit room  ⟷  agent.py (STT → LLM → TTS)  ⟷  Moss (RAG)
+```
 
 ## What you need
 
-- A [Moss](https://moss.dev) account with a project and an index loaded with your data
-- A [LiveKit](https://livekit.io) account (or run it locally)
-- An [OpenAI](https://platform.openai.com) API key (for the AI responses)
-- A [Deepgram](https://deepgram.com) API key (for speech-to-text)
-- A [Cartesia](https://play.cartesia.ai) API key (for text-to-speech)
+- A [Moss](https://moss.dev) account (project ID + key)
+- [LiveKit](https://livekit.io) running locally (`livekit-server --dev`)
+- [OpenAI](https://platform.openai.com) (LLM), [Deepgram](https://deepgram.com)
+  (speech-to-text), and [Cartesia](https://cartesia.ai) (text-to-speech) API keys
+- Python 3.14+ (`uv`) and Node 18.18+ (`npm`) for the web UI
 
 ## Setup
 
-1. Install dependencies:
-
-   ```bash
-   uv sync
-   ```
-
-2. Copy the env file and fill in your keys:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-   Open `.env` and add:
-
-   ```env
-   LIVEKIT_URL=ws://localhost:7880
-   LIVEKIT_API_KEY=devkey
-   LIVEKIT_API_SECRET=secret
-
-   MOSS_PROJECT_ID=your-project-id
-   MOSS_PROJECT_KEY=your-project-key
-   MOSS_INDEX_NAME=your-index-name
-
-   OPENAI_API_KEY=...
-   DEEPGRAM_API_KEY=...
-   CARTESIA_API_KEY=...
-   ```
-
-3. Download the required model files:
-
-   ```bash
-   python agent.py download-files
-   ```
-
-## Run
-
 ```bash
-python agent.py console
+uv sync
+cp .env.example .env          # fill in your Moss + provider keys
+python agent.py download-files
 ```
 
-Speak into your microphone and the agent responds out loud.
+`.env` keys: `MOSS_PROJECT_ID`, `MOSS_PROJECT_KEY`, `OPENAI_API_KEY`, `DEEPGRAM_API_KEY`, `CARTESIA_API_KEY`.
+For local LiveKit, leave the `LIVEKIT_*` values as-is; for LiveKit Cloud, set them to your
+project's URL/key/secret and copy the same three into `web/.env.local`. The index name
+defaults to `demo-customer_faqs` (override with `MOSS_INDEX_NAME`).
+
+## 1. Seed the knowledge base
+
+Loads the sample support FAQs in `data/faqs.json` into a Moss index:
+
+```bash
+python seed_index.py
+```
+
+## 2. Run it
+
+Open three terminals:
+
+```bash
+# a) LiveKit server (local dev — uses devkey/secret)
+livekit-server --dev
+
+# b) the agent (joins rooms automatically)
+python agent.py dev
+
+# c) the web UI
+cd web
+npm install
+cp .env.local.example .env.local
+npm run dev            # → http://localhost:3000
+```
+
+Open http://localhost:3000, click **Start the demo**, and talk. The right-hand panel
+shows what Moss retrieves on each turn.
+
+> Prefer no UI? `python agent.py console` still works for a mic-only, terminal session.
+
+## How the retrieval panel works
+
+On each user turn, `agent.py` queries Moss and publishes the results to the LiveKit room
+on the `moss.retrieval` data channel (`{query, docs:[{text, score}], took_ms}`). The web
+UI listens on that channel and renders them. The voice pipeline is otherwise untouched.
+
+See [`DEMO_SCRIPT_METADATA.md`](./DEMO_SCRIPT_METADATA.md) for a ready-to-record walkthrough.
 
 ## Resources
 
