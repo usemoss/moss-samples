@@ -1,0 +1,16 @@
+## .NET build output
+bin/
+obj/
+*.user
+
+## Test / coverage artifacts
+[Tt]est[Rr]esults/
+*.trx
+*.coverage
+coverage*.json
+coverage*.xml
+coverage*.cobertura.xml
+
+## NuGet
+*.nupkg
+*.snupkg
