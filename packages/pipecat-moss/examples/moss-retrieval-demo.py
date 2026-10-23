@@ -47,6 +47,25 @@ load_dotenv(override=True)
 print("Starting Customer Support Voice AI Bot...")
 logger.debug("All components loaded successfully!")
 
+# One Moss service per process. Every bot this process runs shares its client,
+# its embedding model and its loaded index, so only the first bot waits for a load.
+_moss_service: MossRetrievalService | None = None
+
+
+def get_moss_service() -> MossRetrievalService:
+    """Return the process-wide Moss service, creating it on first use."""
+    global _moss_service
+    if _moss_service is None:
+        _moss_service = MossRetrievalService(
+            project_id=os.getenv("MOSS_PROJECT_ID"),
+            project_key=os.getenv("MOSS_PROJECT_KEY"),
+            system_prompt="Relevant passages from the Moss knowledge base:\n\n",
+            # Persistent storage in production: a new process then reads the index from disk.
+            cache_path=os.getenv("MOSS_CACHE_PATH", "./moss-cache"),
+        )
+    return _moss_service
+
+
 async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
     """Run the customer support bot pipeline."""
     # Initialize stt, tts, llm services
@@ -61,21 +80,14 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments):
         model=os.getenv("OPENAI_MODEL", "gpt-4"),
     )
 
-    # Configure Moss retrieval credentials and settings
-    project_id = os.getenv("MOSS_PROJECT_ID")
-    project_key = os.getenv("MOSS_PROJECT_KEY")
+    # Moss retrieval settings
     index_name = os.getenv("MOSS_INDEX_NAME")
     top_k = int(os.getenv("MOSS_TOP_K", "5"))
 
-    moss_service = MossRetrievalService(
-        project_id=project_id,
-        project_key=project_key,
-        system_prompt="Relevant passages from the Moss knowledge base:\n\n",
-    )
-
-    # Load the Moss index
+    # Loads the index, or checks a loaded one for a newer cloud version.
+    moss_service = get_moss_service()
     await moss_service.load_index(index_name)
-    logger.debug(f"Moss retrieval service initialized (index: {index_name})")
+    logger.debug(f"Moss retrieval service ready (index: {index_name})")
 
     # System prompt with semantic retrieval support
     system_content = """You are a helpful customer support voice assistant.
@@ -191,9 +203,7 @@ async def bot(runner_args: RunnerArguments):
     }
 
     transport = await create_transport(runner_args, transport_params)
-
     await run_bot(transport, runner_args)
-
 
 if __name__ == "__main__":
     runner_main()

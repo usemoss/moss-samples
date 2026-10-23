@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import os
+
 from loguru import logger
 from moss import MossClient
 
@@ -18,7 +20,12 @@ __all__ = ["MossRetrievalService"]
 
 
 class MossRetrievalService:
-    """Retrieval service manager for Moss vector indexes."""
+    """Retrieval service manager for Moss vector indexes.
+
+    Create one service per process and share it across bots.
+    Its client holds the embedding model and every loaded index,
+    so every bot reuses them instead of loading its own copy again.
+    """
 
     def __init__(
         self,
@@ -26,21 +33,36 @@ class MossRetrievalService:
         project_id: str | None = None,
         project_key: str | None = None,
         system_prompt: str = "Here is additional context retrieved from database:\n\n",
+        cache_path: str | None = None,
     ):
-        """Store shared client and default retrieval settings."""
-        self._client = MossClient(project_id=project_id, project_key=project_key)
+        """Create the client that every processor from this service shares.
+
+        Credentials default to `MOSS_PROJECT_ID` and `MOSS_PROJECT_KEY`.
+        With `cache_path`, a load in a new process reads an unchanged index
+        from disk instead of downloading it, and auto-refresh writes through to it.
+        """
+        project_id = project_id or os.getenv("MOSS_PROJECT_ID")
+        project_key = project_key or os.getenv("MOSS_PROJECT_KEY")
+        if not project_id or not project_key:
+            raise ValueError(
+                "Pass project_id and project_key, or set MOSS_PROJECT_ID and MOSS_PROJECT_KEY"
+            )
+        self._client = MossClient(project_id, project_key, cache_path=cache_path)
         self._system_prompt = system_prompt
         logger.debug("Initialized MossRetrievalService for project")
 
-    async def load_index(self, index_name: str):
-        """Explicitly load an index before using the pipeline."""
+    async def load_index(self, index_name: str, *, auto_refresh: bool = False) -> None:
+        """Load an index into memory, or check a loaded one for a newer cloud version.
+
+        With `auto_refresh`, the index follows new cloud versions while the process runs.
+        """
         try:
             logger.debug(f"Loading index: {index_name}")
-            await self._client.load_index(index_name)
+            await self._client.load_index(index_name, auto_refresh=auto_refresh)
             logger.debug(f"Index loaded: {index_name}")
         except Exception as exc:  # pragma: no cover - pass-through
             logger.error(f"Failed to load index {index_name}: {exc}")
-            raise exc
+            raise
 
     def query(
         self,
