@@ -1,0 +1,10 @@
+.next/
+node_modules/
+.pnpm-store/
+*.tsbuildinfo
+.env*.local
+!.env.local.example
+__pycache__/
+.venv/
+venv/
+config.json

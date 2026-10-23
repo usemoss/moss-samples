@@ -1,0 +1,7 @@
+pywebview
+mss
+pillow
+python-dotenv
+requests
+pynput
+moss

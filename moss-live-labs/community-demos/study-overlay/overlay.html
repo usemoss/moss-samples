@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>StudyOverlay</title>
+    <link rel="stylesheet" href="overlay.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.css" crossorigin="anonymous" />
+    <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script defer src="overlay.js"></script>
+  </head>
+  <body>
+    <main class="overlay-shell">
+      <section id="assistant-view" class="panel">
+        <header class="topbar drag-handle">
+          <div class="brand">
+            <span class="status-dot"></span>
+            <span>StudyOverlay</span>
+          </div>
+          <div class="topbar-actions">
+            <span id="hotkey-label" class="hotkey">Cmd+Shift+A</span>
+            <button id="ask-button" class="ask-button" title="Capture screen">Ask</button>
+            <button id="settings-button" class="icon-button" title="Settings">⚙</button>
+            <button id="hide-button" class="icon-button" title="Hide">×</button>
+          </div>
+        </header>
+
+        <div class="response-head">
+          <h1>AI Response</h1>
+          <span id="context-tag" class="context-tag hidden">linked to earlier</span>
+        </div>
+
+        <div id="loading" class="loading hidden">
+          <span class="spinner"></span>
+          <span>Reading your screen...</span>
+        </div>
+
+        <article id="response" class="response">
+          <p>Press Ask or use the hotkey to capture your screen and get a tutor-style explanation.</p>
+          <p class="muted">Math preview: $E = mc^2$</p>
+        </article>
+
+        <form id="prompt-form" class="prompt-bar">
+          <input
+            id="prompt-input"
+            type="text"
+            autocomplete="off"
+            placeholder="Ask a follow-up or add context, e.g. solve #3 step by step"
+          />
+          <button type="submit">Ask</button>
+        </form>
+      </section>
+
+      <section id="settings-view" class="panel settings-panel hidden">
+        <header class="topbar drag-handle">
+          <div class="brand">
+            <span class="status-dot"></span>
+            <span>Settings</span>
+          </div>
+          <button id="back-button" class="icon-button" title="Back">×</button>
+        </header>
+
+        <form id="settings-form" class="settings-form">
+          <label>
+            <span>OpenRouter API Key</span>
+            <input id="openrouter-key" name="OPENROUTER_API_KEY" type="password" autocomplete="off" placeholder="sk-or-..." />
+          </label>
+          <label>
+            <span>Moss Project ID</span>
+            <input id="moss-project-id" name="MOSS_PROJECT_ID" type="text" autocomplete="off" placeholder="Your Moss project id" />
+          </label>
+          <label>
+            <span>Moss Project Key</span>
+            <input id="moss-project-key" name="MOSS_PROJECT_KEY" type="password" autocomplete="off" placeholder="Your Moss project key" />
+          </label>
+          <p id="settings-note" class="muted"></p>
+          <button type="submit" class="save-button">Save</button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>
