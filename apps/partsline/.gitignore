@@ -1,0 +1,29 @@
+.env
+.env.*
+!.env.example
+
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+node_modules/
+
+venv/
+.venv/
+
+# Build artifacts
+build/
+dist/
+out/
+.next/
+coverage/
+htmlcov/
+*.egg-info/
+tsconfig.tsbuildinfo
+
+# Runtime logs
+*.log
+.agent.lock

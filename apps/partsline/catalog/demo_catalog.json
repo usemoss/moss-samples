@@ -1,0 +1,182 @@
+{
+  "documents": [
+    {
+      "id": "belt-2.5-outback",
+      "text": "Serpentine belt, 6-rib, for Subaru Outback 2.5L 4-cylinder engine. Drive belt for accessory systems.",
+      "metadata": {
+        "category": "belts",
+        "part_number": "SB-6PK1980",
+        "brand": "Dayco",
+        "price": "28.99",
+        "stock": "2",
+        "make": "Subaru",
+        "model": "Outback",
+        "year": "2014",
+        "engine": "2.5"
+      }
+    },
+    {
+      "id": "belt-3.6-outback",
+      "text": "Serpentine belt, 7-rib, for Subaru Outback 3.6L 6-cylinder engine. Drive belt for accessory systems.",
+      "metadata": {
+        "category": "belts",
+        "part_number": "SB-7PK2120",
+        "brand": "Dayco",
+        "price": "34.99",
+        "stock": "1",
+        "make": "Subaru",
+        "model": "Outback",
+        "year": "2014",
+        "engine": "3.6"
+      }
+    },
+    {
+      "id": "filter-a100",
+      "text": "Engine oil filter for Toyota Camry 2.5L. Discontinued part superseded by part A-100B.",
+      "metadata": {
+        "category": "filters",
+        "part_number": "A-100",
+        "brand": "Fram",
+        "price": "7.99",
+        "stock": "0",
+        "make": "Toyota",
+        "model": "Camry",
+        "year": "2015",
+        "engine": "2.5",
+        "superseded_by": "A-100B"
+      }
+    },
+    {
+      "id": "filter-a100b",
+      "text": "Engine oil filter for Toyota Camry 2.5L. Current replacement for discontinued part A-100.",
+      "metadata": {
+        "category": "filters",
+        "part_number": "A-100B",
+        "brand": "Fram",
+        "price": "8.49",
+        "stock": "11",
+        "make": "Toyota",
+        "model": "Camry",
+        "year": "2015",
+        "engine": "2.5"
+      }
+    },
+    {
+      "id": "pads-camry",
+      "text": "Front brake pads, semi-metallic, for Toyota Camry 2.5L.",
+      "metadata": {
+        "category": "brakes",
+        "part_number": "BP-2201",
+        "brand": "Wagner",
+        "price": "36.75",
+        "stock": "6",
+        "make": "Toyota",
+        "model": "Camry",
+        "year": "2015",
+        "engine": "2.5"
+      }
+    },
+    {
+      "id": "battery-camry",
+      "text": "Automotive battery, group size 24F, 650 CCA, for Toyota Camry 2.5L.",
+      "metadata": {
+        "category": "batteries",
+        "part_number": "BAT-24F-650",
+        "brand": "DieHard",
+        "price": "159.99",
+        "stock": "4",
+        "make": "Toyota",
+        "model": "Camry",
+        "year": "2015",
+        "engine": "2.5"
+      }
+    },
+    {
+      "id": "pads-civic-2013",
+      "text": "Front brake pads, ceramic, for Honda Civic 1.8L.",
+      "metadata": {
+        "category": "brakes",
+        "part_number": "BP-1089",
+        "brand": "Akebono",
+        "price": "41.50",
+        "stock": "4",
+        "make": "Honda",
+        "model": "Civic",
+        "year": "2013",
+        "engine": "1.8"
+      }
+    },
+    {
+      "id": "air-filter-civic-2013",
+      "text": "Engine air filter for Honda Civic 1.8L.",
+      "metadata": {
+        "category": "filters",
+        "part_number": "AF-7781",
+        "brand": "Wix",
+        "price": "18.25",
+        "stock": "9",
+        "make": "Honda",
+        "model": "Civic",
+        "year": "2013",
+        "engine": "1.8"
+      }
+    },
+    {
+      "id": "battery-f150",
+      "text": "Automotive battery, group size 65, 750 CCA, for Ford F-150 5.0L V8.",
+      "metadata": {
+        "category": "batteries",
+        "part_number": "BAT-65-750",
+        "brand": "DieHard",
+        "price": "189.99",
+        "stock": "3",
+        "make": "Ford",
+        "model": "F-150",
+        "year": "2016",
+        "engine": "5.0"
+      }
+    },
+    {
+      "id": "belt-f150",
+      "text": "Serpentine belt, 8-rib, for Ford F-150 5.0L V8 engine.",
+      "metadata": {
+        "category": "belts",
+        "part_number": "SB-8PK2330",
+        "brand": "Gates",
+        "price": "39.99",
+        "stock": "5",
+        "make": "Ford",
+        "model": "F-150",
+        "year": "2016",
+        "engine": "5.0"
+      }
+    },
+    {
+      "id": "oil-filter-f150",
+      "text": "Engine oil filter for Ford F-150 5.0L V8.",
+      "metadata": {
+        "category": "filters",
+        "part_number": "FL-500S",
+        "brand": "Motorcraft",
+        "price": "10.99",
+        "stock": "12",
+        "make": "Ford",
+        "model": "F-150",
+        "year": "2016",
+        "engine": "5.0"
+      }
+    },
+    {
+      "id": "wiper-universal",
+      "text": "Universal fit windshield wiper blade, 22 inch. Fits most makes and models.",
+      "metadata": {
+        "category": "wipers",
+        "part_number": "WB-22U",
+        "brand": "Bosch",
+        "price": "12.99",
+        "stock": "18",
+        "universal": "true"
+      }
+    }
+  ]
+}
