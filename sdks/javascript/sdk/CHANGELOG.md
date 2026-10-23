@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-10-23
+
+### Added
+
+- Tool calls keep every field the model sends, such as Gemini's `extra_content` with the thought signature that Gemini 3 needs back. A non-streaming call joins the pieces of each call with those fields, so pushing the reply message into `messages` sends each call back unchanged. `tools`, `tool_choice` and `parallel_tool_calls` are typed and documented.
+- `ChatCompletionStream.finalChatCompletion()` joins a stream into one completion, as a call without `stream: true` returns, so a streamed reply with tool calls can go back into `messages`.
+- `McpServer` entries in `tools` let the gateway call an MCP server's tools during the turn. Each tool step arrives as a chunk's `moss_tool_step` (`ToolStep`), and a non-streaming completion lists them in `moss_tool_steps`. `InferenceErrorType` names `capacity` and `mcp_error`. Once a step has arrived, every error of that call has the `errorCode` `failed_after_tool_call`. See the Inference section of the README.
+- `maxRetries` on the client and on each call, 2 by default and `0` for none. A connection that fails, or a 408, 409, 429 or 5xx response, before the stream starts is sent again after its `Retry-After` of up to 60 seconds, or else after a backoff of 0.5 s doubling up to 8 s with jitter. A response's `x-should-retry` forbids or forces a retry, the waits count against `timeout`, and an abort ends a wait at once. A stream that started is never retried, and after the last attempt the last error throws unchanged.
+- `cache: false` among the parameters sends `X-Moss-Cache: off`, so the gateway asks the model instead of answering an identical request from its reply cache.
+- `ChatCompletionStream.requestId` and a completion's `requestId` hold the response's `X-Moss-Request-Id`. On the completion it is not enumerable, so `JSON.stringify` gives the wire shape.
+
+### Changed
+
+- `loadIndexes` runs up to eight loads at once instead of one after another, so many indexes load in about the time of the slowest few. A name listed twice loads once.
+- `loadIndex` on an index that is already loaded checks the cloud version first. An unchanged copy stays loaded with no download or parse, and a changed one is swapped in without interrupting queries. Either way the call's `autoRefresh` and polling options replace the current ones.
+- Auto-refresh polls a loaded index first at a random point of its first interval, then every interval give or take 10%, so indexes loaded together no longer poll together.
+- On Linux with glibc, `unloadIndex`, `unloadIndexes`, `close`, each refresh or reload that installs a newer version, and a `SessionIndex` that swaps in a refreshed version or is freed hand the freed memory back to the operating system, so a long-running process shrinks when it unloads indexes. glibc used to keep those pages until something called `malloc_trim`, and each refresh left the replaced version resident.
+
+### Fixed
+
+- `indexes: []` skips the search, as `retrieve: false` does, instead of searching every index.
+- A completion's choices keep `logprobs`, each key holding the tokens of every chunk in order, or `null` when no chunk had any. `ChatCompletionChunkChoice` types `logprobs`, and `CompletionUsage` types `completion_tokens_details` and `prompt_tokens_details`, which `usage` keeps as the gateway sent them.
+- Parallel tool calls whose pieces carry no `index` stay apart. Such a piece joins the call of its choice with the same `id`. A piece with a new `id` starts a new call, unless the latest call has no id yet and takes it, and a piece with no `id` joins the latest call.
+- A completion's message always has `content`: the text, or with no text `null` when the model called tools and `""` otherwise, so the message goes back into `messages` whole.
+
 ## [1.20.0] - 2026-10-22
 
 ### Added

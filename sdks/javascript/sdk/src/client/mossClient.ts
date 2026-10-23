@@ -487,10 +487,10 @@ export class MossClient {
    * - With `loadIndex()`: Queries run entirely in-memory (~1-10ms) with no network round-trip
    *
    * **Reload behavior:**
-   * If the index is already loaded, calling `loadIndex()` again will:
-   * - Stop any existing auto-refresh polling
-   * - Download a fresh copy from the cloud
-   * - Replace the in-memory index
+   * If the index is already loaded, calling `loadIndex()` again checks the cloud version:
+   * - An unchanged copy stays loaded, with no download or parse
+   * - A changed copy is downloaded and swapped in without interrupting queries
+   * - Either way, this call's auto-refresh options replace the current ones
    *
    * **Auto-refresh (optional):**
    * Enable `autoRefresh: true` to periodically poll the cloud for updates.
@@ -527,10 +527,10 @@ export class MossClient {
   }
 
   /**
-   * Loads several indexes into memory in one call. Best-effort: a name that
-   * fails (typo, deleted index, download error) is reported in `failed` and
-   * does not roll back the indexes that loaded. `options` apply to the whole
-   * batch, and each distinct embedding model is warmed once.
+   * Loads several indexes into memory in one call, up to eight at once.
+   * Best-effort: a name that fails (typo, deleted index, download error) is
+   * reported in `failed` and does not roll back the indexes that loaded.
+   * `options` apply to the whole batch, and each distinct embedding model is warmed once.
    *
    * @param indexNames - Names of the indexes to load.
    * @param options - Auto-refresh and cache settings shared by the batch.

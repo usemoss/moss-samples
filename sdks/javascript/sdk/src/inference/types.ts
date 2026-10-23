@@ -8,11 +8,15 @@ export interface ChatCompletionContentPart {
   [key: string]: any;
 }
 
-/** A tool call the model made, as the API returns it. */
+/**
+ * A tool call the model made, as the API returns it.
+ * Fields the model adds, such as Gemini's `extra_content`, stay on the object.
+ */
 export interface ChatCompletionMessageToolCall {
   id: string;
   type: "function";
   function: { name: string; arguments: string };
+  [key: string]: any;
 }
 
 /** One message of the conversation, in OpenAI's shape. */
@@ -25,7 +29,7 @@ export interface ChatCompletionMessageParam {
   [key: string]: any;
 }
 
-/** A function the model may call. */
+/** A function the model may call. Your code runs it and sends back the result. */
 export interface ChatCompletionTool {
   type: "function";
   function: {
@@ -36,28 +40,77 @@ export interface ChatCompletionTool {
   };
 }
 
+/** An MCP server the gateway calls for the model during the turn. */
+export interface McpServer {
+  /** Marks this `tools` entry as an MCP server. */
+  type: "mcp";
+  /** The server's label, unique in the request. */
+  server_label: string;
+  /** The server's https URL. */
+  server_url: string;
+  /** Headers for this server only, such as its `Authorization`. */
+  headers?: Record<string, string>;
+  /** The only tools of the server the model may call. */
+  allowed_tools?: string[];
+  /** `streamable_http` by default, or `sse` for an older server. */
+  transport?: "streamable_http" | "sse";
+}
+
 /**
- * OpenAI's chat completion parameters plus the Moss retrieval options.
- * `indexes` and `retrieve` travel as headers, the rest in the body unchanged,
- * including parameters this type does not name. The body always says `stream: true`.
+ * One MCP tool call the gateway runs, streamed once before the call (`call`)
+ * and once after it (`result`). Fields this type does not name stay on the object.
+ */
+export interface ToolStep {
+  /** `call` before the tool runs, `result` after. */
+  type: "call" | "result";
+  /** The same on the `call` and the `result` of one tool call. */
+  id: string;
+  /** The label of the MCP server, as sent in `tools`. */
+  server_label: string;
+  /** The tool's name on its server. */
+  name: string;
+  /** The arguments as JSON text, on `call` only. */
+  arguments?: string;
+  /** True when the tool failed, on `result` only. */
+  is_error?: boolean;
+  /** How long the call took in milliseconds, on `result` only. */
+  duration_ms?: number;
+  /** The tool's result, cut when long, on `result` only. */
+  output?: string;
+  [key: string]: any;
+}
+
+/**
+ * OpenAI's chat completion parameters plus the Moss options.
+ * `indexes`, `retrieve` and `cache` travel as headers, the rest in the body
+ * unchanged, including parameters this type does not name. The body always says `stream: true`.
  */
 export interface ChatCompletionCreateParamsBase {
   /** `moss` by default, Moss's own model. A vendor model such as `gpt-4o-mini` needs `apiKey`. */
   model?: string;
   messages: ChatCompletionMessageParam[];
   stream?: boolean | null;
-  /** Moss indexes the gateway searches. Names travel in a header, so they must be Latin-1. */
+  /**
+   * Moss indexes to search, every index when left out and none when empty.
+   * Names travel in a single header, so each must be Latin-1 text with no comma.
+   */
   indexes?: string[];
   /** False skips retrieval for this call. */
   retrieve?: boolean;
+  /** False always asks the model instead of the gateway's reply cache. */
+  cache?: boolean;
   temperature?: number | null;
   top_p?: number | null;
   max_tokens?: number | null;
   max_completion_tokens?: number | null;
   stop?: string | string[] | null;
   seed?: number | null;
-  tools?: (ChatCompletionTool | { type: string; [key: string]: any })[];
+  /** Functions your code runs, MCP servers the gateway calls, or any other tool object. */
+  tools?: (ChatCompletionTool | McpServer | { type: string; [key: string]: any })[];
+  /** Whether and which tool the model calls, such as `{ type: "function", function: { name } }`. */
   tool_choice?: "none" | "auto" | "required" | { type: string; [key: string]: any };
+  /** False asks the model for at most one tool call per reply. */
+  parallel_tool_calls?: boolean | null;
   response_format?: { type: string; [key: string]: any };
   stream_options?: { include_usage?: boolean } | null;
   user?: string;
@@ -96,6 +149,11 @@ export interface MossInferenceOptions {
    * Node's fetch also ends a silence of 300 000, unless its global dispatcher allows more.
    */
   idleTimeout?: number | null;
+  /**
+   * Retries before the stream starts, 2 by default and 0 for none.
+   * A failed connection or a 408, 409, 429 or 5xx response is retried.
+   */
+  maxRetries?: number;
   /** Headers sent on every call. Host, Content-Length and Transfer-Encoding are an error. */
   headers?: Record<string, string>;
 }
@@ -110,6 +168,8 @@ export interface InferenceRequestOptions {
   timeout?: number | null;
   /** Replaces the client's `idleTimeout` for this call. */
   idleTimeout?: number | null;
+  /** Replaces the client's `maxRetries` for this call. */
+  maxRetries?: number;
   /**
    * Headers for this call, over the client's.
    * The SDK's own headers win over both, and Host,
@@ -118,19 +178,40 @@ export interface InferenceRequestOptions {
   headers?: Record<string, string>;
 }
 
-/** Token counts for one call. */
+/** Token counts for one call, with every field the gateway sent. */
 export interface CompletionUsage {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  /** Such as `reasoning_tokens`. */
+  completion_tokens_details?: Record<string, any>;
+  /** Such as `cached_tokens`. */
+  prompt_tokens_details?: Record<string, any>;
+  [key: string]: any;
 }
 
-/** A piece of a tool call inside a streamed delta. */
+/** The log probability of one token, with the likeliest tokens in its place when asked for. */
+export interface ChatCompletionTokenLogprob {
+  token: string;
+  logprob: number;
+  bytes: number[] | null;
+  top_logprobs: { token: string; logprob: number; bytes: number[] | null }[];
+  [key: string]: any;
+}
+
+/** The log probabilities of a choice's tokens, for its text and for a refusal. */
+export interface ChatCompletionLogprobs {
+  content: ChatCompletionTokenLogprob[] | null;
+  refusal: ChatCompletionTokenLogprob[] | null;
+}
+
+/** A piece of a tool call inside a streamed delta, with any fields beyond OpenAI's. */
 export interface ChatCompletionChunkToolCall {
   index: number;
   id?: string;
   type?: "function";
   function?: { name?: string; arguments?: string };
+  [key: string]: any;
 }
 
 /** What one chunk adds to a choice. */
@@ -144,6 +225,7 @@ export interface ChatCompletionChunkDelta {
 export interface ChatCompletionChunkChoice {
   index: number;
   delta: ChatCompletionChunkDelta;
+  logprobs?: ChatCompletionLogprobs | null;
   finish_reason: string | null;
 }
 
@@ -160,12 +242,17 @@ export interface ChatCompletionChunk {
   model: string;
   choices: ChatCompletionChunkChoice[];
   usage?: CompletionUsage | null;
+  /** An MCP tool call the gateway runs, on a chunk whose one choice has an empty delta. */
+  moss_tool_step?: ToolStep;
 }
 
-/** The reply the model built for one choice. */
+/**
+ * The reply the model built for one choice.
+ * Push it onto `messages` unchanged, then one `tool` message per tool call.
+ */
 export interface ChatCompletionMessage {
   role: "assistant";
-  /** All text joined, or null when the model sent none. */
+  /** All text joined. Without text, null when the model called tools and empty otherwise. */
   content: string | null;
   /** Present only when the model called tools. */
   tool_calls?: ChatCompletionMessageToolCall[];
@@ -175,6 +262,8 @@ export interface ChatCompletionMessage {
 export interface ChatCompletionChoice {
   index: number;
   message: ChatCompletionMessage;
+  /** The tokens of every chunk joined in order, or null when no chunk had any. */
+  logprobs: ChatCompletionLogprobs | null;
   finish_reason: string | null;
 }
 
@@ -186,4 +275,8 @@ export interface ChatCompletion {
   model: string;
   choices: ChatCompletionChoice[];
   usage: CompletionUsage | null;
+  /** Every MCP tool step of the stream in order, present only when there is one. */
+  moss_tool_steps?: ToolStep[];
+  /** The `X-Moss-Request-Id` of the response. `JSON.stringify` leaves it out. */
+  readonly requestId?: string;
 }

@@ -370,12 +370,21 @@ const reply = await keyed.chat.completions.create(
 
 The other client options are `timeout` for each whole call (no limit by
 default), `idleTimeout` for the longest wait for response headers or for more of
-the body (120 000 ms by default, `null` for none) and `headers`. Node's built-in
-`fetch` also ends a silence of 300 000 ms, unless its global dispatcher allows
-more. Each call takes `apiKey`, `signal`, `timeout`, `idleTimeout` and
-`headers`, which replace or add to the client's for that call. Neither `headers`
-can set `Host`, `Content-Length` or `Transfer-Encoding`. `retrieve: false` skips
-the search.
+the body (120 000 ms by default, `null` for none), `maxRetries` and `headers`.
+Node's built-in `fetch` also ends a silence of 300 000 ms, unless its global
+dispatcher allows more. Each call takes `apiKey`, `signal`, `timeout`,
+`idleTimeout`, `maxRetries` and `headers`, which replace or add to the client's
+for that call. Neither `headers` can set `Host`, `Content-Length` or
+`Transfer-Encoding`.
+
+`maxRetries` (2 by default, `0` for none) sends a call again when the connection
+fails, or when the gateway answers 408, 409, 429 or 5xx before the stream
+starts, after a `Retry-After` of up to 60 s, else a backoff of 0.5 s doubling
+up to 8 s, within `timeout`. `retrieve: false` or `indexes: []` skips the
+search, and leaving `indexes` out searches every index. Moss can answer an
+identical request from its reply cache; `cache: false` always asks the model.
+`stream.requestId` and a completion's `requestId`, which `JSON.stringify` leaves
+out, hold the response's `X-Moss-Request-Id`.
 
 To call another gateway, set `MOSS_INFERENCE_URL` to
 its base URL, up to and including `/v1`, before you build the client. A
@@ -392,6 +401,82 @@ early (`incomplete_stream`), a broken connection (`connection_error`) and a
 timeout (`timeout`). It also carries the gateway's `errorCode`, the response's
 `requestId` and, for a `429` or another error that sends `Retry-After`,
 `retryAfter` in milliseconds. The client does not follow redirects.
+
+### Tool calls
+
+`tools`, `tool_choice` and `parallel_tool_calls` are sent as given. Each tool
+call keeps every field the model sent, such as Gemini's `extra_content` with the
+thought signature Gemini 3 needs back. After streaming the text,
+`finalChatCompletion()` joins the stream into the reply. Push its message into
+`messages` unchanged, add one `tool` message per call, and call again:
+
+```typescript
+import type { ChatCompletionMessageParam } from "@moss-js/moss";
+
+const messages: ChatCompletionMessageParam[] = [
+  { role: "user", content: "Is the EQB jacket in stock?" },
+];
+const tools = [
+  {
+    type: "function" as const,
+    function: {
+      name: "check_stock",
+      parameters: { type: "object", properties: { sku: { type: "string" } } },
+    },
+  },
+];
+const stream = await client.chat.completions.create({ messages, tools, stream: true });
+for await (const chunk of stream) process.stdout.write(chunk.choices[0]?.delta.content ?? "");
+const { message } = (await stream.finalChatCompletion()).choices[0];
+messages.push(message);
+for (const call of message.tool_calls ?? []) {
+  const { sku } = JSON.parse(call.function.arguments);
+  messages.push({ role: "tool", tool_call_id: call.id, content: await checkStock(sku) });
+}
+const answer = await client.chat.completions.create({ messages, tools });
+```
+
+### MCP servers
+
+An `McpServer` entry in `tools` lets the gateway call that server's tools for
+the model and stream the final answer.
+
+```typescript
+import type { ChatCompletionMessageParam, McpServer } from "@moss-js/moss";
+
+const crm: McpServer = {
+  type: "mcp",
+  server_label: "crm",
+  server_url: "https://mcp.example.com/mcp",
+  headers: { Authorization: "Bearer your-crm-token" },
+};
+const messages: ChatCompletionMessageParam[] = [{ role: "user", content: "Where is order A1?" }];
+const stream = await client.chat.completions.create({ messages, tools: [crm], stream: true });
+for await (const chunk of stream) {
+  const step = chunk.moss_tool_step;
+  if (step) console.log(step.type, step.server_label, step.name, step.output ?? "");
+  else process.stdout.write(chunk.choices[0]?.delta.content ?? "");
+}
+const { moss_tool_steps } = await stream.finalChatCompletion();
+console.log(moss_tool_steps?.map((step) => `${step.type} ${step.name}`));
+```
+
+Before and after each tool call the stream carries a chunk with an empty delta
+and a `moss_tool_step`: `call` with the `arguments`, then `result` with
+`is_error`, `duration_ms` and `output`. A completion lists them in
+`moss_tool_steps`. A turn with tools can run for a few minutes.
+
+| `status` | `type` | `errorCode` | When |
+| --- | --- | --- | --- |
+| 403 | `permission_error` | `mcp_not_enabled` | MCP is switched off on the gateway |
+| 429 | `capacity` | `mcp_loops_busy` | The gateway is busy; retry after `retryAfter` |
+| 400, 424 | `mcp_error` | `mcp_server_error` | The URL was refused, or the server failed |
+| 400 | `invalid_request_error` | (none) | A bad `tools` entry, or a label or tool name used twice |
+
+After a tool step every failure has `errorCode` `failed_after_tool_call`, and
+the SDK never retries. Nor does it retry any stream that fails after it started.
+The tool may have changed data, and so may a call you abort or time out after a
+step, so do not replay such a call blindly.
 
 ## 📄 License
 

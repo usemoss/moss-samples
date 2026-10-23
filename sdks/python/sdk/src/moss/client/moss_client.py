@@ -571,6 +571,11 @@ class MossClient:
         skip the download. Auto-refresh writes through to the same cache. The
         cloud is still contacted on every load to check for a newer version.
         When omitted, the client-level `cache_path` is used.
+
+        Calling it again on a loaded index checks the cloud version. An
+        unchanged copy stays loaded with no download or parse, and a changed
+        one is swapped in without interrupting queries. Either way the call's
+        `auto_refresh` and polling options replace the current ones.
         """
         self._ensure_open()
         effective_cache_path = cache_path if cache_path is not None else self._cache_path
@@ -611,9 +616,10 @@ class MossClient:
         cache_path: Optional[str] = None,
     ) -> LoadIndexesResult:
         """
-        Bulk-load many indexes into memory. Best-effort: failures on individual
-        names do not roll back successes. Returns a LoadIndexesResult with
-        `loaded` (list of names) and `failed` (dict mapping name -> error).
+        Bulk-load many indexes into memory, up to eight at once. Best-effort:
+        failures on individual names do not roll back successes. Returns a
+        LoadIndexesResult with `loaded` (list of names) and `failed` (dict
+        mapping name -> error).
 
         `auto_refresh`, `polling_interval_in_seconds` and `cache_path`
         apply uniformly to the whole batch (see `load_index`). A per-call

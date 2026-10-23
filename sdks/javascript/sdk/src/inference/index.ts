@@ -5,7 +5,7 @@ import {
   transportError,
   type ResponseFields,
 } from "./error";
-import { ChatCompletionStream, aggregate, errorText, idleTimer } from "./stream";
+import { ChatCompletionStream, errorText, idleTimer } from "./stream";
 import type {
   ChatCompletion,
   ChatCompletionCreateParams,
@@ -19,8 +19,11 @@ import type {
 const DEFAULT_URL = "https://inference.moss.dev/v1";
 const DEFAULT_MODEL = "moss";
 const DEFAULT_IDLE_TIMEOUT = 120_000;
+const DEFAULT_RETRIES = 2;
 /** The longest delay `setTimeout` holds. */
 const MAX_DELAY = 2 ** 31 - 1;
+/** The longest `Retry-After` a retry waits, in milliseconds. A longer one waits the backoff. */
+const MAX_RETRY_AFTER = 60_000;
 
 function env(name: string): string | undefined {
   return (typeof process !== "undefined" && process.env[name]) || undefined;
@@ -108,6 +111,35 @@ function delay(what: string, value: unknown): number | null {
   throw invalid(`${what} must be a positive number of milliseconds, or null for no limit.`);
 }
 
+/** A retry count, a whole number of 0 or more. */
+function retries(value: unknown): number {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return value;
+  throw invalid("maxRetries must be a whole number of 0 or more.");
+}
+
+/**
+ * True when a failed response may be sent again.
+ * Its `x-should-retry` decides when present, else a 408, 409, 429 or 5xx does.
+ */
+function retryable(response: Response): boolean {
+  const header = response.headers.get("x-should-retry");
+  if (header === "true" || header === "false") return header === "true";
+  return [408, 409, 429].includes(response.status) || response.status >= 500;
+}
+
+/** Resolves after `ms`, or at once when `signal` aborts. */
+function pause(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", done);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    signal.addEventListener("abort", done, { once: true });
+  });
+}
+
 /** The `chat.completions` namespace of a {@link MossInference} client, shaped like OpenAI's. */
 export interface ChatCompletions {
   /**
@@ -151,6 +183,7 @@ export class MossInference {
   readonly #own: Headers;
   readonly #timeout: number | null;
   readonly #idleTimeout: number | null;
+  readonly #maxRetries: number;
   /** The provider key for calls that do not pass their own. */
   readonly #apiKey: string | undefined;
 
@@ -161,8 +194,9 @@ export class MossInference {
     refuseURL(options);
     this.#url = endpoint();
     this.#timeout = delay("timeout", options.timeout ?? null);
-    const { idleTimeout = DEFAULT_IDLE_TIMEOUT } = options;
+    const { idleTimeout = DEFAULT_IDLE_TIMEOUT, maxRetries = DEFAULT_RETRIES } = options;
     this.#idleTimeout = delay("idleTimeout", idleTimeout);
+    this.#maxRetries = retries(maxRetries);
     this.#headers = headersOf(options.headers);
     this.#own = new Headers({
       Authorization: `Bearer ${id}:${key}`,
@@ -182,7 +216,7 @@ export class MossInference {
     options: InferenceRequestOptions = {},
   ): Promise<ChatCompletionStream | ChatCompletion> {
     refuseURL(options);
-    const { indexes, retrieve, model = DEFAULT_MODEL, ...body } = params;
+    const { indexes, retrieve, cache, model = DEFAULT_MODEL, ...body } = params;
     if (body.apiKey !== undefined || body.api_key !== undefined)
       throw invalid("Pass the provider key as apiKey in the options of create, not in params.");
     if (indexes !== undefined && !Array.isArray(indexes))
@@ -202,17 +236,21 @@ export class MossInference {
       options.idleTimeout === undefined
         ? this.#idleTimeout
         : delay("idleTimeout", options.idleTimeout);
+    const maxRetries =
+      options.maxRetries === undefined ? this.#maxRetries : retries(options.maxRetries);
     const headers = new Headers(this.#headers);
     for (const [name, value] of headersOf(options.headers)) headers.set(name, value);
     for (const [name, value] of this.#own) headers.set(name, value);
     if (indexes?.length) headers.set("X-Moss-Indexes", indexes.join(","));
-    if (retrieve === false) headers.set("X-Moss-Retrieve", "off");
+    else if (indexes) headers.delete("X-Moss-Indexes");
+    if (retrieve === false || indexes?.length === 0) headers.set("X-Moss-Retrieve", "off");
+    if (cache === false) headers.set("X-Moss-Cache", "off");
     if (apiKey !== undefined) headers.set("X-Moss-Provider-Key", apiKey);
     let payload: string;
     try {
       payload = JSON.stringify({ model, ...body, stream: true });
     } catch (cause) {
-      throw new InferenceError(`The parameters cannot be sent as JSON: ${String(cause)}`, {
+      throw new InferenceError("The parameters cannot be sent as JSON.", {
         type: "invalid_request_error",
         cause,
       });
@@ -227,6 +265,7 @@ export class MossInference {
       timeout === null
         ? undefined
         : setTimeout(expire(`The request timed out after ${timeout} ms.`), timeout);
+    const deadline = timeout === null ? Infinity : Date.now() + timeout;
     const idle = idleTimer(idleTimeout, expire(`The gateway sent nothing for ${idleTimeout} ms.`));
     const onAbort = () => controller.abort(signal?.reason);
     signal?.addEventListener("abort", onAbort, { once: true });
@@ -238,30 +277,50 @@ export class MossInference {
     };
 
     let response: Response;
-    try {
-      idle.arm();
-      response = await fetch(this.#url, {
-        method: "POST",
-        headers,
-        body: payload,
-        signal: controller.signal,
-        redirect: "manual",
-      });
-    } catch (error) {
-      settle();
-      if (controller.signal.aborted) throw controller.signal.reason;
-      throw transportError(error, "The inference gateway did not answer");
+    for (let attempt = 0; ; attempt++) {
+      fields = {};
+      let wait = Math.min(500 * 2 ** attempt, 8000) * (1 - Math.random() / 4);
+      try {
+        idle.arm();
+        response = await fetch(this.#url, {
+          method: "POST",
+          headers,
+          body: payload,
+          signal: controller.signal,
+          redirect: "manual",
+        });
+        idle.clear();
+        fields = responseFields(response);
+        const after = fields.retryAfter ?? Infinity;
+        if (after <= MAX_RETRY_AFTER) wait = after;
+        const last = attempt >= maxRetries || Date.now() + wait >= deadline;
+        if (response.ok || last || !retryable(response)) break;
+        response.body?.cancel().catch(() => {});
+      } catch (error) {
+        idle.clear();
+        const code = (error as { cause?: { code?: unknown } } | null)?.cause?.code;
+        const headersTimeout = code === "UND_ERR_HEADERS_TIMEOUT";
+        const last = attempt >= maxRetries || Date.now() + wait >= deadline;
+        if (controller.signal.aborted || headersTimeout || last) {
+          settle();
+          if (controller.signal.aborted) throw controller.signal.reason;
+          throw transportError(error, "The inference gateway did not answer");
+        }
+      }
+      await pause(wait, controller.signal);
+      if (controller.signal.aborted) {
+        settle();
+        throw controller.signal.reason;
+      }
     }
-    idle.clear();
-    fields = responseFields(response);
     if (!response.ok) {
       const text = await errorText(response, idle).catch(() => "");
       settle();
       if (controller.signal.aborted) throw controller.signal.reason;
       throw errorFromResponse(response, text);
     }
-    const stream = new ChatCompletionStream(response, controller, idle, settle);
-    return params.stream ? stream : aggregate(stream, model);
+    const stream = new ChatCompletionStream(response, controller, idle, settle, fields, model);
+    return params.stream ? stream : stream.finalChatCompletion();
   }
 }
 

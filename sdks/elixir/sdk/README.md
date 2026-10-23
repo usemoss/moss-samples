@@ -320,10 +320,12 @@ IO.puts(hd(completion["choices"])["message"]["content"])
 `model` defaults to `"moss"`, Moss's own model.
 `Moss.Inference.new/3` checks the credentials and options and raises `Moss.Inference.Error`
 for a bad one. It takes `:api_key`, `:timeout` (milliseconds for a whole call, default
-`:infinity`) and `:idle_timeout` (milliseconds Moss may stay silent, default `120_000`).
-A call takes `:api_key`, `:timeout` and `:idle_timeout` too, over the client's, plus
-`retrieve: false` to skip the search. A call's options go in its last argument, and
-`params` that hold one return an error.
+`:infinity`), `:idle_timeout` (milliseconds Moss may stay silent, default `120_000`) and
+`:max_retries` (retries of a failed connection or a 408, 409, 429 or 5xx reply, default `2`).
+A call takes `:api_key`, `:timeout`, `:idle_timeout` and `:max_retries` too, over the client's,
+plus `retrieve: false` or `indexes: []` to skip the search. A call's options go in its last
+argument, and `params` that hold one return an error.
+Moss can answer an identical request from its reply cache; `cache: false` always asks the model.
 
 `:api_key` is optional: your own OpenAI, Anthropic or Google key, for a vendor model such as
 `gpt-4o-mini`. `moss` ignores it, and a vendor model without one is refused. An empty key, or
@@ -336,7 +338,8 @@ params = %{model: "gpt-4o-mini", messages: messages}
 {:ok, completion} = Completions.create(client, params, api_key: api_key)
 ```
 
-Chunks and completions are maps with OpenAI's field names as string keys.
+Chunks and completions are maps with OpenAI's field names as string keys. `stream.request_id`
+and `completion["request_id"]` hold the reply's `X-Moss-Request-Id`, else `nil`.
 
 A failure before the reply starts returns `{:error, %Moss.Inference.Error{}}` with `status`,
 `type` and `message`, plus the gateway's `code`, the reply's `request_id` and an error reply's
@@ -347,13 +350,68 @@ for example with `Enum.take/2`, closes the connection and stops the model.
 then ends without an error.
 
 Calls reuse idle connections, from any process. A reply read to its end gives its connection
-back, and a stream that stops early or fails closes its own. No call is sent twice: a pooled
-connection found closed is replaced before the call is written to it. The pool keeps up to
-100 idle connections, each for at most 4 seconds.
+back, and a stream that stops early or fails closes its own. A pooled connection found closed
+is replaced before the call is written to it, and a stream that fails after it started is never
+retried. The pool keeps up to 100 idle connections, each for at most 4 seconds.
 
 To call another gateway, set `MOSS_INFERENCE_URL` to its base URL,
 such as `https://gateway.example.com/v1`. `Moss.Inference.new/3` reads it, and raises an error
 for a value that is not an `http` or `https` URL with a host and no user info, query or fragment.
+
+### Tool calls
+
+`tools`, `tool_choice` and `parallel_tool_calls` go in `params` as in OpenAI's API. Your code runs
+the tools. A tool call keeps every field the model sent, such as Gemini's `extra_content`, so
+append the reply's message to `messages` as it is, with one `tool` message per call.
+
+```elixir
+lookup = %{type: "function", function: %{name: "lookup_order", parameters: %{type: "object"}}}
+{:ok, completion} = Completions.create(client, %{messages: messages, tools: [lookup]})
+message = hd(completion["choices"])["message"]
+
+results =
+  for call <- message["tool_calls"] || [] do
+    %{role: "tool", tool_call_id: call["id"], content: lookup_order(call["function"]["arguments"])}
+  end
+
+params = %{messages: messages ++ [message | results], tools: [lookup]}
+{:ok, completion} = Completions.create(client, params)
+```
+
+### MCP servers
+
+A `Moss.Inference.McpServer` in `tools` lets Moss call that server's tools itself. Before and
+after each call, the stream carries a chunk with `chunk["moss_tool_step"]`, and a reply without
+`stream` lists them all in `completion["moss_tool_steps"]`. A step's `"type"` is `"call"`, with
+`"arguments"`, or `"result"`, with `"is_error"`, `"duration_ms"` and `"output"`. A turn with
+tools can run for a few minutes. `inspect/2` leaves out `server_url` and `headers`.
+
+```elixir
+crm = %Moss.Inference.McpServer{
+  server_label: "crm",
+  server_url: "https://mcp.example.com/mcp",
+  headers: %{"Authorization" => "Bearer " <> System.fetch_env!("CRM_TOKEN")}
+}
+
+{:ok, stream} = Completions.create(client, %{messages: messages, tools: [crm], stream: true})
+
+for %{"moss_tool_step" => step} <- stream do
+  IO.puts("#{step["type"]} #{step["server_label"]}.#{step["name"]}")
+end
+
+{:ok, completion} = Completions.create(client, %{messages: messages, tools: [crm]})
+completion["moss_tool_steps"]
+```
+
+| `status` | `type` | `code` | When |
+| --- | --- | --- | --- |
+| 403 | `permission_error` | `mcp_not_enabled` | MCP is switched off on the gateway |
+| 429 | `capacity` | `mcp_loops_busy` | The gateway is busy; retry after `retry_after` |
+| 400, 424 | `mcp_error` | `mcp_server_error` | The URL was refused, or the server failed to connect or list its tools |
+| 400 | `invalid_request_error` | `nil` | A bad `tools` entry, or a `server_label` or tool name used twice |
+
+After a tool step every failure has code `failed_after_tool_call`, and the SDK never retries:
+a tool may have changed data, as it may in a call you stop after a step, so never resend either blindly.
 
 ## Telemetry
 

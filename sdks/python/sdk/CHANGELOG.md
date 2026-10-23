@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-10-23
+
+### Added
+
+- `create` takes `tools`, `tool_choice` and `parallel_tool_calls` as typed arguments, sent only when given.
+- Tool calls keep every field the model sends, such as Gemini's `extra_content` with its thought signature. `raw` on `ChoiceDeltaToolCall` and `ChatCompletionMessageToolCall` holds them, and a reply message put back into `messages` sends them unchanged.
+- `moss.inference.McpServer` puts an MCP server in `tools`, and Moss runs its tools during the reply. Neither its `server_url` nor its `headers` show in a repr.
+- `ChatCompletionChunk.tool_step` and `ChatCompletion.tool_steps` hold each MCP tool call and result as a `ToolStep`.
+- `ChatCompletionStream.get_final_completion()` returns the whole reply as one `ChatCompletion`, joined from every chunk of the stream, the ones already read included.
+- Once a call has streamed a tool step, any error it raises has the code `failed_after_tool_call`, since a tool may have changed data.
+- `max_retries`, 2 by default, on `MossInference` or for one call of `create`, sends a call again when it fails before its reply starts: a connection failure, or a `408`, `409`, `429` or `5xx` response, unless its `x-should-retry` header says otherwise. The wait is the `Retry-After` in seconds when it is 60 or less, else 0.5 s doubled for each retry up to 8 s, and it counts against `timeout`. A stream that fails after it started is never retried.
+- `create(cache=False)` always asks the model, never Moss's reply cache.
+- `request_id` on `ChatCompletionStream` and `ChatCompletion` holds the `X-Moss-Request-Id` of the reply, or `None`.
+- `logprobs` on each choice of a chunk and of a `ChatCompletion`, as a `ChoiceLogprobs`. A joined choice's `content` and `refusal` lists are those of its chunks, in order. `CompletionUsage` has `completion_tokens_details` and `prompt_tokens_details`.
+
+### Changed
+
+- `load_indexes` runs up to eight loads at once instead of one after another, so many indexes load in about the time of the slowest few. A name listed twice loads once.
+- `load_index` on an index that is already loaded checks the cloud version first. An unchanged copy stays loaded with no download or parse, and a changed one is swapped in without interrupting queries. Either way the call's `auto_refresh` and polling options replace the current ones.
+- Auto-refresh polls a loaded index first at a random point of its first interval, then every interval give or take 10%, so indexes loaded together no longer poll together.
+- On Linux with glibc, `unload_index`, `unload_indexes`, `close`, each refresh or reload that installs a newer version, and a `SessionIndex` that swaps in a refreshed version or is deleted hand the freed memory back to the operating system, so a long-running process shrinks when it unloads indexes. glibc used to keep those pages until something called `malloc_trim`, and each refresh left the replaced version resident.
+
+### Fixed
+
+- `indexes=[]` searches no index. Leaving `indexes` out still searches every index of the project.
+- Tool call pieces with no `index` no longer merge parallel calls into one. A piece joins the call with its `id`. A new `id` starts the next call, unless the latest call has no id yet and takes it. A piece with no `id` joins the latest call.
+- A joined reply message always has `content`: its text, else `None` when it has tool calls and `""` when it has none. Put back into `messages`, it keeps that `content`.
+
 ## [1.20.0] - 2026-10-22
 
 ### Added
