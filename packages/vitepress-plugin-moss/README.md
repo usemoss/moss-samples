@@ -19,14 +19,14 @@ mossIndexerPlugin reads siteConfig              Phase 1 — SDK imported, client
 using VitePress's own markdown renderer             ↓  (parallel)
 (understands includes, extensions, etc.)        Phase 2 — model + index download (background)
     ↓                                               ↓
-Uploads via @inferedge-rest/moss REST client    Index ready → queries switch to local < 10 ms
-(deletes old index, then re-uploads chunks)         ↓
+Uploads via @moss-dev/moss MossClient          Index ready → queries switch to local < 10 ms
+(upserts new docs, removes stale ones)              ↓
     ↓                                           Active query re-run with local index
 Index is live on Moss cloud                     (seamless handoff, no user action needed)
 ```
 
 Two separate npm packages are involved:
-- **`@inferedge-rest/moss`** — Node.js REST client used **at build time** (inside `@moss-tools/md-indexer`) to upload documents
+- **`@moss-dev/moss`** — Node.js SDK used **at build time** (inside `@moss-tools/md-indexer`) to upload documents
 - **`@moss-dev/moss-web`** — WebAssembly browser SDK used **at runtime** to download the index and run local queries
 
 ---
@@ -285,7 +285,7 @@ vitepress-plugin-moss/
 ```
 vitepress-plugin-moss
 ├── @moss-tools/md-indexer   ← build time only (Node.js)
-│   ├── @inferedge-rest/moss     REST client for uploading to Moss cloud
+│   ├── @moss-dev/moss           SDK for uploading to Moss cloud
 │   ├── vitepress                uses resolveConfig + createMarkdownRenderer
 │   └── cheerio / gray-matter   HTML parsing, frontmatter
 └── @moss-dev/moss-web       ← runtime only (browser WebAssembly)

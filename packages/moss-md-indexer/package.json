@@ -1,6 +1,6 @@
 {
   "name": "@moss-tools/md-indexer",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0-beta.4",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,21 +9,26 @@
   ],
   "scripts": {
     "build": "rm -rf dist && tsc",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "test": "vitest run"
   },
   "packageManager": "pnpm@10.19.0",
+  "engines": {
+    "node": ">=20.4"
+  },
   "devDependencies": {
     "@types/cheerio": "^0.22.35",
     "@types/fs-extra": "^11.0.4",
     "@types/micromatch": "^4.0.10",
     "@types/node": "^24.10.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.8"
   },
   "peerDependencies": {
     "vitepress": "^1.0.0 || ^2.0.0-0"
   },
   "dependencies": {
-    "@inferedge-rest/moss": ">=1.0.0-beta.3",
+    "@moss-dev/moss": "^1.0.0",
     "cheerio": "^1.0.0",
     "dotenv": "^16.4.5",
     "fs-extra": "^11.2.0",

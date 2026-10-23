@@ -90,6 +90,7 @@ export function mossIndexerPlugin(): Plugin {
         const projectId = searchOptions?.projectId
         const projectKey = searchOptions?.projectKey
         const indexName = searchOptions?.indexName
+        const recreate = searchOptions?.recreate ?? false
 
         // Validate required credentials
         if (!projectId || !projectKey || !indexName) {
@@ -137,7 +138,7 @@ export function mossIndexerPlugin(): Plugin {
 
         debug(`After filtering: ${filtered.length} chunks (removed ${allDocs.length - filtered.length})`)
 
-        await uploadDocuments(filtered, { ...creds, modelName: 'moss-minilm' })
+        await uploadDocuments(filtered, { ...creds, modelName: 'moss-minilm' }, { recreate })
 
         debug('Moss index sync completed.')
       } catch (error) {

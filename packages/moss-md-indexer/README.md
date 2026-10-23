@@ -158,7 +158,7 @@ export default defineConfig({
 
 ## Requirements
 
-- Node.js (v18 or higher recommended)
+- Node.js (v20.4 or higher)
 - VitePress (^1.0.0) - peer dependency
 
 ## Development

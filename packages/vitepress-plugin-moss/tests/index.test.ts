@@ -310,7 +310,8 @@ describe('mossIndexerPlugin', () => {
           projectKey: 'test-key',
           indexName: 'test-index',
           modelName: 'moss-minilm'
-        })
+        }),
+        { recreate: false }
       )
     })
 
