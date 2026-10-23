@@ -1,0 +1,29 @@
+[project]
+name = "moss-slack-discord-qa"
+version = "0.1.0"
+description = "Community demo: answer Slack and Discord questions with Moss retrieval"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "discord.py>=2.5,<3",
+    "moss>=1.1.1",
+    "openai>=1.0,<2",
+    "python-dotenv>=1.0,<2",
+    "slack-bolt>=1.22,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+    "pytest-asyncio>=0.24,<1",
+    "ruff>=0.12,<1",
+]
+
+[project.scripts]
+moss-slack-discord = "moss_slack_discord.app:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[tool.uv]
+package = true
