@@ -1,0 +1,72 @@
+name: Publish Go SDK
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      c_sdk_version:
+        description: 'C SDK GitHub release tag'
+        required: true
+        default: 'c-sdk-v0.9.0'
+      go_version:
+        description: 'Go module version to publish'
+        required: true
+        default: 'v0.1.2'
+
+concurrency:
+  group: go-sdk-release-${{ github.event.inputs.go_version }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      C_SDK_VERSION: ${{ github.event.inputs.c_sdk_version }}
+      GO_VERSION: ${{ github.event.inputs.go_version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.2'
+
+      - name: Configure Git author
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: Update bindings native version metadata
+        shell: bash
+        run: |
+          if [[ ! "${C_SDK_VERSION}" =~ ^c-sdk-v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "c_sdk_version must be a c-sdk-vMAJOR.MINOR.PATCH tag" >&2
+            exit 1
+          fi
+          if [[ ! "${GO_VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "go_version must be a vMAJOR.MINOR.PATCH tag" >&2
+            exit 1
+          fi
+          NATIVE_VERSION="${C_SDK_VERSION#c-sdk-v}"
+          cat > sdks/go/bindings/version.go <<EOF
+          package mosscore
+
+          // NativeLibVersion is the Moss C SDK version downloaded at build time.
+          const NativeLibVersion = "${NATIVE_VERSION}"
+
+          // NativeLibReleaseTag is the GitHub release tag used to fetch native artifacts.
+          const NativeLibReleaseTag = "${C_SDK_VERSION}"
+          EOF
+
+      - name: Verify selected C SDK release
+        working-directory: sdks/go
+        run: go run ./tools/install --all --release "$C_SDK_VERSION"
+
+      - name: Verify native Go SDK build
+        run: |
+          (cd sdks/go/bindings && CGO_ENABLED=1 go build .)
+          (cd sdks/go/sdk && CGO_ENABLED=1 go build .)
+
+      - name: Publish source-only module tags
+        run: ./sdks/go/scripts/publish-sdk-module-tags.sh "$GO_VERSION"

@@ -1,4 +1,4 @@
-//go:build !libmoss
+//go:build !cgo || !((linux && (amd64 || arm64)) || (darwin && arm64))
 
 package mosscore
 

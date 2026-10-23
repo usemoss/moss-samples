@@ -1,11 +1,9 @@
-//go:build libmoss
+//go:build cgo && ((linux && (amd64 || arm64)) || (darwin && arm64))
 
 package mosscore
 
 /*
-#cgo linux LDFLAGS: -lmoss -ldl -lm -lpthread
-#cgo darwin LDFLAGS: -lmoss -lc++
-#cgo windows LDFLAGS: -lmoss
+#cgo CFLAGS: -I${SRCDIR}/include
 #include <stdlib.h>
 #include <libmoss.h>
 */

@@ -19,21 +19,30 @@ The Go SDK now has two layers:
 
 ## Current limitations
 
-- the SDK requires the `libmoss` C SDK and the `libmoss` build tag for real runtime operations
+- CGO and a C compiler are required for full SDK functionality (`CGO_ENABLED=1`)
+- Native bindings support Linux (`amd64`, `arm64`) and Apple Silicon macOS
+  (`arm64`); unsupported platforms use the bindings-unavailable stub
 - cloud query fallback supports `TopK` and caller-provided embeddings; `Alpha` and `Filter` require a locally loaded index
 - `LoadIndexOptions.CachePath` is not exposed by the current `libmoss` C API yet
 
 ## Installation
 
-From this repository, import the package at:
-
-```go
-github.com/usemoss/moss/sdks/go/sdk
+```bash
+go get github.com/usemoss/moss/sdks/go/sdk
+go run github.com/usemoss/moss/sdks/go/tools/install@latest --vendor
 ```
 
-Download the `libmoss` C SDK release and build with `-tags libmoss`. The
-bindings setup is documented in
-[`../bindings/README.md`](../bindings/README.md).
+The install tool downloads the static `libmoss` library for your platform. See
+[`../bindings/README.md`](../bindings/README.md) for supported platforms and
+toolchain notes.
+The explicit `--vendor` option vendors the SDK so CGO can link the downloaded
+library from a writable directory; commit `vendor/` if your project commits
+vendored dependencies. Run it after your application imports the SDK so the
+bindings package is included in `vendor/`.
+In a Go workspace, the installer uses `go work vendor` instead.
+
+Monorepo development uses the workspace in [`../go.work`](../go.work) and
+[`../scripts/link_dev_lib.sh`](../scripts/link_dev_lib.sh).
 
 ## Quick start
 
@@ -139,14 +148,12 @@ Runnable examples live here:
 - [`../../../examples/go/basic/main.go`](../../../examples/go/basic/main.go)
 - [`../../../examples/go/custom-embeddings/main.go`](../../../examples/go/custom-embeddings/main.go)
 
-Run them with native bindings enabled:
+Run them from the monorepo:
 
 ```bash
+../scripts/link_dev_lib.sh c-sdk-v0.9.0
 cd ../../../examples/go
-export CGO_CFLAGS="-I<libmoss-sdk-root>/include"
-export CGO_LDFLAGS="-L<libmoss-sdk-root>/lib"
-export LD_LIBRARY_PATH="<libmoss-sdk-root>/lib"
-go run -tags libmoss ./basic
+go run ./basic
 ```
 
 ## Integration tests
@@ -163,8 +170,7 @@ Then run:
 ```bash
 cd sdks/go/sdk
 go test ./...
-CGO_CFLAGS="-I<libmoss-sdk-root>/include" \
-CGO_LDFLAGS="-L<libmoss-sdk-root>/lib" \
-LD_LIBRARY_PATH="<libmoss-sdk-root>/lib" \
-go test -tags libmoss ./...
+
+# Live integration (requires credentials + native lib from link_dev_lib.sh):
+CGO_ENABLED=1 go test ./...
 ```
