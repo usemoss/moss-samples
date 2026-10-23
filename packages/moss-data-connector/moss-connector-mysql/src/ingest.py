@@ -2,9 +2,19 @@
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Iterable
 
 from moss import DocumentInfo, MossClient, MutationResult
+
+
+def _replace_doc_id(doc: DocumentInfo) -> DocumentInfo:
+    return DocumentInfo(
+        id=str(uuid.uuid4()),
+        text=doc.text,
+        metadata=getattr(doc, "metadata", None),
+        embedding=getattr(doc, "embedding", None),
+    )
 
 
 async def ingest(
@@ -13,9 +23,13 @@ async def ingest(
     project_key: str,
     index_name: str,
     model_id: str | None = None,
+    auto_id: bool = False,
 ) -> MutationResult | None:
     """Copy every `DocumentInfo` from `source` into a fresh Moss index."""
-    docs = list(source)
+    if auto_id:
+        docs = [_replace_doc_id(doc) for doc in source]
+    else:
+        docs = list(source)
     if not docs:
         return None
     client = MossClient(project_id, project_key)

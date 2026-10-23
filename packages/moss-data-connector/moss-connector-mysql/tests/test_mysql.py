@@ -5,6 +5,7 @@ we patch ``moss.MossClient`` inside ingest so no Moss network call is made.
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -106,6 +107,80 @@ async def test_empty_result_skips_network_call():
 
     assert result is None
     assert fake_moss.calls == []
+
+
+async def test_auto_id_defaults_to_false():
+    rows_from_mysql = [
+        {"id": 1, "title": "Refund policy", "body": "Refunds take 3 to 5 days."},
+        {"id": 2, "title": "Shipping", "body": "We ship within 24 hours."},
+    ]
+    fake_conn = _pymysql_mock_returning(rows_from_mysql)
+    fake_moss = FakeMossClient()
+
+    with patch("moss_connector_mysql.connector.pymysql.connect", return_value=fake_conn), patch(
+        "moss_connector_mysql.ingest.MossClient", return_value=fake_moss
+    ):
+        source = MySQLConnector(
+            host="localhost",
+            user="root",
+            password="secret",
+            database="shop",
+            query="SELECT id, title, body FROM articles",
+            mapper=lambda r: DocumentInfo(
+                id=str(r["id"]),
+                text=r["body"],
+                metadata={"title": r["title"]},
+            ),
+        )
+        await ingest(source, "fake_id", "fake_key", index_name="articles")
+
+    docs = fake_moss.calls[0]["docs"]
+    assert docs[0].id == "1"
+    assert docs[1].id == "2"
+
+
+async def test_auto_id_replaces_mapper_id():
+    rows_from_mysql = [
+        {"id": 1, "title": "Refund policy", "body": "Refunds take 3 to 5 days."},
+        {"id": 2, "title": "Shipping", "body": "We ship within 24 hours."},
+    ]
+    fake_conn = _pymysql_mock_returning(rows_from_mysql)
+    fake_moss = FakeMossClient()
+
+    with patch("moss_connector_mysql.connector.pymysql.connect", return_value=fake_conn), patch(
+        "moss_connector_mysql.ingest.MossClient", return_value=fake_moss
+    ):
+        source = MySQLConnector(
+            host="localhost",
+            user="root",
+            password="secret",
+            database="shop",
+            query="SELECT id, title, body FROM articles",
+            mapper=lambda r: DocumentInfo(
+                id=str(r["id"]),
+                text=r["body"],
+                metadata={"title": r["title"]},
+            ),
+        )
+        result = await ingest(
+            source, "fake_id", "fake_key", index_name="articles", auto_id=True
+        )
+
+    assert result is not None
+    docs = fake_moss.calls[0]["docs"]
+    original_ids = {"1", "2"}
+    for doc in docs:
+        assert doc.id
+        assert uuid.UUID(doc.id)
+        assert doc.id not in original_ids
+    assert [doc.text for doc in docs] == [
+        "Refunds take 3 to 5 days.",
+        "We ship within 24 hours.",
+    ]
+    assert [doc.metadata for doc in docs] == [
+        {"title": "Refund policy"},
+        {"title": "Shipping"},
+    ]
 
 
 async def test_port_and_charset_forwarded():
