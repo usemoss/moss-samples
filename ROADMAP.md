@@ -59,6 +59,7 @@ This is a living document. We update it as priorities shift based on community f
 - [x] VitePress search plugin — cloud search on first keystroke, on-device after index download; live demo on Vercel
 - [x] Markdown documentation indexer — `moss-md-indexer` parses and chunks Markdown docs for upload to Moss
 - [x] Zo computer skill — Moss semantic search skill for the Zo computer platform
+- [x] Obsidian plugin — local-first semantic search over a vault (`apps/moss-obsidian`)
 
 ### Data Connectors
 

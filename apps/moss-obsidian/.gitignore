@@ -1,0 +1,8 @@
+node_modules/
+main.js
+mossWorker.js
+*.map
+.DS_Store
+.env
+.env.local
+*.log

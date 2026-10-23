@@ -1,0 +1,10 @@
+{
+  "id": "moss-search",
+  "name": "Moss Semantic Search",
+  "version": "0.1.0",
+  "minAppVersion": "1.7.2",
+  "description": "Local-first semantic search over your vault. Notes are chunked and embedded on your machine with Moss SessionIndex; nothing is uploaded unless you choose to sync.",
+  "author": "Moss community",
+  "authorUrl": "https://github.com/usemoss/moss",
+  "isDesktopOnly": true
+}

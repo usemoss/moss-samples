@@ -1,0 +1,38 @@
+{
+  "name": "moss-obsidian",
+  "version": "0.1.0",
+  "description": "Obsidian plugin: local-first semantic search over your vault, powered by Moss SessionIndex",
+  "private": true,
+  "license": "BSD-2-Clause",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/usemoss/moss.git",
+    "directory": "apps/moss-obsidian"
+  },
+  "homepage": "https://github.com/usemoss/moss/tree/main/apps/moss-obsidian",
+  "bugs": {
+    "url": "https://github.com/usemoss/moss/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "main.js",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "dev": "node esbuild.config.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "install-to-vault": "node scripts/install-to-vault.mjs"
+  },
+  "dependencies": {
+    "@moss-dev/moss": "^1.7.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.3",
+    "esbuild": "^0.28.1",
+    "obsidian": "^1.13.1",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.8"
+  }
+}

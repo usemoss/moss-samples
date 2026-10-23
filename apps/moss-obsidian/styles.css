@@ -1,0 +1,56 @@
+/* Moss Semantic Search — Obsidian plugin styles */
+
+.moss-search-modal .moss-search-status {
+  padding: 4px 12px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.moss-search-hit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+}
+
+.moss-search-hit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.moss-search-hit-title {
+  font-weight: var(--font-semibold);
+}
+
+.moss-search-hit-score {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.moss-search-hit-heading {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-accent);
+}
+
+.moss-search-hit-preview {
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.moss-search-hit-path {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+}
+
+.moss-status {
+  cursor: pointer;
+}

@@ -1,0 +1,54 @@
+name: Moss Obsidian Plugin CI
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/moss-obsidian/**"
+      - ".github/workflows/moss-obsidian-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/moss-obsidian/**"
+      - ".github/workflows/moss-obsidian-ci.yml"
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: apps/moss-obsidian
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/moss-obsidian/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify build outputs
+        shell: bash
+        run: test -s main.js && test -s mossWorker.js
