@@ -2,7 +2,7 @@
 
 ## [1.0.0-beta.4] - 2026-10-23
 
-- Upload through `@moss-dev/moss` instead of the legacy `@inferedge-rest/moss` SDK. Indexes are now built by Moss's index service, so current SDKs can run text queries on them. The legacy SDK used the `/manage` write actions that the service is retiring.
+- Upload through `@moss-js/moss` instead of the legacy `@inferedge-rest/moss` SDK. Indexes are now built by Moss's index service, so current SDKs can run text queries on them. The legacy SDK used the `/manage` write actions that the service is retiring.
 
 ## [1.0.0-beta.3] - 2026-02-18
 

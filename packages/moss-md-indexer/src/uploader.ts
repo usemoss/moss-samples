@@ -1,5 +1,5 @@
 import fs from 'fs-extra'
-import { MossClient } from "@moss-dev/moss";
+import { MossClient } from "@moss-js/moss";
 import type { MossCreds, MossDocument } from './types.js'
 
 /**

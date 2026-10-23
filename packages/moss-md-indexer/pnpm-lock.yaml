@@ -15,9 +15,9 @@ importers:
 
   .:
     dependencies:
-      '@moss-dev/moss':
-        specifier: ^1.7.1
-        version: 1.7.1
+      '@moss-js/moss':
+        specifier: ^1.21.0
+        version: 1.21.0
       cheerio:
         specifier: ^1.0.0
         version: 1.2.0
@@ -339,42 +339,42 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
-  '@moss-dev/moss-core-darwin-arm64@0.23.0':
-    resolution: {integrity: sha512-ioNUDbgFc0qXvqErolJLx5M1PS4WjrDfSjVNNG7BCBTROnoejGl9J9KIRqOitUz/JhjXs2KQtdZAW1fi9lc5Gg==}
+  '@moss-js/moss-core-darwin-arm64@0.36.0':
+    resolution: {integrity: sha512-1OitWTXziCOWMbYCwpX/LqwWwhHaH6cmYBTxROqPsHnL4VscWr31xf7Qp5o20Qzan39LrQPT3yB+KDLPpu8PYw==}
     engines: {node: '>=20'}
     cpu: [arm64]
     os: [darwin]
 
-  '@moss-dev/moss-core-darwin-x64@0.23.0':
-    resolution: {integrity: sha512-lRDa6Kxh8gzw4pZ8Y0UwH1mEFDiroxhKeEKDEJQT3YzgkV5KMA14GJlOeOOXvk5Mulg2sK5bQT/h//fwRzNZTg==}
+  '@moss-js/moss-core-darwin-x64@0.36.0':
+    resolution: {integrity: sha512-76OqCLP4y6DcLtZDbzByzfGT7zmq1tnjr6bk/XkFo1G4hQAsMzLrq34UkjSUrFV5qX/Jq7MFkr69KP2OJf5Kmg==}
     engines: {node: '>=20'}
     cpu: [x64]
     os: [darwin]
 
-  '@moss-dev/moss-core-linux-arm64-gnu@0.23.0':
-    resolution: {integrity: sha512-I3vrnLwcJfcuTXrNOi3YGPsFzRIvWeEYjxJVYsrZXOHqpuCcrltHCJM+8D170bEo4S2jV0bGnF7tdd3rndegFg==}
+  '@moss-js/moss-core-linux-arm64-gnu@0.36.0':
+    resolution: {integrity: sha512-CmtFU/EHLiSIKQiySeBorOJPpzoYPm35jdQvBw/Gaix8k4A68uOx/JjNTXpYBu5sYl+f+B1Jojp6ltyjXIXzBA==}
     engines: {node: '>=20'}
     cpu: [arm64]
     os: [linux]
 
-  '@moss-dev/moss-core-linux-x64-gnu@0.23.0':
-    resolution: {integrity: sha512-Q1zIdV3erh5pWLo1Xi8ASjsSziyLWAaJScB2qWQQw69JHLewlTAd/jYMwxrDhn//vkOdQupz3FDqiaZLEEkIWQ==}
+  '@moss-js/moss-core-linux-x64-gnu@0.36.0':
+    resolution: {integrity: sha512-L5PEZUAe9m2yzAuq3V1y0o8sQiJ/rZdemec1jkE/PMsd34f1S6sPcy0O1mGfFAwa5+h5uvH8EDQAX5+WhF7qrQ==}
     engines: {node: '>=20'}
     cpu: [x64]
     os: [linux]
 
-  '@moss-dev/moss-core-win32-x64-msvc@0.23.0':
-    resolution: {integrity: sha512-L2pqSSAIAiqFey8DpwpcM2U2W7jeYwIpaeuVLhJbC4DSAWI/zThiB77E4fZfEOXmawBxt4rB5wmQaLJE/hsXiQ==}
+  '@moss-js/moss-core-win32-x64-msvc@0.36.0':
+    resolution: {integrity: sha512-y1FPECJ6B+7R6AHURmmtoZ2wnpGqpR/UVbbACd4yOF4ftj5FjjxQk7B0orJ6mz5bXCbVC+/NMT1pVVVfxW9hFQ==}
     engines: {node: '>=20'}
     cpu: [x64]
     os: [win32]
 
-  '@moss-dev/moss-core@0.23.0':
-    resolution: {integrity: sha512-TTKAzfm+mBTK+fiYjgK4nmreo07C9ARVxlo12Zgrk07MlvY8j/HKkwipLsV5N7q8o/A+juL4bCscuXL8BwH18w==}
+  '@moss-js/moss-core@0.36.0':
+    resolution: {integrity: sha512-sK1d2/blPKEz6znbJ0LKq/QT986U9Q8K6ISb4cIDzhqR8TKJnh0zH5jUdU6rPdlgyhdsb9uC3FbykcI+RJldvQ==}
     engines: {node: '>=20'}
 
-  '@moss-dev/moss@1.7.1':
-    resolution: {integrity: sha512-XyyrkIkqu3BehBpefqbNcj61e5+VWlb/ftJDjLhO4YNAOSyVg0lqu7T9co658JYbvdui7kvcjVpuj3VPN8YJBg==}
+  '@moss-js/moss@1.21.0':
+    resolution: {integrity: sha512-LWJyPoxBGiVz4dQGPfyEbmZ13Q9bG1I3cPX8dCpmEqIPoYzfWEqT16g9iY3+DUjAF0wayzaEvlHLFS4HqFpugw==}
     engines: {node: '>=20.4'}
 
   '@rollup/rollup-android-arm-eabi@4.62.2':
@@ -1330,32 +1330,32 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
-  '@moss-dev/moss-core-darwin-arm64@0.23.0':
+  '@moss-js/moss-core-darwin-arm64@0.36.0':
     optional: true
 
-  '@moss-dev/moss-core-darwin-x64@0.23.0':
+  '@moss-js/moss-core-darwin-x64@0.36.0':
     optional: true
 
-  '@moss-dev/moss-core-linux-arm64-gnu@0.23.0':
+  '@moss-js/moss-core-linux-arm64-gnu@0.36.0':
     optional: true
 
-  '@moss-dev/moss-core-linux-x64-gnu@0.23.0':
+  '@moss-js/moss-core-linux-x64-gnu@0.36.0':
     optional: true
 
-  '@moss-dev/moss-core-win32-x64-msvc@0.23.0':
+  '@moss-js/moss-core-win32-x64-msvc@0.36.0':
     optional: true
 
-  '@moss-dev/moss-core@0.23.0':
+  '@moss-js/moss-core@0.36.0':
     optionalDependencies:
-      '@moss-dev/moss-core-darwin-arm64': 0.23.0
-      '@moss-dev/moss-core-darwin-x64': 0.23.0
-      '@moss-dev/moss-core-linux-arm64-gnu': 0.23.0
-      '@moss-dev/moss-core-linux-x64-gnu': 0.23.0
-      '@moss-dev/moss-core-win32-x64-msvc': 0.23.0
+      '@moss-js/moss-core-darwin-arm64': 0.36.0
+      '@moss-js/moss-core-darwin-x64': 0.36.0
+      '@moss-js/moss-core-linux-arm64-gnu': 0.36.0
+      '@moss-js/moss-core-linux-x64-gnu': 0.36.0
+      '@moss-js/moss-core-win32-x64-msvc': 0.36.0
 
-  '@moss-dev/moss@1.7.1':
+  '@moss-js/moss@1.21.0':
     dependencies:
-      '@moss-dev/moss-core': 0.23.0
+      '@moss-js/moss-core': 0.36.0
 
   '@rollup/rollup-android-arm-eabi@4.62.2':
     optional: true
