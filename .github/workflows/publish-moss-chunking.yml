@@ -1,0 +1,157 @@
+name: Publish moss-chunking
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: moss-chunking-release
+  cancel-in-progress: false
+
+jobs:
+  determine-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.compute.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Read version from pyproject
+        id: compute
+        shell: python
+        run: |
+          import os, pathlib, sys, tomllib
+
+          raw = pathlib.Path("packages/moss-chunking/pyproject.toml").read_bytes()
+          version = tomllib.loads(raw.decode("utf-8")).get("project", {}).get("version")
+          if not version:
+              print("Could not find project.version in pyproject", file=sys.stderr)
+              sys.exit(1)
+
+          out = pathlib.Path(os.environ["GITHUB_OUTPUT"])
+          with out.open("a", encoding="utf-8") as fh:
+              fh.write(f"version={version}\n")
+
+          print(f"Publishing version: {version}")
+
+  # Build + smoke-test on every supported Python version. Publishing waits for
+  # the whole matrix (see the publish job's `needs`), so a failure on any
+  # version blocks the upload/tag instead of racing it.
+  build-test:
+    needs: determine-version
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      # `pytest-asyncio` is not optional here: the suite's async tests rely on
+      # the `asyncio_mode = "auto"` setting in pyproject.toml, and plain pytest
+      # fails them outright with "async def functions are not natively
+      # supported", which would block every release rather than skip a test.
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install build pytest pytest-asyncio
+
+      - name: Build distributions
+        working-directory: packages/moss-chunking
+        run: |
+          rm -rf dist
+          python -m build
+
+      - name: Install the built wheel
+        shell: python
+        run: |
+          import glob, subprocess, sys
+
+          wheels = glob.glob("packages/moss-chunking/dist/*.whl")
+          if not wheels:
+              raise SystemExit("No wheel found in dist/")
+
+          subprocess.check_call(
+              [sys.executable, "-m", "pip", "install", "--force-reinstall", wheels[0]]
+          )
+
+      - name: Smoke test the public surface
+        shell: python
+        run: |
+          import importlib
+
+          module = importlib.import_module("moss_chunking")
+          missing = [name for name in module.__all__ if not hasattr(module, name)]
+          if missing:
+              raise SystemExit(f"__all__ names missing from the built wheel: {missing}")
+          print(f"import ok; {len(module.__all__)} public names resolve")
+
+      # Run the suite against the installed wheel, not the source tree. A wheel
+      # that imports cleanly can still ship broken offsets or metadata, and that
+      # is precisely what these tests assert.
+      - name: Test the installed wheel
+        run: python -m pytest -q packages/moss-chunking/tests
+
+  # Only runs once every build-test matrix leg has passed.
+  publish:
+    needs: [determine-version, build-test]
+    # This job holds PYPI_API_TOKEN and pushes a release tag. `workflow_dispatch`
+    # accepts any ref, so without this guard an unmerged branch could be
+    # published under the package name and tagged as a release.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.determine-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail if this version was already released
+        run: |
+          git fetch --tags --force
+          # Match the tag ref exactly: `git rev-parse` alone resolves anything
+          # that happens to parse as a revision, not just a tag by this name.
+          if git rev-parse --verify "refs/tags/moss-chunking-v${VERSION}" >/dev/null 2>&1; then
+            echo "::error::moss-chunking v${VERSION} is already tagged/released; bump the version in pyproject.toml before releasing."
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Build distributions
+        working-directory: packages/moss-chunking
+        run: |
+          rm -rf dist
+          python -m build
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          twine upload packages/moss-chunking/dist/*
+
+      - name: Tag release
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git tag "moss-chunking-v${VERSION}"
+          git push origin "moss-chunking-v${VERSION}"
