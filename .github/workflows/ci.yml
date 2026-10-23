@@ -91,6 +91,59 @@ jobs:
     - name: Compile the SDK source and samples
       run: python -m compileall -q sdks/python/sdk
 
+  # Runs the pytest suites under packages/*. Before this job they executed
+  # nowhere: ci.yml only covered sdks/python/sdk and the langchain cookbook, and
+  # the publish-*.yml workflows only smoke-test `import <package>`.
+  #
+  # Python 3.12 is deliberate, not arbitrary. Several connector tests patch
+  # `moss_connector_<x>.ingest.MossClient`, but each package's __init__ does
+  # `from .ingest import ingest`, shadowing the submodule with the function.
+  # unittest.mock resolves that target on 3.12+ and raises AttributeError on
+  # 3.10/3.11, so a wider matrix would fail on a test-only issue. Widen it once
+  # those patch targets stop relying on the shadowed name.
+  #
+  # Not covered: packages/moss-cli — `moss completions bash|zsh` is broken
+  # (commands/completions.py exits 1 even when its fallback import succeeds) and
+  # tests/test_completions.py fails accordingly. Add moss-cli here with that fix.
+  python-package-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - agora-moss
+          - dspy-moss
+          - moss-data-connector/moss-connector-dynamodb
+          - moss-data-connector/moss-connector-huggingface
+          - moss-data-connector/moss-connector-mongodb
+          - moss-data-connector/moss-connector-mysql
+          - moss-data-connector/moss-connector-s3
+          - moss-data-connector/moss-connector-sqlite
+          - moss-data-connector/moss-connector-supabase
+          - sim-moss
+          - strands-agents-moss
+          - ten-moss
+          - vapi-moss
+    name: python-package-test (${{ matrix.package }})
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install uv
+      run: pip install uv
+    - name: Install package with dev dependencies
+      working-directory: packages/${{ matrix.package }}
+      # --all-extras covers the [project.optional-dependencies] convention used
+      # by the connectors; uv installs the default [dependency-groups] dev group
+      # used by the rest. pytest is added at run time because some packages
+      # (e.g. strands-agents-moss) don't declare it themselves.
+      run: uv sync --all-extras --python 3.12
+    - name: Run tests
+      working-directory: packages/${{ matrix.package }}
+      run: uv run --no-sync --with pytest --with pytest-asyncio pytest tests -v
+
   next-js-test:
     runs-on: ubuntu-latest
     steps:
