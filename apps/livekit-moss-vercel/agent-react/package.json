@@ -2,6 +2,9 @@
   "name": "agent-starter-react",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
@@ -52,7 +55,8 @@
   },
   "pnpm": {
     "overrides": {
-      "postcss": "^8.5.19"
+      "postcss": "8.5.19",
+      "sharp": "0.35.3"
     }
   },
   "packageManager": "pnpm@9.15.9"

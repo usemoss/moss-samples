@@ -2,6 +2,9 @@
   "name": "next-js",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -34,6 +37,7 @@
     "vitest": "^4.1.8"
   },
   "overrides": {
-    "postcss": "^8.5.19"
+    "postcss": "8.5.19",
+    "sharp": "0.35.3"
   }
 }
