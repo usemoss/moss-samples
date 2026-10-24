@@ -1,0 +1,43 @@
+{
+  "name": "@moss-tools/repo-indexer",
+  "version": "0.0.1",
+  "description": "Clone or walk a repository, chunk code and Markdown, and index into Moss.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "example:dry-run": "tsx example/dry-run.ts"
+  },
+  "keywords": [
+    "moss",
+    "repo",
+    "indexer",
+    "semantic-search",
+    "chunking",
+    "inferedge"
+  ],
+  "author": "InferEdge Inc.",
+  "license": "BSD-2-Clause",
+  "peerDependencies": {
+    "@moss-dev/moss": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.13.14",
+    "tsup": "8.4.0",
+    "tsx": "4.19.3",
+    "typescript": "5.8.2",
+    "vitest": "3.2.6"
+  }
+}
