@@ -66,7 +66,7 @@ export class SemanticSearch {
   }
 }
 
-export function debounce<T extends (...args: never[]) => void>(
+export function debounce<T extends (...args: any[]) => void>(
   fn: T,
   waitMs: number,
 ): (...args: Parameters<T>) => void {

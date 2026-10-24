@@ -95,9 +95,8 @@ export async function clearIndexCache(
   context: vscode.ExtensionContext,
 ): Promise<void> {
   const dir = indexCacheDir(context);
-  try {
-    await fsp.rm(dir, { recursive: true, force: true });
-  } catch {
-    // ignore
-  }
+  // Deliberately not swallowed. This is the only durable step stopping the next
+  // activation from restoring metadata for documents a rebuild already deleted,
+  // so a caller has to be able to tell that it failed.
+  await fsp.rm(dir, { recursive: true, force: true });
 }

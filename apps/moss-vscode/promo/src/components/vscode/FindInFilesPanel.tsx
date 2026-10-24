@@ -82,7 +82,7 @@ export const FindInFilesPanel: React.FC<FindInFilesPanelProps> = ({
           color: "#cccccc",
         }}
       >
-        **/*.{`{ts,tsx,js,md}`}
+        {"**/*.{ts,tsx,js,md}"}
       </div>
     </div>
 

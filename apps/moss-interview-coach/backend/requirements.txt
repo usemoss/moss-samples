@@ -1,0 +1,8 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-dotenv>=1.0.0
+moss>=1.4.0
+pipecat-ai[whisper,piper,webrtc,silero,openai]>=1.5.0
+httpx>=0.27.0
+pydantic>=2.0.0
+loguru>=0.7.0

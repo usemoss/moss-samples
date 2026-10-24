@@ -6,14 +6,15 @@ import { fileURLToPath } from "node:url";
 const extensionRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const lockPath = path.join(extensionRoot, "package-lock.json");
 const lock = JSON.parse(readFileSync(lockPath, "utf8"));
-const mossCoreVersion =
-  lock.packages?.["node_modules/@moss-dev/moss-core"]?.version ??
-  JSON.parse(readFileSync(path.join(extensionRoot, "package.json"), "utf8")).dependencies[
-    "@moss-dev/moss"
-  ]?.replace(/^\^/, "");
+// Require the locked moss-core version — do not fall back to @moss-dev/moss,
+// since the JS wrapper and native core versions are not guaranteed to match.
+const mossCoreVersion = lock.packages?.["node_modules/@moss-dev/moss-core"]?.version;
 
 if (!mossCoreVersion) {
-  throw new Error("Could not resolve @moss-dev/moss-core version for packaging");
+  throw new Error(
+    "Could not resolve @moss-dev/moss-core version from package-lock.json. " +
+      "Run npm install in apps/moss-vscode before packaging.",
+  );
 }
 
 const platformPackages = [

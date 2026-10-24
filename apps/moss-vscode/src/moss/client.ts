@@ -186,7 +186,15 @@ function findSystemNode(): string | undefined {
 
 function isExecutable(filePath: string): boolean {
   try {
-    return fs.existsSync(filePath);
+    const stat = fs.statSync(filePath);
+    if (!stat.isFile()) {
+      return false;
+    }
+    if (process.platform === "win32") {
+      return true;
+    }
+    fs.accessSync(filePath, fs.constants.X_OK);
+    return true;
   } catch {
     return false;
   }

@@ -1,0 +1,13 @@
+# Local voice models (downloaded at runtime)
+backend/*.onnx
+backend/*.onnx.json
+
+# Python / Node (also covered at repo root; keep local for clarity)
+backend/.venv/
+backend/**/__pycache__/
+backend/.env
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+frontend/.env
+frontend/tsconfig.tsbuildinfo

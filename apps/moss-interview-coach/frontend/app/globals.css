@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #0c1210;
+  --panel: #121a17;
+  --fog: #8fa39a;
+  --cream: #e8f0ec;
+  --accent: #3dffa8;
+  --accent-dim: #1a7a52;
+  --warn: #ffb35c;
+  --danger: #ff6b6b;
+  --ring-user: #5eead4;
+  --ring-ai: #3dffa8;
+  --font-display: var(--font-instrument-serif), Georgia, serif;
+  --font-body: var(--font-dm-sans), system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--ink);
+  color: var(--cream);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(61, 255, 168, 0.12), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 90% 80%, rgba(30, 90, 70, 0.25), transparent 50%),
+    linear-gradient(180deg, #0c1210 0%, #0a100e 100%);
+  background-attachment: fixed;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+@keyframes pulse-ring {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes flash-interrupt {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 179, 92, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 18px rgba(255, 179, 92, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 179, 92, 0);
+  }
+}
+
+.ring-pulse {
+  animation: pulse-ring 1.4s ease-in-out infinite;
+}
+
+@keyframes assist-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes grading-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.assist-panel {
+  animation: assist-fade 0.45s ease-out both;
+}
+
+.assist-grading {
+  animation: grading-pulse 1.4s ease-in-out infinite;
+}
+
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(232, 240, 236, 0.08) 0%,
+    rgba(61, 255, 168, 0.25) 50%,
+    rgba(232, 240, 236, 0.08) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.interrupt-flash {
+  animation: flash-interrupt 0.9s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring-pulse,
+  .loading-shimmer,
+  .assist-panel,
+  .assist-grading,
+  .interrupt-flash {
+    animation: none;
+  }
+}

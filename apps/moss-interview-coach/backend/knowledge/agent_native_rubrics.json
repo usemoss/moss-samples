@@ -1,0 +1,52 @@
+[
+  {
+    "id": "agent-runtimes",
+    "title": "Agent Runtimes",
+    "text": "Agent Runtimes grading rubric: Strong answers cover the control loop (perceive → plan → act → observe), isolation boundaries for untrusted tools, timeout/cancellation of long-running steps, and how state survives process restarts. Probe concurrency model (single-threaded turn vs parallel tool fan-out), sandboxed code execution, and observability (traces per turn/tool). Deduct for treating the LLM as the runtime without discussing failure modes, retries, or deterministic orchestration around the model.",
+    "metadata": {
+      "topic": "Agent Runtimes",
+      "difficulty": "hard",
+      "category": "agents"
+    }
+  },
+  {
+    "id": "tool-calling",
+    "title": "Tool Calling",
+    "text": "Tool Calling grading rubric: Expect clear tool schemas (name, args, side-effect flags), validation of model-produced arguments, idempotency for mutating tools (state-changing tools), and allowlists vs open function registries. Strong answers discuss parallel vs sequential tools, human-in-the-loop for irreversible actions, and how tool errors are fed back into the next turn. Probe prompt injection via tool results and least-privilege credentials. Deduct for only describing JSON function calling without safety or reliability concerns.",
+    "metadata": {
+      "topic": "Tool Calling",
+      "difficulty": "medium",
+      "category": "agents"
+    }
+  },
+  {
+    "id": "agent-memory",
+    "title": "Agent Memory",
+    "text": "Agent Memory grading rubric: Candidates should distinguish short-term context window, episodic session memory, and long-term retrieval (vector/keyword). Probe write policies (what to store), summarization vs raw transcripts, PII redaction, and freshness/TTL. Strong answers cover hybrid retrieval, session isolation between users, and when not to use RAG. Deduct for equating 'memory' only with a larger context window or ignoring stale/conflicting memories.",
+    "metadata": {
+      "topic": "Agent Memory",
+      "difficulty": "hard",
+      "category": "agents"
+    }
+  },
+  {
+    "id": "orchestration",
+    "title": "Orchestration",
+    "text": "Orchestration grading rubric: Expect patterns for multi-step workflows—graphs/state machines vs free-form ReAct, handoffs between specialized agents, and where the planner vs executor boundary sits. Probe durability (resume after crash), branching on tool outcomes, and budget caps (tokens/time/cost). Strong answers mention eval hooks at graph nodes and avoiding infinite agent loops. Deduct for a vague 'agent swarm' without control flow, termination conditions, or failure handling.",
+    "metadata": {
+      "topic": "Orchestration",
+      "difficulty": "hard",
+      "category": "agents"
+    }
+  },
+  {
+    "id": "agent-evals",
+    "title": "Agent Evals",
+    "text": "Agent Evals grading rubric: Expect offline vs online evaluation, trajectory grading (not only final answer), tool-use success rates, and regression suites when prompts/models change. Strong answers cover golden transcripts, LLM-as-judge pitfalls, human review sampling, and production monitors (latency, tool error rate, policy violations). Probe red-team cases for prompt injection. Deduct for only mentioning 'chatbot accuracy' without multi-step or tool metrics.",
+    "metadata": {
+      "topic": "Agent Evals",
+      "difficulty": "medium",
+      "category": "agents"
+    }
+  }
+]

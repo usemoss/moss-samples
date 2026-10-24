@@ -423,7 +423,12 @@ async function bootstrap(
     const message = err instanceof Error ? err.message : String(err);
     log(`Restore failed: ${message}`);
     await clearWorkspaceIndexed(context);
-    await clearIndexCache(context).catch(() => undefined);
+    // Best-effort here: the workspace-indexed marker is already cleared above,
+    // so a leftover directory cannot be restored from. Still log it rather than
+    // discarding the reason silently.
+    await clearIndexCache(context).catch((cacheErr: unknown) => {
+      log(`Could not remove the unusable index cache: ${String(cacheErr)}`);
+    });
     sessionManager.dispose();
     indexer.restoreFromMeta({});
     provider.setStatus({ state: "unindexed" });
@@ -510,6 +515,35 @@ async function runCreateIndex(
     if (statusBarItem) {
       statusBarItem.text = "$(error) Moss: error";
       statusBarItem.tooltip = message;
+    }
+  } finally {
+    // rebuild() deletes the previous documents before scanning, so any run that
+    // got that far and did not end ready leaves the on-disk cache describing
+    // documents that no longer exist — cancelled, or thrown from
+    // readFileForIndex()/addDocs() midway. persistIndex() refuses to write
+    // while unindexed, so drop the cache here instead, in a finally so the
+    // throw path cannot skip it.
+    //
+    // Gated on hasDiscardedPreviousIndex() so a failure *before* deletion began
+    // (session setup, workspace scan) keeps the cache — those documents are
+    // still intact and re-indexing from scratch would be wasted work.
+    if (!indexer.isIndexed() && indexer.hasDiscardedPreviousIndex()) {
+      try {
+        await clearIndexCache(context);
+        log("Index not ready; cleared stale index cache.");
+      } catch (err) {
+        // Only reached if the cache directory could not be removed. Leaving it
+        // would let the next activation restore metadata describing documents
+        // this rebuild deleted, so drop the workspace-indexed marker as a
+        // second line of defence and make the failure visible rather than
+        // logging a success that did not happen.
+        const message = err instanceof Error ? err.message : String(err);
+        log(`Failed to clear stale index cache: ${message}`);
+        await clearWorkspaceIndexed(context).catch(() => undefined);
+        vscode.window.showWarningMessage(
+          `Moss could not clear its stale index cache (${message}). Run “Moss: Create Index” to rebuild.`,
+        );
+      }
     }
   }
 }

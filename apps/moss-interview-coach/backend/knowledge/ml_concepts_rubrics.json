@@ -1,0 +1,52 @@
+[
+  {
+    "id": "supervised-learning-basics",
+    "title": "Supervised Learning Basics",
+    "text": "Supervised Learning Basics grading rubric: Expect clear framing of features vs labels, train/validation/test splits, overfitting vs underfitting, and bias–variance intuition. Probe classification vs regression loss choices and why holdout leakage matters. Strong answers relate model capacity to data size and mention baselines before complex models. Deduct for jargon without tying it to a concrete prediction problem or evaluation plan.",
+    "metadata": {
+      "topic": "Supervised Learning Basics",
+      "difficulty": "medium",
+      "category": "ml"
+    }
+  },
+  {
+    "id": "evaluation-metrics",
+    "title": "Evaluation Metrics",
+    "text": "Evaluation Metrics grading rubric: Candidates should match metrics to the problem—accuracy vs precision/recall/F1 for imbalanced classification, ROC-AUC vs PR-AUC, calibration, and ranking metrics when relevant. Probe business cost of false positives vs false negatives and threshold selection. Strong answers warn against optimizing a metric that ignores class imbalance or latency constraints. Deduct for listing metrics without justifying which fit the stated use case.",
+    "metadata": {
+      "topic": "Evaluation Metrics",
+      "difficulty": "medium",
+      "category": "ml"
+    }
+  },
+  {
+    "id": "training-vs-inference",
+    "title": "Training vs Inference",
+    "text": "Training vs Inference grading rubric: Expect candidates to contrast training (forward+backward passes, optimizer steps, checkpointing) with inference (forward-only scoring). Hardware, batching, latency, and throughput trade-offs are workload-dependent—not a single 'batch GPU training vs low-latency serving' template. Probe quantization/distillation for deploy, train–serve skew, model/feature versioning, warm starts, and rollback. Strong answers cover monitoring prediction drift and when to retrain. Deduct for treating training and serving as the same pipeline or ignoring how inference constraints differ from optimization-time compute.",
+    "metadata": {
+      "topic": "Training vs Inference",
+      "difficulty": "hard",
+      "category": "ml"
+    }
+  },
+  {
+    "id": "feature-pipelines",
+    "title": "Feature Pipelines",
+    "text": "Feature Pipelines grading rubric: Expect point-in-time correctness, offline vs online feature stores, feature freshness SLAs, and leakage from future data. Probe categorical encoding, missing values, and consistency between training and serving transforms. Strong answers mention ownership of features, backfills, and monitoring feature distributions. Deduct for only describing pandas transforms without addressing production consistency or leakage.",
+    "metadata": {
+      "topic": "Feature Pipelines",
+      "difficulty": "hard",
+      "category": "ml"
+    }
+  },
+  {
+    "id": "model-systems-tradeoffs",
+    "title": "Model Systems Trade-offs",
+    "text": "Model Systems Trade-offs grading rubric: Candidates should compare classical ML vs deep learning vs LLMs for a problem in terms of data needs, interpretability, latency, and ops cost. Probe ensemble vs single model, online learning vs batch retrain, and human override paths. Strong answers quantify constraints (QPS, p99 latency, labeling budget) before picking an architecture. Deduct for always defaulting to the largest model without constraints.",
+    "metadata": {
+      "topic": "Model Systems Trade-offs",
+      "difficulty": "medium",
+      "category": "ml"
+    }
+  }
+]

@@ -1,0 +1,52 @@
+[
+  {
+    "id": "whatsapp-architecture",
+    "title": "WhatsApp Architecture",
+    "text": "WhatsApp Architecture grading rubric: Strong answers cover the client–server messaging model, connection keep-alive via XMPP-like persistent sockets, message queues for offline delivery, end-to-end encryption (Signal protocol), media handled via CDN object stores rather than chat servers, and horizontal scaling of chat/session services. Probe for: message ordering guarantees, last-write-wins vs vector clocks, and how multi-device sync works. Deduct points for ignoring offline queues, encryption key management, or treating media as chat payload.",
+    "metadata": {
+      "topic": "WhatsApp Architecture",
+      "difficulty": "hard",
+      "category": "messaging"
+    }
+  },
+  {
+    "id": "rate-limiting",
+    "title": "Rate Limiting",
+    "text": "Rate Limiting grading rubric: Expect candidates to compare token bucket, leaky bucket, fixed window, and sliding window counters. Look for distributed rate limiting with Redis using atomic counter+TTL setup (Lua script or MULTI/EXEC transaction for INCR with EXPIRE—not a bare non-atomic INCR followed by EXPIRE that can strand counters), where limits apply (edge gateway vs service), and fairness under bursty traffic. Strong answers mention 429 responses with Retry-After, per-user/per-IP/per-API-key dimensions, and fail-open vs fail-closed tradeoffs. Deduct for only naming algorithms without justifying choice for the stated scale, or for Redis patterns that omit atomic window initialization.",
+    "metadata": {
+      "topic": "Rate Limiting",
+      "difficulty": "medium",
+      "category": "api-gateway"
+    }
+  },
+  {
+    "id": "database-sharding",
+    "title": "Database Sharding",
+    "text": "Database Sharding grading rubric: Candidates should explain horizontal partitioning by shard key, hash vs range vs directory-based sharding, and rebalancing/resharding costs. Probe cross-shard joins, transactions, hotspots (celebrity keys), and consistent hashing. Strong answers cover lookup services, secondary indexes, and when to prefer vertical partitioning or read replicas instead. Deduct for ignoring operational complexity of schema migrations and global uniqueness of IDs (Snowflake/ULID).",
+    "metadata": {
+      "topic": "Database Sharding",
+      "difficulty": "hard",
+      "category": "databases"
+    }
+  },
+  {
+    "id": "cdn-caching",
+    "title": "CDN Caching",
+    "text": "CDN Caching grading rubric: Expect coverage of edge PoPs, cache hit ratio, Cache-Control / ETag / TTL, origin shield, and invalidation vs versioned URLs. Strong answers distinguish static assets from dynamic/API content, discuss cache stampedes, and geographic routing. Probe soft vs hard TTLs and how signed URLs protect media. Deduct for treating CDN as a magic bullet for personalized pages without explaining cache keys and Vary headers.",
+    "metadata": {
+      "topic": "CDN Caching",
+      "difficulty": "medium",
+      "category": "caching"
+    }
+  },
+  {
+    "id": "cap-theorem",
+    "title": "CAP Theorem",
+    "text": "CAP Theorem grading rubric: Expect a clear statement that under network Partition a system chooses Consistency or Availability. Probe PACELC (else latency vs consistency when no partition). Strong answers map real systems: CP examples (etcd/ZooKeeper-like), AP examples (Dynamo-style eventual consistency), and why CA is not meaningful under partition. Deduct for treating CAP as three binary switches you can pick freely, or confusing consistency models (linearizability vs eventual) without relating them to the use case.",
+    "metadata": {
+      "topic": "CAP Theorem",
+      "difficulty": "medium",
+      "category": "distributed-systems"
+    }
+  }
+]

@@ -1,0 +1,31 @@
+{
+  "name": "sd-interview-coach",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@pipecat-ai/client-js": "^1.12.0",
+    "@pipecat-ai/small-webrtc-transport": "^1.10.5",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "^15.1.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0"
+  }
+}
